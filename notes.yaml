@@ -1,0 +1,53 @@
+entries:
+  - date: 2025-09-08
+    summary: "Add PRD documentation and notes tracking file."
+    alignment_with_prd: "Establishes baseline PRD document and tracking for future development."
+    done:
+      - "Added docs/prd.md with full PRD."
+      - "Created notes.yaml to track project alignment and progress."
+    tested:
+      - command: "pytest"
+        result: "errors: ModuleNotFoundError: No module named 'torch'"
+    new_tasks:
+      - "Populate notes.yaml for future commits."
+      - "Implement modules and features outlined in the PRD."
+  - date: 2025-09-08
+    summary: "Refactor demo profiling and add simulation tests."
+    alignment_with_prd: "Ensures demo telemetry utilities are reliable, supporting MVP telemetry and demo goals."
+    done:
+      - "Refactored profile_sample_models to log warnings and report successes."
+      - "Added tests for sample model profiling flow."
+    tested:
+      - command: "pytest"
+        result: "17 passed"
+      - command: "python agnitra/demo/demo.py --profile-samples"
+        result: "warnings for missing model deps"
+    new_tasks:
+      - "Validate notebook execution in CI."
+  - date: 2025-09-08
+    summary: "Refactor CLI for resilience and add CLI tests."
+    alignment_with_prd: "Hardens tooling for real-world usage and improves test coverage across modules."
+    done:
+      - "Refactored CLI into modular components with graceful error handling."
+      - "Added high-level tests for CLI profile command."
+      - "Introduced issues tracking section in notes."
+    tested:
+      - command: "pytest"
+        result: "19 passed"
+    new_tasks:
+      - "Record issues encountered during real-world usage."
+  - date: 2025-09-08
+    summary: "Add simulation tests for demo entry point and notebook."
+    alignment_with_prd: "Expands test coverage to demos and documentation for reproducible workflows."
+    done:
+      - "Created tests for demo.main with and without sample profiling."
+      - "Executed enhanced notebook in a simulated environment."
+    tested:
+      - command: "pytest"
+        result: "22 passed"
+    new_tasks:
+      - "Install optional dependencies for full notebook coverage."
+issues:
+  - date: 2025-09-08
+    description: "CLI profiling crashed when model file was missing."
+    resolution: "Added graceful error handling in CLI profile command."

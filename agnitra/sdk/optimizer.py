@@ -1,0 +1,181 @@
+import json
+import logging
+from typing import Any, Dict, List, Optional
+
+import torch
+from torch import nn
+from torch.fx import symbolic_trace
+from torch.profiler import ProfilerActivity, profile, record_function
+
+from .deps import require_openai, require_sb3
+
+logger = logging.getLogger(__name__)
+
+
+def collect_telemetry(model: nn.Module, input_tensor: torch.Tensor) -> List[Dict[str, Any]]:
+    """Collect basic profiler telemetry for a single model forward pass."""
+    activities = [ProfilerActivity.CPU]
+    if torch.cuda.is_available():
+        activities.append(ProfilerActivity.CUDA)
+    telemetry: List[Dict[str, Any]] = []
+    with profile(activities=activities, record_shapes=True, profile_memory=True) as prof:
+        with record_function("model_inference"):
+            _ = model(input_tensor)
+    for evt in prof.key_averages():
+        cpu_time_total = getattr(evt, "cpu_time_total", 0.0)
+        cuda_time_total = getattr(evt, "cuda_time_total", 0.0)
+        input_shapes = getattr(evt, "input_shapes", [])
+        cpu_mem = getattr(evt, "self_cpu_memory_usage", 0)
+        cuda_mem = getattr(evt, "self_cuda_memory_usage", 0)
+        telemetry.append(
+            {
+                "name": evt.key,
+                "cpu_time_ms": cpu_time_total / 1e6,
+                "cuda_time_ms": (cuda_time_total / 1e6) if torch.cuda.is_available() else 0.0,
+                "input_shape": input_shapes,
+                "cpu_memory_bytes": cpu_mem,
+                "cuda_memory_bytes": cuda_mem if torch.cuda.is_available() else 0,
+            }
+        )
+    return telemetry
+
+
+def extract_ir(model: nn.Module, telemetry: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Extract a simple IR using torch.fx and attach telemetry."""
+    traced = symbolic_trace(model)
+    ir_nodes: List[Dict[str, Any]] = []
+    for node in traced.graph.nodes:
+        matched = next((t for t in telemetry if node.target and node.target in str(t["name"])), None)
+        ir_nodes.append(
+            {
+                "op": node.op,
+                "target": str(node.target),
+                "args": str(node.args),
+                "kwargs": str(node.kwargs),
+                "telemetry": matched,
+            }
+        )
+    return ir_nodes
+
+
+def request_kernel_suggestions(
+    telemetry: List[Dict[str, Any]],
+    ir_nodes: List[Dict[str, Any]],
+    client: Optional[Any] = None,
+    model_name: str = "codex-latest",
+) -> Optional[str]:
+    """Call an LLM to request kernel suggestions. Returns text or ``None``."""
+    if client is None:
+        try:
+            OpenAI = require_openai()
+            client = OpenAI()
+        except Exception as exc:  # pragma: no cover - best effort
+            logger.info("%s", exc)
+            return None
+    try:
+        ir_json = json.dumps(ir_nodes)
+    except TypeError:
+        ir_json = json.dumps([{ "op": n["op"], "target": n["target"] } for n in ir_nodes])
+    system_message = {
+        "role": "system",
+        "content": [
+            {
+                "type": "input_text",
+                "text": "You are an expert GPU kernel optimizer. Given telemetry and an IR graph, suggest block size, tile size and unroll factors to reduce latency.",
+            }
+        ],
+    }
+    user_message = {
+        "role": "user",
+        "content": [
+            {
+                "type": "input_text",
+                "text": f"Telemetry: {telemetry} IR graph: {ir_json} Provide optimized kernel parameters and rationale.",
+            }
+        ],
+    }
+    response = client.responses.create(
+        model=model_name, input=[system_message, user_message], max_output_tokens=1024, store=False
+    )
+    optimized_text = ""
+    try:
+        for item in getattr(response, "output", []) or []:
+            for entry in getattr(item, "content", []) or []:
+                optimized_text += getattr(entry, "text", "") or ""
+    except (AttributeError, TypeError):
+        logger.info("Unexpected response schema for kernel suggestions")
+    return optimized_text.strip() if optimized_text else None
+
+
+def run_rl_tuning(telemetry: List[Dict[str, Any]], ir_nodes: List[Dict[str, Any]]) -> None:
+    """Placeholder reinforcement learning tuner."""
+    try:
+        PPO, gym = require_sb3()
+    except Exception as exc:  # pragma: no cover - best effort
+        logger.info("%s", exc)
+        return
+    env = None
+    try:
+        try:
+            env = gym.make("CartPole-v1")
+        except Exception:
+            logger.warning(
+                "Gym environment 'CartPole-v1' not found; skipping RL tuning"
+            )
+            return
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        model_rl = PPO(
+            "MlpPolicy",
+            env,
+            verbose=0,
+            n_steps=1,
+            batch_size=4,
+            ent_coef=0.0,
+            n_epochs=1,
+            device=device,
+        )
+        model_rl.learn(total_timesteps=10)
+    finally:
+        if env is not None:
+            env.close()
+
+
+def optimize_model(
+    model: nn.Module,
+    input_tensor: torch.Tensor,
+    client: Optional[Any] = None,
+    enable_rl: bool = True,
+) -> nn.Module:
+    """Run the optimization pipeline with graceful fallbacks.
+
+    On any stage failure, the exception is logged and the baseline model is returned
+    untouched.
+    """
+    try:
+        telemetry = collect_telemetry(model, input_tensor)
+    except Exception:  # pragma: no cover - exercised via tests
+        logger.exception("Telemetry collection failed")
+        return model
+
+    try:
+        ir_nodes = extract_ir(model, telemetry)
+    except Exception:  # pragma: no cover - exercised via tests
+        logger.exception("IR extraction failed")
+        return model
+
+    try:
+        suggestion = request_kernel_suggestions(telemetry, ir_nodes, client=client)
+        if suggestion:
+            logger.info("LLM suggestion: %s", suggestion)
+    except Exception:  # pragma: no cover - exercised via tests
+        logger.exception("LLM call failed")
+        return model
+
+    if enable_rl:
+        try:
+            run_rl_tuning(telemetry, ir_nodes)
+        except Exception:  # pragma: no cover - exercised via tests
+            logger.exception("RL tuning failed")
+            return model
+
+    return model
