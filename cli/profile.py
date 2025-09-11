@@ -384,6 +384,8 @@ def run(model_path: Path, input_shape: Sequence[int], telemetry_out: Path, artif
             "meta": payload.get("meta", {}),
             "gpu": payload.get("gpu", {}),
             "summary": summary,
+            # Include rich per-layer profile (params, buffers, IO shapes, dtypes)
+            "model_profile": payload.get("model", {}),
             "training_summary": tsummary,
             "validation_summary": vsummary,
         }

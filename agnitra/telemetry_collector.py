@@ -216,6 +216,246 @@ def _capture_gpu_metrics() -> GpuTelemetry:
             pass
 
 
+def _dtype_str(dt: Any) -> str:
+    """Return a compact dtype string (e.g., 'float16', 'bfloat16')."""
+
+    try:
+        s = str(dt)
+        if s.startswith("torch."):
+            s = s[len("torch.") :]
+        return s
+    except Exception:
+        return str(dt)
+
+
+def _module_common_attrs(m: Any) -> Dict[str, Any]:
+    """Extract a small set of well-known attributes for common layers.
+
+    Keeps the output compact but informative without introspecting arbitrary
+    fields. The selection is conservative to avoid brittle dependencies.
+    """
+
+    attrs: Dict[str, Any] = {}
+    try:  # Only if torch is available
+        if torch is None:
+            return attrs
+        import torch.nn as nn  # type: ignore
+
+        if isinstance(m, nn.Linear):
+            attrs.update(
+                {
+                    "in_features": getattr(m, "in_features", None),
+                    "out_features": getattr(m, "out_features", None),
+                    "bias": getattr(m, "bias", None) is not None,
+                }
+            )
+        elif isinstance(m, (nn.Conv1d, nn.Conv2d, nn.Conv3d)):
+            attrs.update(
+                {
+                    "in_channels": getattr(m, "in_channels", None),
+                    "out_channels": getattr(m, "out_channels", None),
+                    "kernel_size": tuple(getattr(m, "kernel_size", ())) or None,
+                    "stride": tuple(getattr(m, "stride", ())) or None,
+                    "padding": tuple(getattr(m, "padding", ())) or None,
+                    "dilation": tuple(getattr(m, "dilation", ())) or None,
+                    "groups": getattr(m, "groups", None),
+                    "bias": getattr(m, "bias", None) is not None,
+                }
+            )
+        elif isinstance(m, (nn.LayerNorm,)):
+            attrs.update(
+                {
+                    "normalized_shape": tuple(getattr(m, "normalized_shape", ())) or None,
+                    "eps": getattr(m, "eps", None),
+                    "elementwise_affine": getattr(m, "elementwise_affine", None),
+                }
+            )
+        elif isinstance(m, (nn.BatchNorm1d, nn.BatchNorm2d, nn.BatchNorm3d)):
+            attrs.update(
+                {
+                    "num_features": getattr(m, "num_features", None),
+                    "eps": getattr(m, "eps", None),
+                    "momentum": getattr(m, "momentum", None),
+                    "affine": getattr(m, "affine", None),
+                    "track_running_stats": getattr(m, "track_running_stats", None),
+                }
+            )
+    except Exception:
+        # Best effort; missing attrs are simply omitted
+        pass
+    return attrs
+
+
+def _collect_model_structure(model: Any) -> Dict[str, Any]:
+    """Return a structured summary of modules, params, buffers and dtypes.
+
+    This does not perform a forward pass. It complements profiler events with
+    accurate parameter metadata (shapes, dtypes, learnable flags, devices).
+    """
+
+    info: Dict[str, Any] = {"layers": []}
+    if model is None:
+        return info
+
+    # Aggregate level metrics
+    total_params = 0
+    trainable_params = 0
+    dtype_hist: Dict[str, int] = {}
+    buffer_hist: Dict[str, int] = {}
+
+    try:
+        # Named modules for stable identifiers
+        for mod_name, m in getattr(model, "named_modules", lambda: [])():  # type: ignore[misc]
+            try:
+                # Local-only params/buffers to avoid duplication from parents
+                params = []
+                for pname, p in getattr(m, "named_parameters", lambda **k: [])(recurse=False):  # type: ignore[misc]
+                    try:
+                        dt = _dtype_str(getattr(p, "dtype", None))
+                        numel = int(getattr(p, "numel", lambda: 0)())
+                        total_params += numel
+                        if bool(getattr(p, "requires_grad", False)):
+                            trainable_params += numel
+                        dtype_hist[dt] = dtype_hist.get(dt, 0) + numel
+                        params.append(
+                            {
+                                "name": str(pname),
+                                "shape": list(getattr(p, "shape", [])),
+                                "numel": numel,
+                                "dtype": dt,
+                                "device": str(getattr(p, "device", "")),
+                                "requires_grad": bool(getattr(p, "requires_grad", False)),
+                                "kind": ("weight" if pname == "weight" else ("bias" if pname == "bias" else "parameter")),
+                            }
+                        )
+                    except Exception:
+                        continue
+
+                buffers = []
+                for bname, b in getattr(m, "named_buffers", lambda **k: [])(recurse=False):  # type: ignore[misc]
+                    try:
+                        dt = _dtype_str(getattr(b, "dtype", None))
+                        numel = int(getattr(b, "numel", lambda: 0)())
+                        buffer_hist[dt] = buffer_hist.get(dt, 0) + numel
+                        buffers.append(
+                            {
+                                "name": str(bname),
+                                "shape": list(getattr(b, "shape", [])),
+                                "numel": numel,
+                                "dtype": dt,
+                                "device": str(getattr(b, "device", "")),
+                                "kind": "buffer",
+                            }
+                        )
+                    except Exception:
+                        continue
+
+                layer = {
+                    "name": str(mod_name),
+                    "type": getattr(m, "__class__", type(m)).__name__,
+                    "class_path": f"{m.__class__.__module__}.{m.__class__.__name__}",
+                    "parameters": params,
+                    "buffers": buffers,
+                    "attributes": _module_common_attrs(m),
+                }
+                info["layers"].append(layer)
+            except Exception:
+                continue
+
+        info["parameter_count_total"] = int(total_params)
+        info["parameter_count_trainable"] = int(trainable_params)
+        info["parameter_count_frozen"] = int(total_params - trainable_params)
+        info["parameter_dtypes"] = dtype_hist
+        info["buffer_dtypes"] = buffer_hist
+        # Heuristic default dtype: most common by count
+        if dtype_hist:
+            info["model_dtype"] = max(dtype_hist.items(), key=lambda kv: kv[1])[0]
+        else:
+            info["model_dtype"] = None
+    except Exception:
+        # Leave info minimal on failure
+        pass
+
+    return info
+
+
+def _collect_module_io_shapes(model: Any, input_tensor: Any) -> Dict[str, Dict[str, Any]]:
+    """Run a single forward pass with hooks to capture IO shapes and dtypes.
+
+    Returns a mapping from module-qualified-name to a dict with keys
+    'input_shapes', 'output_shapes' and 'output_dtype'. When hooks are not
+    available, returns an empty mapping.
+    """
+
+    if torch is None:
+        return {}
+
+    io: Dict[str, Dict[str, Any]] = {}
+
+    def as_shapes(x: Any) -> List[List[int]]:
+        try:
+            import torch as _t  # local
+            if isinstance(x, _t.Tensor):
+                return [list(x.shape)]
+            if isinstance(x, (list, tuple)):
+                out: List[List[int]] = []
+                for itm in x:
+                    out.extend(as_shapes(itm))
+                return out
+            return []
+        except Exception:
+            return []
+
+    def out_dtype(x: Any) -> Optional[str]:
+        try:
+            import torch as _t
+            if isinstance(x, _t.Tensor):
+                return _dtype_str(x.dtype)
+            if isinstance(x, (list, tuple)):
+                for itm in x:
+                    d = out_dtype(itm)
+                    if d is not None:
+                        return d
+            return None
+        except Exception:
+            return None
+
+    handles: List[Any] = []
+    try:
+        named_modules = dict(getattr(model, "named_modules", lambda: [])())  # type: ignore[misc]
+        for name, m in named_modules.items():
+            try:
+                def _pre(_m, inputs, _name=name):  # type: ignore[no-redef]
+                    io.setdefault(_name, {})["input_shapes"] = as_shapes(inputs)
+
+                def _post(_m, inputs, output, _name=name):  # type: ignore[no-redef]
+                    io.setdefault(_name, {})["output_shapes"] = as_shapes(output)
+                    io.setdefault(_name, {})["output_dtype"] = out_dtype(output)
+
+                handles.append(m.register_forward_pre_hook(_pre))
+                handles.append(m.register_forward_hook(_post))
+            except Exception:
+                continue
+
+        # One forward pass to trigger hooks
+        model(input_tensor)
+        if torch.cuda.is_available():
+            try:
+                torch.cuda.synchronize()
+            except Exception:
+                pass
+    except Exception:
+        return {}
+    finally:
+        for h in handles:
+            try:
+                h.remove()
+            except Exception:
+                pass
+
+    return io
+
+
 def _heuristic_tinyllama_recommendations(events: List["EventTelemetry"]) -> Dict[str, Any]:
     """Return quick, hardware-friendly hints for TinyLlama-like workloads.
 
@@ -353,6 +593,13 @@ def profile_model(
         model = model.to("cuda")
         input_tensor = input_tensor.to("cuda")
 
+    # Optionally capture layer IO shapes via forward hooks (best effort)
+    layer_io: Dict[str, Dict[str, Any]] = {}
+    try:
+        layer_io = _collect_module_io_shapes(model, input_tensor)
+    except Exception:
+        layer_io = {}
+
     with profile(
         activities=activities,
         record_shapes=True,
@@ -392,6 +639,17 @@ def profile_model(
 
     gpu = _capture_gpu_metrics()
 
+    # Model/module/parameter summary (static)
+    model_info = _collect_model_structure(model)
+    # Merge IO shapes (dynamic) into layer entries by name
+    if model_info.get("layers") and layer_io:
+        by_name = {layer.get("name", ""): layer for layer in model_info["layers"]}
+        for lname, io in layer_io.items():
+            if lname in by_name:
+                by_name[lname]["input_shapes"] = io.get("input_shapes", [])
+                by_name[lname]["output_shapes"] = io.get("output_shapes", [])
+                by_name[lname]["output_dtype"] = io.get("output_dtype")
+
     recommendations: Optional[Dict[str, Any]] = None
     if with_rl:
         # Try RL first, then heuristics if needed
@@ -426,6 +684,7 @@ def profile_model(
         "events": [e.to_dict() for e in events],
         "gpu": gpu.to_dict(),
         "meta": meta,
+        "model": model_info,
     }
     if with_rl and recommendations is not None:
         payload["recommendations"] = recommendations

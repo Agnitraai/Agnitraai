@@ -1,0 +1,595 @@
+{
+  "model": "toy.pt",
+  "device": "NVIDIA A100-SXM4-40GB",
+  "meta": {
+    "python_version": "3.12.11",
+    "torch_version": "2.8.0+cu126",
+    "cuda_available": true,
+    "cuda_version": "12.6",
+    "cudnn_version": 91002,
+    "device_name": "NVIDIA A100-SXM4-40GB",
+    "device_capability": [
+      8,
+      0
+    ],
+    "model_num_parameters": 10
+  },
+  "gpu": {
+    "gpu_utilisation": 0,
+    "memory_utilisation": 0,
+    "power_watts": 50.227,
+    "temperature_c": 34.0,
+    "fan_speed_pct": null,
+    "name": "NVIDIA A100-SXM4-40GB",
+    "driver_version": "550.54.15",
+    "vram_total_mb": 40960.0,
+    "vram_used_mb": 1463.75,
+    "vram_free_mb": 39496.25,
+    "cuda_allocated_mb": 8.12744140625,
+    "cuda_reserved_mb": 22.0
+  },
+  "summary": {
+    "num_events": 10,
+    "total_cuda_time_ms": 0.0,
+    "total_cpu_time_ms": 0.00703107,
+    "top_by_time": [
+      {
+        "name": "aten::linear",
+        "cuda_ms": 0.0,
+        "cpu_ms": 0.0023899200000000002,
+        "count": 1,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::t",
+        "cuda_ms": 0.0,
+        "cpu_ms": 4.605300000000003e-05,
+        "count": 1,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::transpose",
+        "cuda_ms": 0.0,
+        "cpu_ms": 1.2659999999999969e-05,
+        "count": 1,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::as_strided",
+        "cuda_ms": 0.0,
+        "cpu_ms": 3.802000000000021e-06,
+        "count": 1,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::addmm",
+        "cuda_ms": 0.0,
+        "cpu_ms": 0.002333716,
+        "count": 1,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "Unrecognized",
+        "cuda_ms": 0.0,
+        "cpu_ms": 0.002206227,
+        "count": 1,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "cudaLaunchKernel",
+        "cuda_ms": 0.0,
+        "cpu_ms": 2.586000000000013e-05,
+        "count": 1,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "std::enable_if<!(false), void>::type internal::gemvx::kernel<int, int, float, float, float, float, false, true, true, false, 7, false, cublasGemvParamsEx<int, cublasGemvTensorStridedBatched<float const>, cublasGemvTensorStridedBatched<float const>, cublasGemvTensorStridedBatched<float>, float> >(cublasGemvParamsEx<int, cublasGemvTensorStridedBatched<float const>, cublasGemvTensorStridedBatched<float const>, cublasGemvTensorStridedBatched<float>, float>)",
+        "cuda_ms": 0.0,
+        "cpu_ms": 0.0,
+        "count": 1,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "[memory]",
+        "cuda_ms": 0.0,
+        "cpu_ms": 0.0,
+        "count": 1,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "cudaDeviceSynchronize",
+        "cuda_ms": 0.0,
+        "cpu_ms": 1.2832000000000334e-05,
+        "count": 2,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      }
+    ],
+    "top_by_mem": [
+      {
+        "name": "aten::linear",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::t",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::transpose",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::as_strided",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::addmm",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "Unrecognized",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "cudaLaunchKernel",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "std::enable_if<!(false), void>::type internal::gemvx::kernel<int, int, float, float, float, float, false, true, true, false, 7, false, cublasGemvParamsEx<int, cublasGemvTensorStridedBatched<float const>, cublasGemvTensorStridedBatched<float const>, cublasGemvTensorStridedBatched<float>, float> >(cublasGemvParamsEx<int, cublasGemvTensorStridedBatched<float const>, cublasGemvTensorStridedBatched<float const>, cublasGemvTensorStridedBatched<float>, float>)",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "[memory]",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "cudaDeviceSynchronize",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      }
+    ]
+  },
+  "model_profile": {
+    "layers": [
+      {
+        "name": "",
+        "type": "Toy",
+        "class_path": "__main__.Toy",
+        "parameters": [],
+        "buffers": [],
+        "attributes": {},
+        "input_shapes": [
+          [
+            1,
+            4
+          ]
+        ],
+        "output_shapes": [
+          [
+            1,
+            2
+          ]
+        ],
+        "output_dtype": "float32"
+      },
+      {
+        "name": "l",
+        "type": "Linear",
+        "class_path": "torch.nn.modules.linear.Linear",
+        "parameters": [
+          {
+            "name": "weight",
+            "shape": [
+              2,
+              4
+            ],
+            "numel": 8,
+            "dtype": "float32",
+            "device": "cuda:0",
+            "requires_grad": true,
+            "kind": "weight"
+          },
+          {
+            "name": "bias",
+            "shape": [
+              2
+            ],
+            "numel": 2,
+            "dtype": "float32",
+            "device": "cuda:0",
+            "requires_grad": true,
+            "kind": "bias"
+          }
+        ],
+        "buffers": [],
+        "attributes": {
+          "in_features": 4,
+          "out_features": 2,
+          "bias": true
+        },
+        "input_shapes": [
+          [
+            1,
+            4
+          ]
+        ],
+        "output_shapes": [
+          [
+            1,
+            2
+          ]
+        ],
+        "output_dtype": "float32"
+      }
+    ],
+    "parameter_count_total": 10,
+    "parameter_count_trainable": 10,
+    "parameter_count_frozen": 0,
+    "parameter_dtypes": {
+      "float32": 10
+    },
+    "buffer_dtypes": {},
+    "model_dtype": "float32"
+  },
+  "training_summary": {
+    "num_events": 52,
+    "total_cuda_time_ms": 0.0,
+    "total_cpu_time_ms": 0.33659593399999993,
+    "top_by_time": [
+      {
+        "name": "Optimizer.zero_grad#SGD.zero_grad",
+        "cuda_ms": 0.0,
+        "cpu_ms": 0.0001640660000000014,
+        "count": 3,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::linear",
+        "cuda_ms": 0.0,
+        "cpu_ms": 0.0025726930000000057,
+        "count": 3,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::t",
+        "cuda_ms": 0.0,
+        "cpu_ms": 0.0001775740000000245,
+        "count": 12,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::transpose",
+        "cuda_ms": 0.0,
+        "cpu_ms": 8.921499999998884e-05,
+        "count": 12,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::as_strided",
+        "cuda_ms": 0.0,
+        "cpu_ms": 3.6521999999988284e-05,
+        "count": 15,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::addmm",
+        "cuda_ms": 0.0,
+        "cpu_ms": 0.0024767589999999946,
+        "count": 3,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "Unrecognized",
+        "cuda_ms": 0.0,
+        "cpu_ms": 0.0021798919999999997,
+        "count": 1,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "cudaLaunchKernel",
+        "cuda_ms": 0.0,
+        "cpu_ms": 0.072883324,
+        "count": 27,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "std::enable_if<!(false), void>::type internal::gemvx::kernel<int, int, float, float, float, float, false, true, true, false, 7, false, cublasGemvParamsEx<int, cublasGemvTensorStridedBatched<float const>, cublasGemvTensorStridedBatched<float const>, cublasGemvTensorStridedBatched<float>, float> >(cublasGemvParamsEx<int, cublasGemvTensorStridedBatched<float const>, cublasGemvTensorStridedBatched<float const>, cublasGemvTensorStridedBatched<float>, float>)",
+        "cuda_ms": 0.0,
+        "cpu_ms": 0.0,
+        "count": 3,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::broadcast_tensors",
+        "cuda_ms": 0.0,
+        "cpu_ms": 1.2220999999998184e-05,
+        "count": 3,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::mse_loss",
+        "cuda_ms": 0.0,
+        "cpu_ms": 0.027071383000000004,
+        "count": 3,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::resize_",
+        "cuda_ms": 0.0,
+        "cpu_ms": 5.631999999998698e-06,
+        "count": 3,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::empty",
+        "cuda_ms": 0.0,
+        "cpu_ms": 8.51000000000081e-05,
+        "count": 6,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "Runtime Triggered Module Loading",
+        "cuda_ms": 0.0,
+        "cpu_ms": 0.071625781,
+        "count": 14,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "Lazy Function Loading",
+        "cuda_ms": 0.0,
+        "cpu_ms": 0.0003021220000000139,
+        "count": 7,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      }
+    ],
+    "top_by_mem": [
+      {
+        "name": "Optimizer.zero_grad#SGD.zero_grad",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::linear",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::t",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::transpose",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::as_strided",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::addmm",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "Unrecognized",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "cudaLaunchKernel",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "std::enable_if<!(false), void>::type internal::gemvx::kernel<int, int, float, float, float, float, false, true, true, false, 7, false, cublasGemvParamsEx<int, cublasGemvTensorStridedBatched<float const>, cublasGemvTensorStridedBatched<float const>, cublasGemvTensorStridedBatched<float>, float> >(cublasGemvParamsEx<int, cublasGemvTensorStridedBatched<float const>, cublasGemvTensorStridedBatched<float const>, cublasGemvTensorStridedBatched<float>, float>)",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::broadcast_tensors",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::mse_loss",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::resize_",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::empty",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "Runtime Triggered Module Loading",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "Lazy Function Loading",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      }
+    ]
+  },
+  "validation_summary": {
+    "num_events": 10,
+    "total_cuda_time_ms": 0.0,
+    "total_cpu_time_ms": 0.008711348,
+    "top_by_time": [
+      {
+        "name": "aten::linear",
+        "cuda_ms": 0.0,
+        "cpu_ms": 0.002955108,
+        "count": 2,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::t",
+        "cuda_ms": 0.0,
+        "cpu_ms": 3.838200000000006e-05,
+        "count": 2,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::transpose",
+        "cuda_ms": 0.0,
+        "cpu_ms": 1.7973000000000355e-05,
+        "count": 2,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::as_strided",
+        "cuda_ms": 0.0,
+        "cpu_ms": 5.608999999999924e-06,
+        "count": 2,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::addmm",
+        "cuda_ms": 0.0,
+        "cpu_ms": 0.0029037740000000005,
+        "count": 2,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "Unrecognized",
+        "cuda_ms": 0.0,
+        "cpu_ms": 0.0021599830000000003,
+        "count": 1,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "cudaLaunchKernel",
+        "cuda_ms": 0.0,
+        "cpu_ms": 0.0006189630000000002,
+        "count": 2,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "std::enable_if<!(false), void>::type internal::gemvx::kernel<int, int, float, float, float, float, false, true, true, false, 7, false, cublasGemvParamsEx<int, cublasGemvTensorStridedBatched<float const>, cublasGemvTensorStridedBatched<float const>, cublasGemvTensorStridedBatched<float>, float> >(cublasGemvParamsEx<int, cublasGemvTensorStridedBatched<float const>, cublasGemvTensorStridedBatched<float const>, cublasGemvTensorStridedBatched<float>, float>)",
+        "cuda_ms": 0.0,
+        "cpu_ms": 0.0,
+        "count": 2,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "[memory]",
+        "cuda_ms": 0.0,
+        "cpu_ms": 0.0,
+        "count": 1,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "cudaDeviceSynchronize",
+        "cuda_ms": 0.0,
+        "cpu_ms": 1.155600000000004e-05,
+        "count": 2,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      }
+    ],
+    "top_by_mem": [
+      {
+        "name": "aten::linear",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::t",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::transpose",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::as_strided",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::addmm",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "Unrecognized",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "cudaLaunchKernel",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "std::enable_if<!(false), void>::type internal::gemvx::kernel<int, int, float, float, float, float, false, true, true, false, 7, false, cublasGemvParamsEx<int, cublasGemvTensorStridedBatched<float const>, cublasGemvTensorStridedBatched<float const>, cublasGemvTensorStridedBatched<float>, float> >(cublasGemvParamsEx<int, cublasGemvTensorStridedBatched<float const>, cublasGemvTensorStridedBatched<float const>, cublasGemvTensorStridedBatched<float>, float>)",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "[memory]",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "cudaDeviceSynchronize",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      }
+    ]
+  }
+}
