@@ -1,6 +1,7 @@
 import json
 import logging
 from typing import Any, Dict, List, Optional
+import os
 
 import torch
 from torch import nn
@@ -8,6 +9,8 @@ from torch.fx import symbolic_trace
 from torch.profiler import ProfilerActivity, profile, record_function
 
 from .deps import require_openai, require_sb3
+from agnitra.core.rl import CodexGuidedAgent
+from agnitra.core.runtime import apply_tuning_preset
 
 logger = logging.getLogger(__name__)
 
@@ -94,8 +97,11 @@ def request_kernel_suggestions(
             }
         ],
     }
+    # Allow overriding the model via environment variable without changing callers
+    import os as _os
+    _model = _os.getenv("AGNITRA_LLM_MODEL", model_name)
     response = client.responses.create(
-        model=model_name, input=[system_message, user_message], max_output_tokens=1024, store=False
+        model=_model, input=[system_message, user_message], max_output_tokens=1024, store=False
     )
     optimized_text = ""
     try:
@@ -124,11 +130,12 @@ def run_rl_tuning(telemetry: List[Dict[str, Any]], ir_nodes: List[Dict[str, Any]
             )
             return
         device = "cuda" if torch.cuda.is_available() else "cpu"
+        # Use n_steps >= 2 to satisfy SB3 assertion that n_steps * n_envs > 1
         model_rl = PPO(
             "MlpPolicy",
             env,
             verbose=0,
-            n_steps=1,
+            n_steps=2,
             batch_size=4,
             ent_coef=0.0,
             n_epochs=1,
@@ -138,6 +145,29 @@ def run_rl_tuning(telemetry: List[Dict[str, Any]], ir_nodes: List[Dict[str, Any]
     finally:
         if env is not None:
             env.close()
+
+
+def run_llm_guided_rl(
+    telemetry: List[Dict[str, Any]],
+    ir_nodes: List[Dict[str, Any]],
+    client: Optional[Any] = None,
+) -> Optional[Dict[str, Any]]:
+    """Use a Codex-guided agent to propose a tuning preset, optionally evaluated with SB3.
+
+    Returns the chosen config dict when available; otherwise returns ``None``.
+    """
+    try:
+        agent = CodexGuidedAgent()
+        cfg = agent.propose_config(telemetry, ir_nodes, client=client)
+        if not cfg:
+            return None
+        # Optionally evaluate via SB3 (best-effort)
+        chosen = agent.evaluate_with_sb3(telemetry, [cfg]) or cfg
+        logger.info("LLM-guided RL preset: %s", chosen)
+        return chosen
+    except Exception:  # pragma: no cover - best effort
+        logger.exception("LLM-guided RL failed")
+        return None
 
 
 def optimize_model(
@@ -172,6 +202,18 @@ def optimize_model(
         return model
 
     if enable_rl:
+        # Optional: feature-flag the Codex-guided RL so tests and
+        # environments without network/deps are not affected by default.
+        if os.getenv("AGNITRA_ENABLE_LLM_RL") == "1":
+            try:
+                preset = run_llm_guided_rl(telemetry, ir_nodes, client=client)
+                if preset:
+                    model = apply_tuning_preset(model, preset)
+            except Exception:  # pragma: no cover - best effort
+                logger.exception("LLM-guided RL failed")
+            # Optionally skip PPO-based RL entirely when using LLM
+            if os.getenv("AGNITRA_ONLY_LLM") == "1":
+                return model
         try:
             run_rl_tuning(telemetry, ir_nodes)
         except Exception:  # pragma: no cover - exercised via tests

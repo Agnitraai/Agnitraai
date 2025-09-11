@@ -1,4 +1,4 @@
-"""Reinforcement learning agent."""
+"""Reinforcement learning agents."""
 
 class RLAgent:
     """Stub reinforcement learning agent."""
@@ -7,4 +7,6 @@ class RLAgent:
         """Return a fake policy learned from the data."""
         return f"Policy<{data}>"
 
-__all__ = ["RLAgent"]
+from .codex_guided import CodexGuidedAgent  # re-export
+
+__all__ = ["RLAgent", "CodexGuidedAgent"]

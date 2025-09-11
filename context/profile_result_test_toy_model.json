@@ -1,0 +1,235 @@
+{
+  "model": "test_toy_model.pt",
+  "device": "NVIDIA A100-SXM4-40GB",
+  "meta": {
+    "python_version": "3.12.11",
+    "torch_version": "2.8.0+cu126",
+    "cuda_available": true,
+    "cuda_version": "12.6",
+    "cudnn_version": 91002,
+    "device_name": "NVIDIA A100-SXM4-40GB",
+    "device_capability": [
+      8,
+      0
+    ],
+    "model_num_parameters": 844
+  },
+  "gpu": {
+    "gpu_utilisation": 6,
+    "memory_utilisation": 0,
+    "power_watts": 50.879,
+    "temperature_c": 35.0,
+    "fan_speed_pct": null,
+    "name": "NVIDIA A100-SXM4-40GB",
+    "driver_version": "550.54.15",
+    "vram_total_mb": 40960.0,
+    "vram_used_mb": 1539.75,
+    "vram_free_mb": 39420.25,
+    "cuda_allocated_mb": 8.70458984375,
+    "cuda_reserved_mb": 22.0
+  },
+  "summary": {
+    "num_events": 50,
+    "total_cuda_time_ms": 0.0,
+    "total_cpu_time_ms": 1.3071961580000004,
+    "top_by_time": [
+      {
+        "name": "defaults",
+        "cuda_ms": 0.0,
+        "cpu_ms": 8.090000000002874e-06,
+        "count": 6,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "forward",
+        "cuda_ms": 0.0,
+        "cpu_ms": 0.33283583,
+        "count": 1,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::_convolution",
+        "cuda_ms": 0.0,
+        "cpu_ms": 0.233612408,
+        "count": 2,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::cudnn_convolution",
+        "cuda_ms": 0.0,
+        "cpu_ms": 0.21974649100000004,
+        "count": 2,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "Unrecognized",
+        "cuda_ms": 0.0,
+        "cpu_ms": 0.002177044999999998,
+        "count": 1,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "cudaStreamIsCapturing",
+        "cuda_ms": 0.0,
+        "cpu_ms": 0.009375481,
+        "count": 1,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "cudaMalloc",
+        "cuda_ms": 0.0,
+        "cpu_ms": 0.0006024190000000017,
+        "count": 5,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "cudaFree",
+        "cuda_ms": 0.0,
+        "cpu_ms": 0.002561250000000007,
+        "count": 2,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "cudaGetDeviceCount",
+        "cuda_ms": 0.0,
+        "cpu_ms": 1.2319000000003143e-05,
+        "count": 1,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "cudaDriverGetVersion",
+        "cuda_ms": 0.0,
+        "cpu_ms": 2.3699999999371358e-07,
+        "count": 1,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "cudaDeviceGetAttribute",
+        "cuda_ms": 0.0,
+        "cpu_ms": 0.0001515240000000049,
+        "count": 45,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "cudaGetDeviceProperties_v2",
+        "cuda_ms": 0.0,
+        "cpu_ms": 6.923099999999977e-05,
+        "count": 1,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "cudaStreamCreateWithFlags",
+        "cuda_ms": 0.0,
+        "cpu_ms": 0.0002248570000000036,
+        "count": 16,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "cudaMemsetAsync",
+        "cuda_ms": 0.0,
+        "cpu_ms": 4.101400000000285e-05,
+        "count": 2,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "Memset (Device)",
+        "cuda_ms": 0.0,
+        "cpu_ms": 0.0,
+        "count": 1,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      }
+    ],
+    "top_by_mem": [
+      {
+        "name": "defaults",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "forward",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::_convolution",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::cudnn_convolution",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "Unrecognized",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "cudaStreamIsCapturing",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "cudaMalloc",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "cudaFree",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "cudaGetDeviceCount",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "cudaDriverGetVersion",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "cudaDeviceGetAttribute",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "cudaGetDeviceProperties_v2",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "cudaStreamCreateWithFlags",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "cudaMemsetAsync",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "Memset (Device)",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      }
+    ]
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "ok": true,
+  "message": "completed",
+  "device": "NVIDIA A100-SXM4-40GB",
+  "telemetry_json": null,
+  "sdk_telemetry_json": null,
+  "ir_nodes_json": null,
+  "llm_suggestion_txt": null,
+  "llm_preset_json": null,
+  "results_json": null,
+  "train_telemetry_json": "/content/agnitraai/context/telemetry_tinyllama_train.json",
+  "infer_telemetry_json": "/content/agnitraai/context/telemetry_tinyllama_infer.json"
+}

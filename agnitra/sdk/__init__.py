@@ -3,15 +3,17 @@
 from agnitra.core.telemetry import Telemetry
 from agnitra.core.ir import IRExtractor
 from agnitra.core.optimizer import LLMOptimizer
-from agnitra.core.rl import RLAgent
+from agnitra.core.rl import RLAgent, CodexGuidedAgent
 from agnitra.core.kernel import KernelGenerator
-from agnitra.core.runtime import RuntimePatcher
+from agnitra.core.runtime import RuntimePatcher, apply_tuning_preset
 
 __all__ = [
     "Telemetry",
     "IRExtractor",
     "LLMOptimizer",
     "RLAgent",
+    "CodexGuidedAgent",
     "KernelGenerator",
     "RuntimePatcher",
+    "apply_tuning_preset",
 ]
