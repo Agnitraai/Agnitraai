@@ -17,7 +17,7 @@
   "gpu": {
     "gpu_utilisation": 0,
     "memory_utilisation": 0,
-    "power_watts": 50.602,
+    "power_watts": 50.55,
     "temperature_c": 34.0,
     "fan_speed_pct": null,
     "name": "NVIDIA A100-SXM4-40GB",
@@ -25,50 +25,166 @@
     "vram_total_mb": 40960.0,
     "vram_used_mb": 1537.75,
     "vram_free_mb": 39422.25,
-    "cuda_allocated_mb": 8.88330078125,
+    "cuda_allocated_mb": 8.9365234375,
     "cuda_reserved_mb": 22.0
+  },
+  "behavior": {
+    "op_count_total": 39,
+    "unique_ops": 39,
+    "matmul_ops": 2,
+    "conv_ops": 0,
+    "activation_ops": 2,
+    "norm_ops": 2,
+    "inplace_ops": 1,
+    "kernel_launches": 36,
+    "top_cuda_ms": [
+      {
+        "name": "[memory]",
+        "cuda_ms": 0.0
+      },
+      {
+        "name": "forward",
+        "cuda_ms": 0.0
+      },
+      {
+        "name": "aten::slice",
+        "cuda_ms": 0.0
+      },
+      {
+        "name": "aten::as_strided",
+        "cuda_ms": 0.0
+      },
+      {
+        "name": "aten::add",
+        "cuda_ms": 0.0
+      },
+      {
+        "name": "Unrecognized",
+        "cuda_ms": 0.0
+      },
+      {
+        "name": "cudaLaunchKernel",
+        "cuda_ms": 0.0
+      },
+      {
+        "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctor_add<float>, std::array<char*, 3ul> >(int, at::native::CUDAFunctor_add<float>, std::array<char*, 3ul>)",
+        "cuda_ms": 0.0
+      },
+      {
+        "name": "aten::transpose",
+        "cuda_ms": 0.0
+      },
+      {
+        "name": "aten::linear",
+        "cuda_ms": 0.0
+      }
+    ],
+    "top_cuda_mem_bytes": [
+      {
+        "name": "[memory]",
+        "bytes": 0
+      },
+      {
+        "name": "forward",
+        "bytes": 0
+      },
+      {
+        "name": "aten::slice",
+        "bytes": 0
+      },
+      {
+        "name": "aten::as_strided",
+        "bytes": 0
+      },
+      {
+        "name": "aten::add",
+        "bytes": 0
+      },
+      {
+        "name": "Unrecognized",
+        "bytes": 0
+      },
+      {
+        "name": "cudaLaunchKernel",
+        "bytes": 0
+      },
+      {
+        "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctor_add<float>, std::array<char*, 3ul> >(int, at::native::CUDAFunctor_add<float>, std::array<char*, 3ul>)",
+        "bytes": 0
+      },
+      {
+        "name": "aten::transpose",
+        "bytes": 0
+      },
+      {
+        "name": "aten::linear",
+        "bytes": 0
+      }
+    ],
+    "activation_bytes_total": 8192,
+    "top_activation_layers": [
+      {
+        "name": "",
+        "bytes": 8192
+      }
+    ],
+    "gpu_util_mean": 1.0526315789473684,
+    "gpu_util_max": 6,
+    "mem_util_max": 0
+  },
+  "opportunities": {
+    "fp16_bf16_candidates": [],
+    "prune_candidates": []
   },
   "summary": {
     "num_events": 39,
     "total_cuda_time_ms": 0.0,
-    "total_cpu_time_ms": 0.015622766000000003,
+    "total_cpu_time_ms": 0.014760910000000006,
     "top_by_time": [
+      {
+        "name": "[memory]",
+        "cuda_ms": 0.0,
+        "cpu_ms": 0.0,
+        "count": 46,
+        "cuda_mem": 0,
+        "cpu_mem": -32
+      },
       {
         "name": "forward",
         "cuda_ms": 0.0,
-        "cpu_ms": 0.006338834999999999,
-        "count": 1,
+        "cpu_ms": 0.005056336,
+        "count": 3,
         "cuda_mem": 0,
         "cpu_mem": 0
       },
       {
         "name": "aten::slice",
         "cuda_ms": 0.0,
-        "cpu_ms": 0.0002927240000000093,
-        "count": 3,
+        "cpu_ms": 8.057799999999924e-05,
+        "count": 9,
         "cuda_mem": 0,
         "cpu_mem": 0
       },
       {
         "name": "aten::as_strided",
         "cuda_ms": 0.0,
-        "cpu_ms": 7.778900000002614e-05,
-        "count": 23,
+        "cpu_ms": 6.568799999999778e-05,
+        "count": 69,
         "cuda_mem": 0,
         "cpu_mem": 0
       },
       {
         "name": "aten::add",
         "cuda_ms": 0.0,
-        "cpu_ms": 0.0027530229999999938,
-        "count": 3,
+        "cpu_ms": 0.002538143000000001,
+        "count": 9,
         "cuda_mem": 0,
         "cpu_mem": 0
       },
       {
         "name": "Unrecognized",
         "cuda_ms": 0.0,
-        "cpu_ms": 0.0021985480000000024,
+        "cpu_ms": 0.002171375,
         "count": 1,
         "cuda_mem": 0,
         "cpu_mem": 0
@@ -76,8 +192,8 @@
       {
         "name": "cudaLaunchKernel",
         "cuda_ms": 0.0,
-        "cpu_ms": 0.00026434300000000076,
-        "count": 12,
+        "cpu_ms": 0.00036602299999999966,
+        "count": 36,
         "cuda_mem": 0,
         "cpu_mem": 0
       },
@@ -85,55 +201,55 @@
         "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctor_add<float>, std::array<char*, 3ul> >(int, at::native::CUDAFunctor_add<float>, std::array<char*, 3ul>)",
         "cuda_ms": 0.0,
         "cpu_ms": 0.0,
-        "count": 3,
+        "count": 9,
         "cuda_mem": 0,
         "cpu_mem": 0
       },
       {
         "name": "aten::transpose",
         "cuda_ms": 0.0,
-        "cpu_ms": 0.00011493199999999342,
-        "count": 14,
+        "cpu_ms": 0.0001611260000000043,
+        "count": 42,
         "cuda_mem": 0,
         "cpu_mem": 0
       },
       {
         "name": "aten::linear",
         "cuda_ms": 0.0,
-        "cpu_ms": 0.0007792989999999918,
-        "count": 4,
+        "cpu_ms": 0.0007963810000000012,
+        "count": 12,
         "cuda_mem": 0,
         "cpu_mem": 0
       },
       {
         "name": "aten::reshape",
         "cuda_ms": 0.0,
-        "cpu_ms": 4.986699999999837e-05,
-        "count": 3,
+        "cpu_ms": 3.954700000000048e-05,
+        "count": 9,
         "cuda_mem": 0,
         "cpu_mem": 0
       },
       {
         "name": "aten::view",
         "cuda_ms": 0.0,
-        "cpu_ms": 9.012999999999738e-05,
-        "count": 19,
+        "cpu_ms": 0.00014031900000000225,
+        "count": 57,
         "cuda_mem": 0,
         "cpu_mem": 0
       },
       {
         "name": "aten::t",
         "cuda_ms": 0.0,
-        "cpu_ms": 0.00012540299999999843,
-        "count": 4,
+        "cpu_ms": 8.748099999999931e-05,
+        "count": 12,
         "cuda_mem": 0,
         "cpu_mem": 0
       },
       {
         "name": "aten::addmm",
         "cuda_ms": 0.0,
-        "cpu_ms": 0.00050125,
-        "count": 4,
+        "cpu_ms": 0.0005460909999999999,
+        "count": 12,
         "cuda_mem": 0,
         "cpu_mem": 0
       },
@@ -141,21 +257,18 @@
         "name": "void gemmSN_TN_kernel<float, 128, 16, 2, 4, 8, 9, false, cublasGemvTensorStridedBatched<float const>, cublasGemvTensorStridedBatched<float const>, cublasGemvTensorStridedBatched<float> >(cublasGemmSmallNParams<cublasGemvTensorStridedBatched<float const>, cublasGemvTensorStridedBatched<float const>, cublasGemvTensorStridedBatched<float>, float>)",
         "cuda_ms": 0.0,
         "cpu_ms": 0.0,
-        "count": 4,
-        "cuda_mem": 0,
-        "cpu_mem": 0
-      },
-      {
-        "name": "aten::unflatten",
-        "cuda_ms": 0.0,
-        "cpu_ms": 3.1968000000000755e-05,
-        "count": 1,
+        "count": 12,
         "cuda_mem": 0,
         "cpu_mem": 0
       }
     ],
     "top_by_mem": [
       {
+        "name": "[memory]",
+        "cuda_mem": 0,
+        "cpu_mem": -32
+      },
+      {
         "name": "forward",
         "cuda_mem": 0,
         "cpu_mem": 0
@@ -222,11 +335,6 @@
       },
       {
         "name": "void gemmSN_TN_kernel<float, 128, 16, 2, 4, 8, 9, false, cublasGemvTensorStridedBatched<float const>, cublasGemvTensorStridedBatched<float const>, cublasGemvTensorStridedBatched<float> >(cublasGemmSmallNParams<cublasGemvTensorStridedBatched<float const>, cublasGemvTensorStridedBatched<float const>, cublasGemvTensorStridedBatched<float>, float>)",
-        "cuda_mem": 0,
-        "cpu_mem": 0
-      },
-      {
-        "name": "aten::unflatten",
         "cuda_mem": 0,
         "cpu_mem": 0
       }
@@ -255,7 +363,9 @@
             64
           ]
         ],
-        "output_dtype": "float32"
+        "output_dtype": "float32",
+        "cuda_mem_alloc_delta_bytes": 55808,
+        "forward_time_ms": 3.118800999800442
       },
       {
         "name": "inner",
@@ -263,7 +373,12 @@
         "class_path": "torch.jit._script.RecursiveScriptModule",
         "parameters": [],
         "buffers": [],
-        "attributes": {}
+        "attributes": {},
+        "input_shapes": [],
+        "output_shapes": [],
+        "output_dtype": null,
+        "cuda_mem_alloc_delta_bytes": null,
+        "forward_time_ms": null
       },
       {
         "name": "inner.embed",
@@ -284,7 +399,12 @@
           }
         ],
         "buffers": [],
-        "attributes": {}
+        "attributes": {},
+        "input_shapes": [],
+        "output_shapes": [],
+        "output_dtype": null,
+        "cuda_mem_alloc_delta_bytes": null,
+        "forward_time_ms": null
       },
       {
         "name": "inner.pos",
@@ -305,7 +425,12 @@
             "kind": "buffer"
           }
         ],
-        "attributes": {}
+        "attributes": {},
+        "input_shapes": [],
+        "output_shapes": [],
+        "output_dtype": null,
+        "cuda_mem_alloc_delta_bytes": null,
+        "forward_time_ms": null
       },
       {
         "name": "inner.attn",
@@ -337,7 +462,12 @@
           }
         ],
         "buffers": [],
-        "attributes": {}
+        "attributes": {},
+        "input_shapes": [],
+        "output_shapes": [],
+        "output_dtype": null,
+        "cuda_mem_alloc_delta_bytes": null,
+        "forward_time_ms": null
       },
       {
         "name": "inner.attn.out_proj",
@@ -369,7 +499,12 @@
           }
         ],
         "buffers": [],
-        "attributes": {}
+        "attributes": {},
+        "input_shapes": [],
+        "output_shapes": [],
+        "output_dtype": null,
+        "cuda_mem_alloc_delta_bytes": null,
+        "forward_time_ms": null
       },
       {
         "name": "inner.norm1",
@@ -400,7 +535,12 @@
           }
         ],
         "buffers": [],
-        "attributes": {}
+        "attributes": {},
+        "input_shapes": [],
+        "output_shapes": [],
+        "output_dtype": null,
+        "cuda_mem_alloc_delta_bytes": null,
+        "forward_time_ms": null
       },
       {
         "name": "inner.mlp",
@@ -408,7 +548,12 @@
         "class_path": "torch.jit._script.RecursiveScriptModule",
         "parameters": [],
         "buffers": [],
-        "attributes": {}
+        "attributes": {},
+        "input_shapes": [],
+        "output_shapes": [],
+        "output_dtype": null,
+        "cuda_mem_alloc_delta_bytes": null,
+        "forward_time_ms": null
       },
       {
         "name": "inner.mlp.0",
@@ -440,7 +585,12 @@
           }
         ],
         "buffers": [],
-        "attributes": {}
+        "attributes": {},
+        "input_shapes": [],
+        "output_shapes": [],
+        "output_dtype": null,
+        "cuda_mem_alloc_delta_bytes": null,
+        "forward_time_ms": null
       },
       {
         "name": "inner.mlp.1",
@@ -448,7 +598,12 @@
         "class_path": "torch.jit._script.RecursiveScriptModule",
         "parameters": [],
         "buffers": [],
-        "attributes": {}
+        "attributes": {},
+        "input_shapes": [],
+        "output_shapes": [],
+        "output_dtype": null,
+        "cuda_mem_alloc_delta_bytes": null,
+        "forward_time_ms": null
       },
       {
         "name": "inner.mlp.2",
@@ -480,7 +635,12 @@
           }
         ],
         "buffers": [],
-        "attributes": {}
+        "attributes": {},
+        "input_shapes": [],
+        "output_shapes": [],
+        "output_dtype": null,
+        "cuda_mem_alloc_delta_bytes": null,
+        "forward_time_ms": null
       },
       {
         "name": "inner.norm2",
@@ -511,7 +671,12 @@
           }
         ],
         "buffers": [],
-        "attributes": {}
+        "attributes": {},
+        "input_shapes": [],
+        "output_shapes": [],
+        "output_dtype": null,
+        "cuda_mem_alloc_delta_bytes": null,
+        "forward_time_ms": null
       }
     ],
     "parameter_count_total": 164544,
@@ -528,12 +693,12 @@
   "training_summary": {
     "num_events": 120,
     "total_cuda_time_ms": 0.0,
-    "total_cpu_time_ms": 0.5226928860000002,
+    "total_cpu_time_ms": 0.508841494,
     "top_by_time": [
       {
         "name": "Optimizer.zero_grad#SGD.zero_grad",
         "cuda_ms": 0.0,
-        "cpu_ms": 0.0002244529999999994,
+        "cpu_ms": 0.00020852600000001177,
         "count": 3,
         "cuda_mem": 0,
         "cpu_mem": 0
@@ -541,7 +706,7 @@
       {
         "name": "forward",
         "cuda_ms": 0.0,
-        "cpu_ms": 0.005412666999999988,
+        "cpu_ms": 0.005142701000000009,
         "count": 3,
         "cuda_mem": 0,
         "cpu_mem": 0
@@ -549,7 +714,7 @@
       {
         "name": "aten::slice",
         "cuda_ms": 0.0,
-        "cpu_ms": 8.300400000000274e-05,
+        "cpu_ms": 8.605400000001111e-05,
         "count": 9,
         "cuda_mem": 0,
         "cpu_mem": 0
@@ -557,7 +722,7 @@
       {
         "name": "aten::as_strided",
         "cuda_ms": 0.0,
-        "cpu_ms": 0.00022269900000002974,
+        "cpu_ms": 0.00016986300000000382,
         "count": 162,
         "cuda_mem": 0,
         "cpu_mem": 0
@@ -565,7 +730,7 @@
       {
         "name": "aten::add",
         "cuda_ms": 0.0,
-        "cpu_ms": 0.0026495380000000042,
+        "cpu_ms": 0.00260038000000001,
         "count": 12,
         "cuda_mem": 0,
         "cpu_mem": 0
@@ -573,7 +738,7 @@
       {
         "name": "Unrecognized",
         "cuda_ms": 0.0,
-        "cpu_ms": 0.002233114,
+        "cpu_ms": 0.0022044559999999996,
         "count": 1,
         "cuda_mem": 0,
         "cpu_mem": 0
@@ -581,7 +746,7 @@
       {
         "name": "cudaLaunchKernel",
         "cuda_ms": 0.0,
-        "cpu_ms": 0.08137470300000003,
+        "cpu_ms": 0.0788893019999999,
         "count": 135,
         "cuda_mem": 0,
         "cpu_mem": 0
@@ -597,7 +762,7 @@
       {
         "name": "aten::transpose",
         "cuda_ms": 0.0,
-        "cpu_ms": 0.0004965530000000135,
+        "cpu_ms": 0.0004440889999998967,
         "count": 111,
         "cuda_mem": 0,
         "cpu_mem": 0
@@ -605,7 +770,7 @@
       {
         "name": "aten::linear",
         "cuda_ms": 0.0,
-        "cpu_ms": 0.0009721309999999931,
+        "cpu_ms": 0.0008378630000000162,
         "count": 12,
         "cuda_mem": 0,
         "cpu_mem": 0
@@ -613,7 +778,7 @@
       {
         "name": "aten::reshape",
         "cuda_ms": 0.0,
-        "cpu_ms": 0.0004937180000000695,
+        "cpu_ms": 0.0005144550000000194,
         "count": 57,
         "cuda_mem": 0,
         "cpu_mem": 0
@@ -621,7 +786,7 @@
       {
         "name": "aten::view",
         "cuda_ms": 0.0,
-        "cpu_ms": 0.0002951539999999427,
+        "cpu_ms": 0.000252965000000077,
         "count": 105,
         "cuda_mem": 0,
         "cpu_mem": 0
@@ -629,7 +794,7 @@
       {
         "name": "aten::t",
         "cuda_ms": 0.0,
-        "cpu_ms": 0.0003022069999999617,
+        "cpu_ms": 0.0002951269999999868,
         "count": 39,
         "cuda_mem": 0,
         "cpu_mem": 0
@@ -637,7 +802,7 @@
       {
         "name": "aten::addmm",
         "cuda_ms": 0.0,
-        "cpu_ms": 0.0006638419999999829,
+        "cpu_ms": 0.0005693650000000161,
         "count": 12,
         "cuda_mem": 0,
         "cpu_mem": 0
@@ -732,12 +897,12 @@
   "validation_summary": {
     "num_events": 32,
     "total_cuda_time_ms": 0.0,
-    "total_cpu_time_ms": 0.014547158,
+    "total_cpu_time_ms": 0.016118844,
     "top_by_time": [
       {
         "name": "forward",
         "cuda_ms": 0.0,
-        "cpu_ms": 0.005626375,
+        "cpu_ms": 0.0061136459999999995,
         "count": 2,
         "cuda_mem": 0,
         "cpu_mem": 0
@@ -745,7 +910,7 @@
       {
         "name": "aten::slice",
         "cuda_ms": 0.0,
-        "cpu_ms": 7.982399999999984e-05,
+        "cpu_ms": 7.6071e-05,
         "count": 12,
         "cuda_mem": 0,
         "cpu_mem": 0
@@ -753,7 +918,7 @@
       {
         "name": "aten::as_strided",
         "cuda_ms": 0.0,
-        "cpu_ms": 3.9883000000001177e-05,
+        "cpu_ms": 3.947800000000339e-05,
         "count": 42,
         "cuda_mem": 0,
         "cpu_mem": 0
@@ -761,7 +926,7 @@
       {
         "name": "aten::add",
         "cuda_ms": 0.0,
-        "cpu_ms": 0.002471550999999999,
+        "cpu_ms": 0.0030219260000000003,
         "count": 6,
         "cuda_mem": 0,
         "cpu_mem": 0
@@ -769,7 +934,7 @@
       {
         "name": "Unrecognized",
         "cuda_ms": 0.0,
-        "cpu_ms": 0.002187031,
+        "cpu_ms": 0.0021910020000000005,
         "count": 1,
         "cuda_mem": 0,
         "cpu_mem": 0
@@ -777,7 +942,7 @@
       {
         "name": "cudaLaunchKernel",
         "cuda_ms": 0.0,
-        "cpu_ms": 0.00026263099999999896,
+        "cpu_ms": 0.0008276229999999978,
         "count": 22,
         "cuda_mem": 0,
         "cpu_mem": 0
@@ -793,7 +958,7 @@
       {
         "name": "aten::_native_multi_head_attention",
         "cuda_ms": 0.0,
-        "cpu_ms": 0.0007759450000000002,
+        "cpu_ms": 0.0008000340000000006,
         "count": 2,
         "cuda_mem": 0,
         "cpu_mem": 0
@@ -801,7 +966,7 @@
       {
         "name": "aten::view",
         "cuda_ms": 0.0,
-        "cpu_ms": 6.078399999999919e-05,
+        "cpu_ms": 4.899999999999773e-05,
         "count": 38,
         "cuda_mem": 0,
         "cpu_mem": 0
@@ -809,7 +974,7 @@
       {
         "name": "aten::transpose",
         "cuda_ms": 0.0,
-        "cpu_ms": 8.565599999999858e-05,
+        "cpu_ms": 8.67269999999994e-05,
         "count": 30,
         "cuda_mem": 0,
         "cpu_mem": 0
@@ -817,7 +982,7 @@
       {
         "name": "aten::linear",
         "cuda_ms": 0.0,
-        "cpu_ms": 0.0005409120000000003,
+        "cpu_ms": 0.0005280379999999991,
         "count": 8,
         "cuda_mem": 0,
         "cpu_mem": 0
@@ -825,7 +990,7 @@
       {
         "name": "aten::reshape",
         "cuda_ms": 0.0,
-        "cpu_ms": 4.788600000000042e-05,
+        "cpu_ms": 3.5998999999999795e-05,
         "count": 10,
         "cuda_mem": 0,
         "cpu_mem": 0
@@ -833,7 +998,7 @@
       {
         "name": "aten::t",
         "cuda_ms": 0.0,
-        "cpu_ms": 4.0494999999999435e-05,
+        "cpu_ms": 4.157299999999987e-05,
         "count": 8,
         "cuda_mem": 0,
         "cpu_mem": 0
@@ -841,7 +1006,7 @@
       {
         "name": "aten::addmm",
         "cuda_ms": 0.0,
-        "cpu_ms": 0.0003613110000000006,
+        "cpu_ms": 0.0003667339999999999,
         "count": 8,
         "cuda_mem": 0,
         "cpu_mem": 0

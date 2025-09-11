@@ -10,6 +10,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 import json
 import logging
+import time
+import threading
 from typing import Any, Dict, List, Optional
 
 try:  # pragma: no cover - optional dependency
@@ -101,6 +103,61 @@ class EventTelemetry:
             "cuda_time_avg": self.cuda_time_avg,
             "cpu_time_avg": self.cpu_time_avg,
         }
+
+
+class _GpuSampler:
+    """NVML sampler to collect a short GPU utilisation timeline."""
+
+    def __init__(self, interval_s: float = 0.05) -> None:
+        self.interval_s = interval_s
+        self._running = False
+        self._thr: Optional[threading.Thread] = None
+        self.timeline: List[Dict[str, Any]] = []
+
+    def start(self) -> None:
+        if not _NVML_AVAILABLE:
+            return
+        try:  # pragma: no cover - requires GPU
+            nvmlInit()
+            handle = nvmlDeviceGetHandleByIndex(0)
+        except Exception:
+            return
+
+        self._running = True
+
+        def _run() -> None:
+            while self._running:
+                try:
+                    util = nvmlDeviceGetUtilizationRates(handle)
+                    mem = nvmlDeviceGetMemoryInfo(handle)
+                    ts = time.time()
+                    self.timeline.append(
+                        {
+                            "t": ts,
+                            "gpu": int(getattr(util, "gpu", 0)),
+                            "mem": int(getattr(util, "memory", 0)),
+                            "vram_used_mb": float(mem.used / (1024**2)) if mem else None,
+                        }
+                    )
+                except Exception:
+                    pass
+                time.sleep(self.interval_s)
+
+        self._thr = threading.Thread(target=_run, daemon=True)
+        self._thr.start()
+
+    def stop(self) -> None:
+        self._running = False
+        if self._thr is not None:
+            try:
+                self._thr.join(timeout=0.2)
+            except Exception:
+                pass
+        if _NVML_AVAILABLE:  # pragma: no cover - requires GPU
+            try:
+                nvmlShutdown()
+            except Exception:
+                pass
 
 
 @dataclass
@@ -357,6 +414,12 @@ def _collect_model_structure(model: Any) -> Dict[str, Any]:
                     "parameters": params,
                     "buffers": buffers,
                     "attributes": _module_common_attrs(m),
+                    # dynamic metrics populated from a live forward pass
+                    "input_shapes": [],
+                    "output_shapes": [],
+                    "output_dtype": None,
+                    "cuda_mem_alloc_delta_bytes": None,
+                    "forward_time_ms": None,
                 }
                 info["layers"].append(layer)
             except Exception:
@@ -426,11 +489,33 @@ def _collect_module_io_shapes(model: Any, input_tensor: Any) -> Dict[str, Dict[s
         for name, m in named_modules.items():
             try:
                 def _pre(_m, inputs, _name=name):  # type: ignore[no-redef]
-                    io.setdefault(_name, {})["input_shapes"] = as_shapes(inputs)
+                    slot = io.setdefault(_name, {})
+                    slot["input_shapes"] = as_shapes(inputs)
+                    # capture pre-alloc and start time
+                    try:
+                        if torch.cuda.is_available():
+                            slot["_pre_alloc_bytes"] = int(torch.cuda.memory_allocated())
+                    except Exception:
+                        slot["_pre_alloc_bytes"] = None
+                    slot["_t0"] = time.perf_counter()
 
                 def _post(_m, inputs, output, _name=name):  # type: ignore[no-redef]
-                    io.setdefault(_name, {})["output_shapes"] = as_shapes(output)
-                    io.setdefault(_name, {})["output_dtype"] = out_dtype(output)
+                    slot = io.setdefault(_name, {})
+                    slot["output_shapes"] = as_shapes(output)
+                    slot["output_dtype"] = out_dtype(output)
+                    # forward latency
+                    t0 = slot.get("_t0")
+                    if isinstance(t0, float):
+                        slot["forward_time_ms"] = (time.perf_counter() - t0) * 1000.0
+                    # CUDA alloc delta
+                    try:
+                        if torch.cuda.is_available():
+                            post_alloc = int(torch.cuda.memory_allocated())
+                            pre_alloc = slot.get("_pre_alloc_bytes")
+                            if isinstance(pre_alloc, int):
+                                slot["cuda_mem_alloc_delta_bytes"] = int(post_alloc - pre_alloc)
+                    except Exception:
+                        pass
 
                 handles.append(m.register_forward_pre_hook(_pre))
                 handles.append(m.register_forward_hook(_post))
@@ -453,6 +538,10 @@ def _collect_module_io_shapes(model: Any, input_tensor: Any) -> Dict[str, Dict[s
             except Exception:
                 pass
 
+    # remove temp keys
+    for v in io.values():
+        v.pop("_pre_alloc_bytes", None)
+        v.pop("_t0", None)
     return io
 
 
@@ -593,12 +682,34 @@ def profile_model(
         model = model.to("cuda")
         input_tensor = input_tensor.to("cuda")
 
+    # Warmup a couple times to ensure hot execution before profiling
+    try:
+        if torch.cuda.is_available():
+            for _ in range(2):
+                _ = model(input_tensor)
+                try:
+                    torch.cuda.synchronize()
+                except Exception:
+                    pass
+        else:
+            for _ in range(2):
+                _ = model(input_tensor)
+    except Exception:
+        pass
+
     # Optionally capture layer IO shapes via forward hooks (best effort)
     layer_io: Dict[str, Dict[str, Any]] = {}
     try:
         layer_io = _collect_module_io_shapes(model, input_tensor)
     except Exception:
         layer_io = {}
+
+    # Start GPU utilisation sampler
+    sampler = _GpuSampler()
+    try:
+        sampler.start()
+    except Exception:
+        pass
 
     with profile(
         activities=activities,
@@ -612,6 +723,10 @@ def profile_model(
                 torch.cuda.synchronize()
             except Exception:
                 pass
+    try:
+        sampler.stop()
+    except Exception:
+        pass
 
     events: List[EventTelemetry] = []
     for evt in prof.key_averages():
@@ -637,11 +752,47 @@ def profile_model(
             )
         )
 
+    # If CUDA is available but we saw zero allocated bytes for all events,
+    # run a short dynamic re-profile to encourage non-zero allocations (warm kernels)
+    if torch.cuda.is_available():
+        try:
+            if all(int(getattr(e, "self_cuda_memory_usage", 0)) == 0 for e in events):
+                with profile(
+                    activities=activities,
+                    record_shapes=True,
+                    profile_memory=True,
+                ) as prof2:
+                    for _ in range(3):
+                        _ = model(input_tensor)
+                    torch.cuda.synchronize()
+                events = []
+                for evt in prof2.key_averages():
+                    cnt = int(getattr(evt, "count", 1))
+                    cpu_total = float(getattr(evt, "cpu_time_total", 0.0))
+                    cuda_total = float(getattr(evt, "cuda_time_total", 0.0))
+                    self_cpu_total = float(getattr(evt, "self_cpu_time_total", 0.0))
+                    events.append(
+                        EventTelemetry(
+                            name=str(evt.key),
+                            cuda_time_total=cuda_total,
+                            cpu_time_total=cpu_total,
+                            self_cuda_memory_usage=int(getattr(evt, "self_cuda_memory_usage", 0)),
+                            self_cpu_memory_usage=int(getattr(evt, "self_cpu_memory_usage", 0)),
+                            input_shapes=[str(s) for s in getattr(evt, "input_shapes", [])],
+                            count=cnt,
+                            self_cpu_time_total=self_cpu_total,
+                            cuda_time_avg=(cuda_total / max(1, cnt)),
+                            cpu_time_avg=(cpu_total / max(1, cnt)),
+                        )
+                    )
+        except Exception:
+            pass
+
     gpu = _capture_gpu_metrics()
 
     # Model/module/parameter summary (static)
     model_info = _collect_model_structure(model)
-    # Merge IO shapes (dynamic) into layer entries by name
+    # Merge IO shapes and dynamic per-layer metrics into layer entries by name
     if model_info.get("layers") and layer_io:
         by_name = {layer.get("name", ""): layer for layer in model_info["layers"]}
         for lname, io in layer_io.items():
@@ -649,6 +800,8 @@ def profile_model(
                 by_name[lname]["input_shapes"] = io.get("input_shapes", [])
                 by_name[lname]["output_shapes"] = io.get("output_shapes", [])
                 by_name[lname]["output_dtype"] = io.get("output_dtype")
+                by_name[lname]["cuda_mem_alloc_delta_bytes"] = io.get("cuda_mem_alloc_delta_bytes")
+                by_name[lname]["forward_time_ms"] = io.get("forward_time_ms")
 
     recommendations: Optional[Dict[str, Any]] = None
     if with_rl:
@@ -680,11 +833,99 @@ def profile_model(
     except Exception:
         meta["model_num_parameters"] = None
 
+    # Additional behavior metrics to help identify bottlenecks and opportunities
+    def _to_ms(v: float) -> float:
+        try:
+            return float(v) / 1e6
+        except Exception:
+            return 0.0
+
+    behavior: Dict[str, Any] = {}
+    try:
+        op_names = [e.name for e in events]
+        behavior.update(
+            {
+                "op_count_total": len(events),
+                "unique_ops": len(set(op_names)),
+                "matmul_ops": sum(1 for n in op_names if any(k in n.lower() for k in ("mm", "matmul", "bmm", "addmm"))),
+                "conv_ops": sum(1 for n in op_names if "conv" in n.lower()),
+                "activation_ops": sum(1 for n in op_names if any(k in n.lower() for k in ("relu", "gelu", "silu", "tanh", "sigmoid"))),
+                "norm_ops": sum(1 for n in op_names if "norm" in n.lower()),
+                "inplace_ops": sum(1 for n in op_names if n.strip().endswith("_")),
+                "kernel_launches": sum(getattr(e, "count", 1) for e in events if "cudaLaunchKernel" in str(e.name)),
+                "top_cuda_ms": sorted(({"name": e.name, "cuda_ms": _to_ms(e.cuda_time_total)} for e in events), key=lambda x: x["cuda_ms"], reverse=True)[:10],
+                "top_cuda_mem_bytes": sorted(({"name": e.name, "bytes": int(e.self_cuda_memory_usage)} for e in events), key=lambda x: x["bytes"], reverse=True)[:10],
+            }
+        )
+        # Approx activation volume from layer IO
+        def _dtype_nbytes(dt: Optional[str]) -> int:
+            s = (dt or "").lower()
+            if "64" in s:
+                return 8
+            if "16" in s and "bfloat" in s:
+                return 2
+            if "16" in s:
+                return 2
+            if "8" in s:
+                return 1
+            return 4
+        act_total = 0
+        act_layers: List[Dict[str, Any]] = []
+        for lyr in model_info.get("layers", []):
+            dtb = _dtype_nbytes(lyr.get("output_dtype"))
+            inc = sum(int(__import__('functools').reduce(lambda a,b: a*b, shp, 1)) * dtb for shp in lyr.get("input_shapes", []) if isinstance(shp, list))
+            outc = sum(int(__import__('functools').reduce(lambda a,b: a*b, shp, 1)) * dtb for shp in lyr.get("output_shapes", []) if isinstance(shp, list))
+            layer_bytes = int(inc + outc)
+            if layer_bytes > 0:
+                act_layers.append({"name": lyr.get("name"), "bytes": layer_bytes})
+                act_total += layer_bytes
+        behavior["activation_bytes_total"] = act_total
+        behavior["top_activation_layers"] = sorted(act_layers, key=lambda x: x["bytes"], reverse=True)[:10]
+    except Exception:
+        pass
+
+    gpu_timeline: List[Dict[str, Any]] = getattr(sampler, "timeline", []) if sampler else []
+    if gpu_timeline:
+        try:
+            behavior["gpu_util_mean"] = sum(p.get("gpu", 0) for p in gpu_timeline) / max(1, len(gpu_timeline))
+            behavior["gpu_util_max"] = max(p.get("gpu", 0) for p in gpu_timeline)
+            behavior["mem_util_max"] = max(p.get("mem", 0) for p in gpu_timeline)
+        except Exception:
+            pass
+
+    # Simple heuristic opportunities for precision/pruning
+    opportunities: Dict[str, Any] = {}
+    try:
+        heavy_layers = []
+        for lyr in model_info.get("layers", []):
+            ltype = str(lyr.get("type", ""))
+            params = sum(int(p.get("numel", 0)) for p in lyr.get("parameters", []))
+            fwd_ms = float(lyr.get("forward_time_ms") or 0.0)
+            if any(k in ltype.lower() for k in ("linear", "conv")):
+                heavy_layers.append({
+                    "name": lyr.get("name"),
+                    "type": ltype,
+                    "params": params,
+                    "forward_ms": fwd_ms,
+                })
+        # Candidates: many params or slow forward
+        fp16_candidates = sorted(heavy_layers, key=lambda x: (x["params"], x["forward_ms"]), reverse=True)[:5]
+        prune_candidates = [h for h in heavy_layers if h["params"] > 1_000_000][:5]
+        opportunities = {
+            "fp16_bf16_candidates": fp16_candidates,
+            "prune_candidates": prune_candidates,
+        }
+    except Exception:
+        pass
+
     payload = {
         "events": [e.to_dict() for e in events],
         "gpu": gpu.to_dict(),
+        "gpu_timeline": gpu_timeline,
         "meta": meta,
         "model": model_info,
+        "behavior": behavior,
+        "opportunities": opportunities,
     }
     if with_rl and recommendations is not None:
         payload["recommendations"] = recommendations

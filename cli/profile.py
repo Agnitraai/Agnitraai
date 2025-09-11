@@ -60,11 +60,18 @@ def _register_progress_hooks(model: Any) -> Tuple[List[Any], Dict[int, LayerLog]
     handles: List[Any] = []
     logs: Dict[int, LayerLog] = {}
 
+    # Map module id to fully qualified name for clarity
+    name_by_id: Dict[int, str] = {}
+    try:
+        name_by_id = {id(m): n for n, m in model.named_modules()}
+    except Exception:
+        name_by_id = {}
+
     def _pre(module, inputs):  # type: ignore[no-untyped-def]
         mid = id(module)
-        name = getattr(module, "__class__", type(module)).__name__
-        logs[mid] = LayerLog(name=name, start_t=time.perf_counter())
-        print(f"{BLUE}›{RESET} {name} ...", flush=True)
+        qname = name_by_id.get(mid) or getattr(module, "__class__", type(module)).__name__
+        logs[mid] = LayerLog(name=qname, start_t=time.perf_counter())
+        print(f"{BLUE}›{RESET} {qname} ...", flush=True)
 
     def _post(module, inputs, output):  # type: ignore[no-untyped-def]
         mid = id(module)
@@ -383,6 +390,8 @@ def run(model_path: Path, input_shape: Sequence[int], telemetry_out: Path, artif
             "device": (torch.cuda.get_device_name(0) if torch.cuda.is_available() else "CPU"),
             "meta": payload.get("meta", {}),
             "gpu": payload.get("gpu", {}),
+            "behavior": payload.get("behavior", {}),
+            "opportunities": payload.get("opportunities", {}),
             "summary": summary,
             # Include rich per-layer profile (params, buffers, IO shapes, dtypes)
             "model_profile": payload.get("model", {}),

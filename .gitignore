@@ -1,0 +1,94 @@
+# General OS files
+.DS_Store
+Thumbs.db
+
+# Editor/IDE
+.vscode/
+.idea/
+*.code-workspace
+
+# Python cache/bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Packaging / build artifacts
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+.conda/
+conda/
+.conda-env/
+pip-wheel-metadata/
+pip-log.txt
+pip-delete-this-directory.txt
+.python-version
+__pypackages__/
+
+# Testing / coverage
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+.nox/
+.tox/
+.cache/
+
+# Type checkers / linters
+.mypy_cache/
+.pytype/
+.pyright/
+.ruff_cache/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Logs
+*.log
+logs/
+log/
+
+# Data / model artifacts (large binaries)
+*.pt
+*.pth
+*.bin
+*.onnx
+*.ckpt
+*.safetensors
+
+# Archives
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.swp
+*.swo
