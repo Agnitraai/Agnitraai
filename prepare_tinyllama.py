@@ -27,7 +27,11 @@ class PositionalEncoding(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:  # (B, S, D)
         s = x.size(1)
-        return x + self.pe[:, :s, :]
+        if torch.jit.is_scripting():  # TorchScript requires standard slicing
+            pe_slice = self.pe[:, :s, :]
+        else:  # FX tracing path accepts SymInt-aware aten ops
+            pe_slice = torch.ops.aten.slice.Tensor(self.pe, 1, 0, s, 1)
+        return x + pe_slice
 
 
 class TinyLlama(nn.Module):
@@ -44,9 +48,35 @@ class TinyLlama(nn.Module):
         )
         self.norm2 = nn.LayerNorm(embed_dim)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:  # x: (B, S, D) or token ids (B, S)
-        if x.dtype in (torch.long, torch.int64, torch.int32):
-            x = self.embed(x)
+    def forward(
+        self,
+        x: torch.Tensor,
+        tokens: bool | None = None,
+    ) -> torch.Tensor:  # x: (B, S, D) or token ids (B, S)
+        """Run a TinyLlama block.
+
+        Parameters
+        ----------
+        x:
+            Either a floating-point embedding tensor or integer token ids.
+        tokens:
+            Explicitly mark ``x`` as token ids when ``True``. When ``None`` the
+            module infers this lazily using ``x.dtype`` when available. This
+            default keeps eager execution ergonomic while remaining friendly to
+            torch.fx symbolic tracing (the tracer passes Proxy objects that do
+            not expose ``dtype``).
+        """
+
+        use_tokens = tokens if isinstance(tokens, bool) else False
+        if tokens is None and not torch.jit.is_scripting():  # pragma: no cover - eager path only
+            use_tokens = isinstance(x, torch.Tensor) and x.dtype in (
+                torch.long,
+                torch.int64,
+                torch.int32,
+            )
+
+        if use_tokens:
+            x = self.embed(x.long())
         x = self.pos(x)
         attn_out, _ = self.attn(x, x, x, need_weights=False)
         x = self.norm1(x + attn_out)

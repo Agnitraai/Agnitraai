@@ -113,10 +113,6 @@ def _extract_shapes(meta: Any) -> List[List[int]]:
     def _collect(obj: Any) -> None:
         if obj is None:
             return
-        if isinstance(obj, (list, tuple)):
-            for item in obj:
-                _collect(item)
-            return
         shape = getattr(obj, "shape", None)
         if isinstance(shape, (list, tuple)):
             try:
@@ -125,6 +121,10 @@ def _extract_shapes(meta: Any) -> List[List[int]]:
                 pass
         elif torch is not None and isinstance(obj, torch.Tensor):  # pragma: no cover - guard
             shapes.append([int(x) for x in obj.shape])
+            return
+        if isinstance(obj, (list, tuple)):
+            for item in obj:
+                _collect(item)
 
     _collect(meta)
     return shapes

@@ -28,7 +28,7 @@ Capture telemetry with the CLI and turn it into an FX graph enriched with profil
 1. Profile a model to emit telemetry:
 
    ```
-   python -m cli.main profile tinyllama.pt --input-shape 1,16,64 --output telemetry.json --format json
+   python -m cli.main profile tinyllama.pt --input-shape 1,16,64 --output telemetry.json
    ```
 
 2. Convert the telemetry into an interactive-friendly IR snapshot:

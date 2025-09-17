@@ -1,11 +1,13 @@
 from pathlib import Path
 
 import nbformat
+import pytest
 from nbclient import NotebookClient
 
 
 def test_enhanced_demo_notebook_executes(tmp_path):
     """The enhanced demo notebook should execute without errors."""
+    pytest.importorskip("ipykernel", reason="Notebook execution requires ipykernel")
     nb_path = Path(__file__).resolve().parents[1] / "agnitra_enhanced_demo.ipynb"
     nb = nbformat.read(nb_path, as_version=4)
 
