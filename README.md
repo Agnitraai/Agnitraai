@@ -21,6 +21,35 @@ Optimize a model from the command line:
 agnitra-optimize --model demo-model
 ```
 
+### Graph IR Explorer
+
+Capture telemetry with the CLI and turn it into an FX graph enriched with profiler data.
+
+1. Profile a model to emit telemetry:
+
+   ```
+   python -m cli.main profile tinyllama.pt --input-shape 1,16,64 --output telemetry.json --format json
+   ```
+
+2. Convert the telemetry into an interactive-friendly IR snapshot:
+
+   ```python
+   import json
+   import torch
+
+   from agnitra.core.ir.graph_extractor import extract_graph_ir
+   from prepare_tinyllama import TinyLlama
+
+   telemetry = json.load(open("telemetry.json"))
+   model = TinyLlama().eval()
+   example_inputs = (torch.randn(1, 16, 64),)
+   graph_ir = extract_graph_ir(model, example_inputs=example_inputs, telemetry=telemetry)
+   print(f"Nodes: {len(graph_ir)}")
+   print(graph_ir[0])
+   ```
+
+3. Open `agnitra_enhanced_demo.ipynb` for a widget-driven CLI runner and visual dashboards (ipywidgets/Plotly/Matplotlib).
+
 ### DemoNet Pipeline
 
 Run the full optimization pipeline programmatically:
@@ -50,10 +79,10 @@ userdata.set("OPENAI_API_KEY", "sk-...")
 os.environ["OPENAI_API_KEY"] = userdata.get("OPENAI_API_KEY")
 ```
 
-The notebook also demonstrates loading popular open models—LLaMA‑3, Whisper
-and Stable Diffusion—and recording telemetry for a single inference pass. This
-is useful for quickly validating your GPU environment and gathering performance
-statistics.
+The notebook also demonstrates loading popular open models—LLaMA-3, Whisper,
+and Stable Diffusion—and recording telemetry for a single inference pass. A
+widget-driven CLI playground plus the IR explorer make it easy to profile,
+inspect FX graphs, and visualize hotspots without leaving Colab.
 
 ## Requirements
 
