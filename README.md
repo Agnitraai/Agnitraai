@@ -64,7 +64,7 @@ print(patched_runtime)
 
 ## Colab Demo
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/agnitraai/agnitraai/blob/main/agnitra_enhanced_demo.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/drvt69talati/agnitraai/blob/main/agnitra_enhanced_demo.ipynb)
 
 In Colab, set your OpenAI credentials using ``google.colab.userdata``:
 
