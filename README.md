@@ -1,16 +1,6 @@
 # agnitraai
 
 
-Optional dependencies are grouped as extras and can be installed with pip:
-
-```
-pip install agnitra[openai,rl]
-```
-
-The ``openai`` extra provides the OpenAI client used for kernel suggestions,
-and the ``rl`` extra installs Stable Baselines3 and Gymnasium for the example
-reinforcement learning tuner.
-
 ## Quick Start
 
 ### CLI
@@ -93,6 +83,15 @@ inspect FX graphs, and visualize hotspots without leaving Colab.
   environments or when optional dependencies are missing the profiling helpers
   will emit warnings and skip heavy models rather than failing hard.
 
+## Optional dependencies are grouped as extras and can be installed with pip:
+
+```
+pip install agnitra[openai,rl]
+```
+
+The ``openai`` extra provides the OpenAI client used for kernel suggestions,
+and the ``rl`` extra installs Stable Baselines3 and Gymnasium for the example
+reinforcement learning tuner.
 ## Testing
 
 Run unit tests locally after installing dependencies:
