@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 from dataclasses import dataclass
 from typing import Any, Dict, Iterable, Mapping, Optional, Sequence
@@ -31,6 +32,7 @@ class LLMOptimizerConfig:
     """Configuration for :class:`LLMOptimizer`."""
 
     model: str = "o4-mini"
+    fallback_model: Optional[str] = "gpt-5-2025-08-07"
     max_output_tokens: int = 400
     temperature: float = 0.0
     top_p: float = 0.9
@@ -142,19 +144,47 @@ class LLMOptimizer:
         if client is None:
             LOGGER.debug("LLM client not configured; using heuristic fallback")
             return self._fallback_suggestion_text(telemetry, target_latency_ms)
-        try:
-            response = client.responses.create(
-                model=self._config.model,
-                input=messages,
-                temperature=self._config.temperature,
-                top_p=self._config.top_p,
-                max_output_tokens=self._config.max_output_tokens,
-                store=False,
+        models = self._candidate_models()
+        last_exc: Exception | None = None
+        for index, model_name in enumerate(models):
+            try:
+                LOGGER.debug("LLM request using model %s", model_name)
+                response = client.responses.create(
+                    model=model_name,
+                    input=messages,
+                    temperature=self._config.temperature,
+                    top_p=self._config.top_p,
+                    max_output_tokens=self._config.max_output_tokens,
+                    store=False,
+                )
+            except Exception as exc:  # pragma: no cover - network failures
+                last_exc = exc
+                LOGGER.warning(
+                    "LLM request failed for model %s (%s)",
+                    model_name,
+                    exc,
+                )
+                continue
+            if index > 0:
+                LOGGER.info("LLM fallback model %s succeeded", model_name)
+            return _extract_text(response)
+        if last_exc is not None:
+            LOGGER.warning(
+                "Exhausted LLM models %s; using heuristic fallback (%s)",
+                ", ".join(models),
+                last_exc,
             )
-        except Exception as exc:  # pragma: no cover - network failures
-            LOGGER.warning("LLM request failed (%s); using fallback", exc)
-            return self._fallback_suggestion_text(telemetry, target_latency_ms)
-        return _extract_text(response)
+        return self._fallback_suggestion_text(telemetry, target_latency_ms)
+
+    def _candidate_models(self) -> list[str]:
+        models = []
+        primary = os.getenv("AGNITRA_LLM_MODEL", self._config.model)
+        if primary:
+            models.append(primary)
+        fallback = os.getenv("AGNITRA_LLM_FALLBACK_MODEL", "") or self._config.fallback_model
+        if fallback and fallback not in models:
+            models.append(fallback)
+        return models or [self._config.model]
 
     def _fallback_suggestion_text(
         self,

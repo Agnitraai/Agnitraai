@@ -110,3 +110,43 @@ def test_optimize_parses_key_value_text():
     assert payload["unroll_factor"] == 3
     assert pytest.approx(payload["target_latency_ms"], rel=1e-3) == 7.1
     assert "occupancy" in payload["rationale"]
+
+
+class _FlakyResponses:
+    def __init__(self, first_exc: Exception, text: str):
+        self._first_exc = first_exc
+        self._text = text
+        self.calls = 0
+        self.last_kwargs = None
+
+    def create(self, **kwargs):
+        self.calls += 1
+        if self.calls == 1:
+            raise self._first_exc
+        self.last_kwargs = kwargs
+        return {
+            "output": [
+                {
+                    "content": [
+                        {
+                            "text": self._text,
+                        }
+                    ]
+                }
+            ]
+        }
+
+
+class _FlakyClient:
+    def __init__(self, first_exc: Exception, text: str):
+        self.responses = _FlakyResponses(first_exc, text)
+
+
+def test_optimize_falls_back_to_secondary_model():
+    client = _FlakyClient(RuntimeError("primary unavailable"), json.dumps({"block_size": 320}))
+    optimizer = LLMOptimizer(client=client)
+    result = optimizer.optimize(_sample_graph(), _sample_telemetry())
+    payload = json.loads(result)
+    assert payload["block_size"] == 320
+    assert client.responses.calls == 2
+    assert client.responses.last_kwargs["model"] == "gpt-5-2025-08-07"
