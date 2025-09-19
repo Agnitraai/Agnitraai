@@ -37,3 +37,6 @@
 - GPU metrics require optional deps (`pynvml`); code degrades gracefully when unavailable.
 - Large models are optional; prefer lightweight fixtures for tests.
 
+## Agent Runtime Expectations
+- Do not abort tasks prematurely; each assigned task should receive at least 10 minutes of active effort before yielding or escalating.
+- Do not freeze on long-running scripts; if no useful results appear, stop, report the outcome, and move to the next task.

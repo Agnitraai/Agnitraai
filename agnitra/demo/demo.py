@@ -45,7 +45,22 @@ class DemoNet:
         """Run the optimization pipeline and return the patched runtime."""
         self.telemetry.log("Starting optimization")
         ir = self.extractor.extract(model)
-        optimized = self.optimizer.optimize(ir)
+        telemetry_payload = {
+            "events": [
+                {
+                    "op": "matmul",
+                    "name": "aten::matmul",
+                    "shape": [1024, 1024],
+                    "cuda_time_ms": 10.2,
+                }
+            ],
+            "notes": "Synthetic telemetry highlighting matmul bottleneck",
+        }
+        optimized = self.optimizer.optimize(
+            ir,
+            telemetry=telemetry_payload,
+            target_latency_ms=8.0,
+        )
         policy = self.agent.learn(optimized)
         kernel = self.kernel_gen.generate(policy)
         result = self.patcher.patch(kernel)
