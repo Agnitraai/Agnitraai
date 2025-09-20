@@ -191,9 +191,9 @@ class LLMOptimizer:
                 response = client.responses.create(
                     model=model_name,
                     input=messages,
-                    temperature=self._config.temperature,
-                    top_p=self._config.top_p,
-                    max_output_tokens=self._config.max_output_tokens,
+                    # temperature=self._config.temperature, # do not use temperature
+                    # top_p=self._config.top_p, # do not use top_p
+                    # max_output_tokens=self._config.max_output_tokens, # do not use max_output_tokens
                     store=False,
                 )
             except Exception as exc:  # pragma: no cover - network failures
