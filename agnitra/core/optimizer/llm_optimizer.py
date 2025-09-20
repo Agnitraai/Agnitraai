@@ -1,10 +1,11 @@
 """LLM-powered optimizer prompt engine.
 
-This module builds prompts for non-interactive Codex usage (``codex exec``)
-and parses the responses into structured kernel tuning suggestions. It accepts
-telemetry summaries alongside an IR graph description of the profiled model and
-returns a deterministic JSON payload so downstream components may consume the
-LLM output without tightly coupling to the model vendor response schema.
+This module builds prompts for non-interactive Codex usage (``codex exec``) or
+direct Responses API calls and parses the outputs into structured kernel tuning
+suggestions. It accepts telemetry summaries alongside an IR graph description
+of the profiled model and returns a deterministic JSON payload so downstream
+components may consume the LLM output without tightly coupling to the model
+vendor response schema.
 """
 
 from __future__ import annotations
@@ -13,8 +14,9 @@ import json
 import logging
 import os
 import re
-from dataclasses import dataclass
-from typing import Any, Dict, Iterable, Mapping, Optional, Sequence
+import subprocess
+from dataclasses import dataclass, field
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence
 
 LOGGER = logging.getLogger(__name__)
 
@@ -48,6 +50,13 @@ class LLMOptimizerConfig:
     temperature: float = 0.0
     top_p: float = 0.9
     fallback_latency_reduction_pct: float = 0.2
+    backend: str = field(
+        default_factory=lambda: os.getenv("AGNITRA_LLM_BACKEND", "responses")
+    )
+    codex_cli_path: str = field(
+        default_factory=lambda: os.getenv("AGNITRA_CODEX_PATH", "codex")
+    )
+    codex_cli_args: Sequence[str] = field(default_factory=lambda: ())
 
 
 @dataclass
@@ -79,6 +88,27 @@ class LLMOptimizationSuggestion:
         return json.dumps(self.to_dict(), sort_keys=True)
 
 
+@dataclass
+class ModelSuggestionResult:
+    """Holds the outcome of querying a single model or fallback path."""
+
+    model: str
+    status: str
+    suggestion: Optional[LLMOptimizationSuggestion] = None
+    raw_text: Optional[str] = None
+    error: Optional[str] = None
+
+    def to_public_dict(self) -> Dict[str, Any]:
+        payload: Dict[str, Any] = {"model": self.model, "status": self.status}
+        if self.suggestion:
+            payload["suggestion"] = self.suggestion.to_dict()
+        if self.error:
+            payload["error"] = self.error
+        if self.raw_text:
+            payload["raw_text"] = self.raw_text
+        return payload
+
+
 class LLMOptimizer:
     """Prompt engine that queries an LLM for kernel tuning suggestions."""
 
@@ -89,10 +119,12 @@ class LLMOptimizer:
     ) -> None:
         self._client = client
         self._config = config or LLMOptimizerConfig()
+        self._backend = (self._config.backend or "responses").lower()
         self.last_messages: Optional[Sequence[Dict[str, Any]]] = None
         self.last_response_text: Optional[str] = None
         self.last_suggestion: Optional[LLMOptimizationSuggestion] = None
         self.last_model_name: Optional[str] = None
+        self.last_results: List[ModelSuggestionResult] = []
 
     def optimize(
         self,
@@ -117,22 +149,50 @@ class LLMOptimizer:
             )
         messages = self._build_messages(graph, telemetry, target_latency_ms)
         self.last_messages = messages
-        response_text = self._call_model(
+        results = self._collect_model_suggestions(
             messages,
             telemetry,
             target_latency_ms,
             candidate_models,
         )
-        self.last_response_text = response_text
-        suggestion = self._parse_suggestion(response_text)
-        self.last_suggestion = suggestion
-        model_used = self.last_model_name or (candidate_models[0] if candidate_models else "unknown")
-        self._emit_checkpoint(f"Model used: {model_used}")
-        self._emit_checkpoint(
-            "After optimization checkpoint: " + self._summarise_suggestion(suggestion)
+        has_valid_payload = any(
+            self._has_structured_payload(result.suggestion) for result in results
         )
-        self._log_suggestion(suggestion)
-        return suggestion.as_json()
+        if not has_valid_payload:
+            self._emit_checkpoint(
+                "LLM attempts yielded no structured suggestions; returning heuristic fallback"
+            )
+            fallback_text = self._fallback_suggestion_text(telemetry, target_latency_ms)
+            fallback_suggestion = self._parse_suggestion(fallback_text)
+            results.append(
+                ModelSuggestionResult(
+                    model="heuristic-fallback",
+                    status="fallback",
+                    suggestion=fallback_suggestion,
+                    raw_text=fallback_text,
+                )
+            )
+        self.last_results = results
+        best_result = self._select_best_result(results, baseline_latency)
+        if best_result:
+            self.last_suggestion = best_result.suggestion
+            self.last_model_name = best_result.model
+            self.last_response_text = best_result.raw_text
+            self._log_suggestion(best_result.suggestion)
+            self._emit_checkpoint(f"Best model selected: {best_result.model}")
+        else:
+            self.last_suggestion = None
+            self.last_model_name = None
+            self.last_response_text = None
+            self._emit_checkpoint("No structured suggestion available; fallback data only")
+        self._emit_summary(baseline_latency, results)
+        report = self._build_report(
+            baseline_latency,
+            baseline_event,
+            results,
+            best_result,
+        )
+        return json.dumps(report, sort_keys=True)
 
     def _build_messages(
         self,
@@ -169,56 +229,317 @@ class LLMOptimizer:
         ]
         return messages
 
-    def _call_model(
+    def _collect_model_suggestions(
         self,
         messages: Sequence[Dict[str, Any]],
         telemetry: Any | None,
         target_latency_ms: Optional[float],
         models: Optional[Sequence[str]] = None,
-    ) -> str:
-        client = self._client
-        if client is None:
-            LOGGER.debug("LLM client not configured; using heuristic fallback")
-            self.last_model_name = "heuristic-fallback"
-            self._emit_checkpoint("No LLM client available; using heuristic fallback suggestions")
-            return self._fallback_suggestion_text(telemetry, target_latency_ms)
-        models = list(models) if models is not None else self._candidate_models()
-        last_exc: Exception | None = None
-        for index, model_name in enumerate(models):
-            try:
-                LOGGER.debug("LLM request using model %s", model_name)
-                self._emit_checkpoint(f"Attempting optimization with model '{model_name}'")
-                response = client.responses.create(
-                    model=model_name,
-                    input=messages,
-                    # temperature=self._config.temperature, # do not use temperature
-                    # top_p=self._config.top_p, # do not use top_p
-                    # max_output_tokens=self._config.max_output_tokens, # do not use max_output_tokens
-                    store=False,
+    ) -> List[ModelSuggestionResult]:
+        evaluated: List[ModelSuggestionResult] = []
+        model_list = list(models or [])
+        if not model_list:
+            return evaluated
+        if self._backend == "responses" and self._client is None:
+            message = "LLM client not configured; skipping direct model calls"
+            LOGGER.debug(message)
+            self._emit_checkpoint(message)
+            for model_name in model_list:
+                evaluated.append(
+                    ModelSuggestionResult(
+                        model=model_name,
+                        status="skipped",
+                        error="client not configured",
+                    )
                 )
-            except Exception as exc:  # pragma: no cover - network failures
-                last_exc = exc
+            return evaluated
+
+        for index, model_name in enumerate(model_list):
+            try:
+                LOGGER.debug("LLM request using model %s via %s backend", model_name, self._backend)
+                self._emit_checkpoint(f"Attempting optimization with model '{model_name}'")
+                raw_text = self._dispatch_to_model(messages, model_name)
+                suggestion = self._parse_suggestion(raw_text)
+                status = "ok" if self._has_structured_payload(suggestion) else "empty"
+                evaluated.append(
+                    ModelSuggestionResult(
+                        model=model_name,
+                        status=status,
+                        suggestion=suggestion,
+                        raw_text=raw_text,
+                    )
+                )
+                if index > 0 and status == "ok":
+                    LOGGER.info("LLM fallback model %s succeeded", model_name)
+                self._emit_checkpoint(
+                    f"Model '{model_name}' completed with status '{status}'"
+                )
+            except Exception as exc:  # pragma: no cover - network/process failures
                 LOGGER.warning(
                     "LLM request failed for model %s (%s)",
                     model_name,
                     exc,
                 )
                 self._emit_checkpoint(f"Model '{model_name}' failed: {exc}")
-                continue
-            if index > 0:
-                LOGGER.info("LLM fallback model %s succeeded", model_name)
-            self.last_model_name = model_name
-            self._emit_checkpoint(f"Model '{model_name}' returned an optimization response")
-            return _extract_text(response)
-        if last_exc is not None:
-            LOGGER.warning(
-                "Exhausted LLM models %s; using heuristic fallback (%s)",
-                ", ".join(models),
-                last_exc,
+                evaluated.append(
+                    ModelSuggestionResult(
+                        model=model_name,
+                        status="error",
+                        error=str(exc),
+                    )
+                )
+        return evaluated
+
+    def _dispatch_to_model(
+        self,
+        messages: Sequence[Dict[str, Any]],
+        model_name: str,
+    ) -> str:
+        if self._backend == "codex_cli":
+            return self._invoke_codex_cli(messages, model_name)
+        return self._invoke_responses_api(messages, model_name)
+
+    def _invoke_responses_api(
+        self,
+        messages: Sequence[Dict[str, Any]],
+        model_name: str,
+    ) -> str:
+        client = self._client
+        if client is None:
+            raise RuntimeError("LLM client not configured for responses backend")
+        response = client.responses.create(
+            model=model_name,
+            input=messages,
+            store=False,
+        )
+        return _extract_text(response)
+
+    def _invoke_codex_cli(
+        self,
+        messages: Sequence[Dict[str, Any]],
+        model_name: str,
+    ) -> str:
+        prompt = self._render_cli_prompt(messages)
+        command: List[str] = [self._config.codex_cli_path, "exec", "--full-auto"]
+        if model_name:
+            command.extend(["--model", model_name])
+        for extra in self._config.codex_cli_args:
+            command.append(str(extra))
+        try:
+            completed = subprocess.run(
+                command,
+                input=prompt,
+                capture_output=True,
+                text=True,
+                check=False,
             )
-        self.last_model_name = "heuristic-fallback"
-        self._emit_checkpoint("LLM attempts exhausted; returning heuristic fallback suggestion")
-        return self._fallback_suggestion_text(telemetry, target_latency_ms)
+        except FileNotFoundError as exc:  # pragma: no cover - depends on environment
+            raise RuntimeError("codex CLI not found") from exc
+        stdout = completed.stdout.strip()
+        stderr = completed.stderr.strip()
+        if completed.returncode != 0:
+            message = f"codex exec failed with exit code {completed.returncode}"
+            if stderr:
+                message += f": {stderr}"
+            raise RuntimeError(message)
+        if stderr:
+            LOGGER.debug("codex exec stderr: %s", stderr)
+        return stdout
+
+    def _render_cli_prompt(self, messages: Sequence[Dict[str, Any]]) -> str:
+        segments: List[str] = []
+        for message in messages:
+            role = message.get("role", "user")
+            prefix = role.upper()
+            text_parts: List[str] = []
+            for item in message.get("content", []) or []:
+                text = item.get("text") if isinstance(item, Mapping) else None
+                if text:
+                    text_parts.append(str(text))
+            if text_parts:
+                segments.append(f"[{prefix}]\n" + "\n".join(text_parts))
+        segments.append(
+            "Please respond with a single JSON object containing the requested keys only."
+        )
+        return "\n\n".join(segments)
+
+    def _has_structured_payload(
+        self, suggestion: Optional[LLMOptimizationSuggestion]
+    ) -> bool:
+        if suggestion is None:
+            return False
+        payload = suggestion.to_dict()
+        return any(key != "source" for key in payload)
+
+    def _select_best_result(
+        self,
+        results: Sequence[ModelSuggestionResult],
+        baseline_latency: Optional[float],
+    ) -> Optional[ModelSuggestionResult]:
+        candidates = [
+            result
+            for result in results
+            if self._has_structured_payload(result.suggestion)
+        ]
+        if not candidates:
+            return None
+
+        def _score(result: ModelSuggestionResult) -> float:
+            suggestion = result.suggestion
+            if suggestion is None:
+                return float("inf")
+            if suggestion.expected_latency_ms is not None:
+                return float(suggestion.expected_latency_ms)
+            if suggestion.target_latency_ms is not None:
+                return float(suggestion.target_latency_ms)
+            if baseline_latency is not None:
+                return float(baseline_latency)
+            return float("inf")
+
+        return min(candidates, key=_score)
+
+    def _emit_summary(
+        self,
+        baseline_latency: Optional[float],
+        results: Sequence[ModelSuggestionResult],
+    ) -> None:
+        lines: List[str] = ["Detailed check:"]
+        if baseline_latency is not None:
+            lines.append(f"  Baseline latency: {baseline_latency:.3f} ms")
+        else:
+            lines.append("  Baseline latency: unavailable")
+        lines.append("  Before/After assessments:")
+        for result in results:
+            suggestion = result.suggestion
+            if self._has_structured_payload(suggestion):
+                lines.append(
+                    f"    - {result.model}: {self._format_before_after(baseline_latency, suggestion)}"
+                )
+                summary = self._summarise_suggestion(suggestion)
+                lines.append(f"      Suggestion: {summary}")
+                issues = self._validate_suggestion(suggestion)
+                if issues:
+                    lines.append("      Checks: " + ", ".join(issues))
+                else:
+                    lines.append("      Checks: all mandatory fields present")
+            else:
+                extra = f" ({result.status})" if result.status else ""
+                lines.append(f"    - {result.model}: no suggestion{extra}")
+                if result.error:
+                    lines.append(f"      Reason: {result.error}")
+        summary = "\n".join(lines)
+        self._emit_checkpoint("Before/After analysis:\n" + summary)
+
+    def _validate_suggestion(
+        self, suggestion: LLMOptimizationSuggestion
+    ) -> List[str]:
+        issues: List[str] = []
+        if suggestion.block_size is None:
+            issues.append("block_size missing")
+        elif suggestion.block_size <= 0:
+            issues.append("block_size must be > 0")
+        if suggestion.tile_shape is None or len(suggestion.tile_shape) != 2:
+            issues.append("tile_shape missing")
+        else:
+            if any(dim <= 0 for dim in suggestion.tile_shape):
+                issues.append("tile_shape must be positive")
+        if suggestion.unroll_factor is None:
+            issues.append("unroll_factor missing")
+        elif suggestion.unroll_factor <= 0:
+            issues.append("unroll_factor must be > 0")
+        if suggestion.expected_latency_ms is None and suggestion.target_latency_ms is None:
+            issues.append("latency estimates missing")
+        if not suggestion.rationale:
+            issues.append("rationale missing")
+        return issues
+
+    def _format_before_after(
+        self,
+        baseline_latency: Optional[float],
+        suggestion: LLMOptimizationSuggestion,
+    ) -> str:
+        expected = suggestion.expected_latency_ms
+        target = suggestion.target_latency_ms
+        if baseline_latency is not None and expected is not None:
+            improvement = baseline_latency - expected
+            percent = (improvement / baseline_latency * 100.0) if baseline_latency else 0.0
+            return (
+                f"baseline {baseline_latency:.3f} ms -> expected {expected:.3f} ms "
+                f"(improvement {improvement:.3f} ms, {percent:.1f}%)"
+            )
+        if baseline_latency is not None and target is not None:
+            improvement = baseline_latency - target
+            percent = (improvement / baseline_latency * 100.0) if baseline_latency else 0.0
+            return (
+                f"baseline {baseline_latency:.3f} ms -> target {target:.3f} ms "
+                f"(goal improvement {improvement:.3f} ms, {percent:.1f}%)"
+            )
+        if expected is not None:
+            return f"expected {expected:.3f} ms (baseline unavailable)"
+        if target is not None:
+            return f"target {target:.3f} ms (baseline unavailable)"
+        return "no latency estimates provided"
+
+    def _build_report(
+        self,
+        baseline_latency: Optional[float],
+        baseline_event: Optional[Mapping[str, Any]],
+        results: Sequence[ModelSuggestionResult],
+        best_result: Optional[ModelSuggestionResult],
+    ) -> Dict[str, Any]:
+        models_payload: List[Dict[str, Any]] = []
+        for result in results:
+            entry = result.to_public_dict()
+            if result.suggestion and not self._has_structured_payload(result.suggestion):
+                entry.pop("suggestion", None)
+            models_payload.append(entry)
+        baseline_payload: Dict[str, Any] = {"latency_ms": baseline_latency}
+        if baseline_event:
+            baseline_payload.update(
+                {
+                    "op": baseline_event.get("op") or baseline_event.get("name"),
+                    "shape": baseline_event.get("shape") or baseline_event.get("shapes"),
+                }
+            )
+        report: Dict[str, Any] = {
+            "baseline": baseline_payload,
+            "models": models_payload,
+        }
+        if best_result and best_result.suggestion:
+            best_payload: Dict[str, Any] = {
+                "model": best_result.model,
+                "suggestion": best_result.suggestion.to_dict(),
+            }
+            improvement = self._compute_improvement(
+                baseline_latency,
+                best_result.suggestion,
+            )
+            if improvement:
+                best_payload.update(improvement)
+            report["best_model"] = best_payload
+        return report
+
+    def _compute_improvement(
+        self,
+        baseline_latency: Optional[float],
+        suggestion: LLMOptimizationSuggestion,
+    ) -> Dict[str, Any]:
+        payload: Dict[str, Any] = {}
+        if suggestion.expected_latency_ms is not None:
+            payload["expected_latency_ms"] = suggestion.expected_latency_ms
+        if suggestion.target_latency_ms is not None:
+            payload["target_latency_ms"] = suggestion.target_latency_ms
+        if baseline_latency is None:
+            return payload
+        reference = suggestion.expected_latency_ms or suggestion.target_latency_ms
+        if reference is None:
+            return payload
+        improvement = baseline_latency - reference
+        payload["baseline_latency_ms"] = baseline_latency
+        payload["improvement_ms"] = improvement
+        if baseline_latency:
+            payload["improvement_pct"] = improvement / baseline_latency * 100.0
+        return payload
 
     def _candidate_models(self) -> list[str]:
         models = []
@@ -367,6 +688,10 @@ def _extract_text(response: Any) -> str:
         maybe_output = response.get("output") or response.get("choices")
         if maybe_output:
             return _extract_text(maybe_output)
+        if "content" in response and response["content"] is not None:
+            return _extract_text(response["content"])
+        if "text" in response and isinstance(response["text"], str):
+            return response["text"]
         return json.dumps(response)
     if isinstance(response, Sequence):
         parts = [
@@ -403,7 +728,16 @@ def _parse_json_payload(text: str) -> Dict[str, Any] | None:
     try:
         parsed = json.loads(text)
     except json.JSONDecodeError:
-        return None
+        start = text.find("{")
+        end = text.rfind("}")
+        if start != -1 and end != -1 and end > start:
+            snippet = text[start : end + 1]
+            try:
+                parsed = json.loads(snippet)
+            except json.JSONDecodeError:
+                return None
+        else:
+            return None
     if isinstance(parsed, list):
         if not parsed:
             return None
