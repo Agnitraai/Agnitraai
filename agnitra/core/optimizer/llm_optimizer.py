@@ -15,6 +15,7 @@ import logging
 import os
 import re
 import subprocess
+import shutil
 from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence
 
@@ -119,7 +120,23 @@ class LLMOptimizer:
     ) -> None:
         self._client = client
         self._config = config or LLMOptimizerConfig()
-        self._backend = (self._config.backend or "responses").lower()
+        self._resolved_codex_cli = self._resolve_codex_executable(self._config.codex_cli_path)
+        self._codex_cli_available = bool(self._resolved_codex_cli)
+        self._auto_selected_backend = False
+        requested_backend = (self._config.backend or "responses").lower()
+        if requested_backend == "auto":
+            if self._client is not None:
+                self._backend = "responses"
+            elif self._codex_cli_available:
+                self._backend = "codex_cli"
+                self._auto_selected_backend = True
+                LOGGER.info(
+                    "LLM optimizer auto-selected Codex CLI backend because no client was provided."
+                )
+            else:
+                self._backend = "responses"
+        else:
+            self._backend = requested_backend
         self.last_messages: Optional[Sequence[Dict[str, Any]]] = None
         self.last_response_text: Optional[str] = None
         self.last_suggestion: Optional[LLMOptimizationSuggestion] = None
@@ -146,6 +163,10 @@ class LLMOptimizer:
         if candidate_models:
             self._emit_checkpoint(
                 "Preferred model order: " + ", ".join(candidate_models)
+            )
+        if self._auto_selected_backend:
+            self._emit_checkpoint(
+                "Auto-selected Codex CLI backend (non-interactive mode detected)."
             )
         messages = self._build_messages(graph, telemetry, target_latency_ms)
         self.last_messages = messages
@@ -253,6 +274,19 @@ class LLMOptimizer:
                     )
                 )
             return evaluated
+        if self._backend == "codex_cli" and not self._codex_cli_available:
+            message = "Codex CLI backend requested but executable not found"
+            LOGGER.warning(message)
+            self._emit_checkpoint(message)
+            for model_name in model_list:
+                evaluated.append(
+                    ModelSuggestionResult(
+                        model=model_name,
+                        status="error",
+                        error="codex CLI unavailable",
+                    )
+                )
+            return evaluated
 
         for index, model_name in enumerate(model_list):
             try:
@@ -319,8 +353,11 @@ class LLMOptimizer:
         messages: Sequence[Dict[str, Any]],
         model_name: str,
     ) -> str:
+        if not self._codex_cli_available:
+            raise RuntimeError("Codex CLI executable not available")
         prompt = self._render_cli_prompt(messages)
-        command: List[str] = [self._config.codex_cli_path, "exec", "--full-auto"]
+        executable = self._resolved_codex_cli or self._config.codex_cli_path
+        command: List[str] = [executable, "exec", "--full-auto"]
         if model_name:
             command.extend(["--model", model_name])
         for extra in self._config.codex_cli_args:
@@ -362,6 +399,19 @@ class LLMOptimizer:
             "Please respond with a single JSON object containing the requested keys only."
         )
         return "\n\n".join(segments)
+
+    def _resolve_codex_executable(self, candidate: str | None) -> Optional[str]:
+        if not candidate:
+            return None
+        candidate = str(candidate)
+        if os.path.isabs(candidate):
+            if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
+                return candidate
+            return None
+        resolved = shutil.which(candidate)
+        if resolved:
+            return resolved
+        return None
 
     def _has_structured_payload(
         self, suggestion: Optional[LLMOptimizationSuggestion]
