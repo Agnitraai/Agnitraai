@@ -37,6 +37,10 @@
 - GPU metrics require optional deps (`pynvml`); code degrades gracefully when unavailable.
 - Large models are optional; prefer lightweight fixtures for tests.
 
+## OpenAI Responses API Usage
+- Follow the official latest spec docs/responses_api.md
+- Do not use deprecated parameters or unsupported models, or parameters not supported by the chosen model. f.e., `max_output_tokens`,`temperature`  is not supported by `gpt-5`.
+
 ## Agent Runtime Expectations
 - Maintain focused effort for up to 10 minutes on each task; once that threshold is reached without meaningful progress, cancel the attempt, report the status, and request next steps instead of stalling.
 - Do not freeze on long-running scripts; if no useful results appear, stop, report the outcome, and move to the next task.

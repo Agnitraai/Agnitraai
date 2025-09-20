@@ -19,11 +19,22 @@ from typing import Any, Dict, Iterable, Mapping, Optional, Sequence
 LOGGER = logging.getLogger(__name__)
 
 _DEFAULT_SYSTEM_PROMPT = (
-    "You are an expert GPU kernel tuner. Given profiling telemetry and an IR "
-    "graph, you propose block size, tiling strategy, unroll factors and other "
-    "parameters that reduce CUDA latency while preserving correctness. "
-    "Respond with JSON using keys: block_size, tile_shape (list of two ints), "
-    "unroll_factor, target_latency_ms, expected_latency_ms, rationale."
+    "You are an elite GPU kernel optimization architect embedded in an automated"
+    " compiler pipeline. Your objective is to maximize CUDA latency reductions"
+    " while preserving exact numerical correctness and respecting hardware"
+    " limits. Study the telemetry to pinpoint the dominant bottleneck (op,"
+    " shape, latency, memory footprint) and the IR graph to understand data-flow"
+    " dependencies, tensor strides, and launch topology. Synthesize aggressive"
+    " yet realistic improvements using techniques such as block-size tuning,"
+    " warp tiling, shared-memory staging, double buffering, register reuse,"
+    " vectorized loads, warp-level primitives, and occupancy balancing. Estimate"
+    " the achievable latency after optimization, ensuring it improves upon the"
+    " measured baseline. Respond with a single JSON object containing only the"
+    " keys block_size (int), tile_shape (list of two ints), unroll_factor (int),"
+    " target_latency_ms (float for desired target), expected_latency_ms (float"
+    " for your forecasted result), and rationale (concise sentence explaining"
+    " the performance win). Do not include Markdown, commentary, or additional"
+    " fields."
 )
 
 
@@ -81,6 +92,7 @@ class LLMOptimizer:
         self.last_messages: Optional[Sequence[Dict[str, Any]]] = None
         self.last_response_text: Optional[str] = None
         self.last_suggestion: Optional[LLMOptimizationSuggestion] = None
+        self.last_model_name: Optional[str] = None
 
     def optimize(
         self,
@@ -90,12 +102,35 @@ class LLMOptimizer:
     ) -> str:
         """Generate tuned kernel parameters for the provided IR + telemetry."""
 
+        baseline_event = _select_bottleneck_event(telemetry)
+        baseline_latency = _extract_latency(baseline_event)
+        if baseline_latency is not None:
+            self._emit_checkpoint(
+                f"Before optimization checkpoint: bottleneck latency {baseline_latency:.3f} ms"
+            )
+        else:
+            self._emit_checkpoint("Before optimization checkpoint: no latency baseline available")
+        candidate_models = self._candidate_models()
+        if candidate_models:
+            self._emit_checkpoint(
+                "Preferred model order: " + ", ".join(candidate_models)
+            )
         messages = self._build_messages(graph, telemetry, target_latency_ms)
         self.last_messages = messages
-        response_text = self._call_model(messages, telemetry, target_latency_ms)
+        response_text = self._call_model(
+            messages,
+            telemetry,
+            target_latency_ms,
+            candidate_models,
+        )
         self.last_response_text = response_text
         suggestion = self._parse_suggestion(response_text)
         self.last_suggestion = suggestion
+        model_used = self.last_model_name or (candidate_models[0] if candidate_models else "unknown")
+        self._emit_checkpoint(f"Model used: {model_used}")
+        self._emit_checkpoint(
+            "After optimization checkpoint: " + self._summarise_suggestion(suggestion)
+        )
         self._log_suggestion(suggestion)
         return suggestion.as_json()
 
@@ -139,16 +174,20 @@ class LLMOptimizer:
         messages: Sequence[Dict[str, Any]],
         telemetry: Any | None,
         target_latency_ms: Optional[float],
+        models: Optional[Sequence[str]] = None,
     ) -> str:
         client = self._client
         if client is None:
             LOGGER.debug("LLM client not configured; using heuristic fallback")
+            self.last_model_name = "heuristic-fallback"
+            self._emit_checkpoint("No LLM client available; using heuristic fallback suggestions")
             return self._fallback_suggestion_text(telemetry, target_latency_ms)
-        models = self._candidate_models()
+        models = list(models) if models is not None else self._candidate_models()
         last_exc: Exception | None = None
         for index, model_name in enumerate(models):
             try:
                 LOGGER.debug("LLM request using model %s", model_name)
+                self._emit_checkpoint(f"Attempting optimization with model '{model_name}'")
                 response = client.responses.create(
                     model=model_name,
                     input=messages,
@@ -164,9 +203,12 @@ class LLMOptimizer:
                     model_name,
                     exc,
                 )
+                self._emit_checkpoint(f"Model '{model_name}' failed: {exc}")
                 continue
             if index > 0:
                 LOGGER.info("LLM fallback model %s succeeded", model_name)
+            self.last_model_name = model_name
+            self._emit_checkpoint(f"Model '{model_name}' returned an optimization response")
             return _extract_text(response)
         if last_exc is not None:
             LOGGER.warning(
@@ -174,6 +216,8 @@ class LLMOptimizer:
                 ", ".join(models),
                 last_exc,
             )
+        self.last_model_name = "heuristic-fallback"
+        self._emit_checkpoint("LLM attempts exhausted; returning heuristic fallback suggestion")
         return self._fallback_suggestion_text(telemetry, target_latency_ms)
 
     def _candidate_models(self) -> list[str]:
@@ -256,6 +300,28 @@ class LLMOptimizer:
         )
         if suggestion.rationale:
             LOGGER.debug("LLM rationale: %s", suggestion.rationale)
+
+    def _emit_checkpoint(self, message: str) -> None:
+        LOGGER.info("[LLM optimizer] %s", message)
+        print(f"[LLM optimizer] {message}")
+
+    def _summarise_suggestion(self, suggestion: LLMOptimizationSuggestion) -> str:
+        parts = []
+        if suggestion.block_size is not None:
+            parts.append(f"block_size={suggestion.block_size}")
+        if suggestion.tile_shape is not None:
+            parts.append(f"tile_shape={suggestion.tile_shape[0]}x{suggestion.tile_shape[1]}")
+        if suggestion.unroll_factor is not None:
+            parts.append(f"unroll_factor={suggestion.unroll_factor}")
+        if suggestion.expected_latency_ms is not None:
+            parts.append(f"expected_latency={suggestion.expected_latency_ms:.3f} ms")
+        if suggestion.target_latency_ms is not None:
+            parts.append(f"target_latency={suggestion.target_latency_ms:.3f} ms")
+        if suggestion.rationale:
+            parts.append(f"rationale={suggestion.rationale}")
+        if not parts:
+            return "no tuning parameters returned"
+        return ", ".join(parts)
 
     @staticmethod
     def _serialise(payload: Any, max_chars: int = 2000) -> str:
