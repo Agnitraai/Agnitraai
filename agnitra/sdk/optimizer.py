@@ -8,7 +8,12 @@ from torch import nn
 from torch.fx import symbolic_trace
 from torch.profiler import ProfilerActivity, profile, record_function
 
-from .deps import require_openai, require_sb3
+from .deps import require_openai
+from agnitra.core.optimizer import (
+    PPOKernelOptimizer,
+    PPOKernelOptimizerConfig,
+    summarize_kernel_telemetry,
+)
 from agnitra.core.rl import CodexGuidedAgent
 from agnitra.core.runtime import apply_tuning_preset
 
@@ -114,37 +119,28 @@ def request_kernel_suggestions(
 
 
 def run_rl_tuning(telemetry: List[Dict[str, Any]], ir_nodes: List[Dict[str, Any]]) -> None:
-    """Placeholder reinforcement learning tuner."""
+    """Run the PPO-based RL optimizer (simulated environment)."""
+
+    summary = summarize_kernel_telemetry(telemetry)
+    config = PPOKernelOptimizerConfig(telemetry_summary=summary)
+    optimizer = PPOKernelOptimizer(config=config)
     try:
-        PPO, gym = require_sb3()
-    except Exception as exc:  # pragma: no cover - best effort
-        logger.info("%s", exc)
+        result = optimizer.train()
+    except RuntimeError as exc:  # pragma: no cover - optional deps missing
+        logger.info("RL optimizer unavailable: %s", exc)
         return
-    env = None
-    try:
-        try:
-            env = gym.make("CartPole-v1")
-        except Exception:
-            logger.warning(
-                "Gym environment 'CartPole-v1' not found; skipping RL tuning"
-            )
-            return
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-        # Use n_steps >= 2 to satisfy SB3 assertion that n_steps * n_envs > 1
-        model_rl = PPO(
-            "MlpPolicy",
-            env,
-            verbose=0,
-            n_steps=2,
-            batch_size=4,
-            ent_coef=0.0,
-            n_epochs=1,
-            device=device,
-        )
-        model_rl.learn(total_timesteps=10)
-    finally:
-        if env is not None:
-            env.close()
+
+    strategy = result.metadata.get("strategy", "ppo")
+    logger.info(
+        "RL optimizer (%s) tile=%s unroll=%s fuse=%s tokens/s=%.1f latency=%.2f Δ=%.2f%%",
+        strategy,
+        result.tile_size,
+        result.unroll_factor,
+        result.fuse_kernels,
+        result.tokens_per_sec,
+        result.latency_ms,
+        result.improvement_ratio * 100.0,
+    )
 
 
 def run_llm_guided_rl(
