@@ -34,7 +34,7 @@ class CodexGuidedAgent:
        set of candidate presets.
     """
 
-    model_name: str = "codex-latest"
+    model_name: str = "gpt-5-codex"
 
     def _require_openai(self):  # lazy import to avoid hard dependency
         from agnitra.sdk.deps import require_openai

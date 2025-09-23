@@ -40,6 +40,7 @@
 ## OpenAI Responses API Usage
 - Follow the official latest spec docs/responses_api.md
 - Do not use deprecated parameters or unsupported models, or parameters not supported by the chosen model. f.e., `max_output_tokens`,`temperature`  is not supported by `gpt-5`.
+- When selecting a Codex-capable model, use the `gpt-5-codex` identifier.
 
 ## Agent Runtime Expectations
 - Maintain focused effort for up to 10 minutes on each task; once that threshold is reached without meaningful progress, cancel the attempt, report the status, and request next steps instead of stalling.
