@@ -9,6 +9,7 @@ requiring an actual accelerator runtime.
 
 from __future__ import annotations
 
+import importlib
 import logging
 import math
 from dataclasses import dataclass, field
@@ -129,6 +130,7 @@ class PPOKernelOptimizerConfig:
     verbose: int = 0
     seed: Optional[int] = None
     telemetry_summary: Optional[KernelTelemetryStats] = None
+    prefer_sb3: bool = True
 
 
 @dataclass
@@ -384,19 +386,24 @@ def _require_sb3_dependencies():
         raise RuntimeError(
             "NumPy is required for the RL optimizer. Install with 'pip install agnitra[rl]'."
         )
-    try:
-        from stable_baselines3 import PPO  # type: ignore
-        from stable_baselines3.common.vec_env import DummyVecEnv  # type: ignore
-    except Exception as exc:  # pragma: no cover - optional dependency path
+
+    sb3_spec = importlib.util.find_spec("stable_baselines3")
+    if sb3_spec is None:  # pragma: no cover - dependency guard
         raise RuntimeError(
             "stable-baselines3 is required for the RL optimizer. Install with 'pip install agnitra[rl]'."
-        ) from exc
-    try:
-        import gymnasium as gym  # noqa: F401
-    except Exception as exc:  # pragma: no cover - optional dependency path
+        )
+
+    gym_spec = importlib.util.find_spec("gymnasium")
+    if gym_spec is None:  # pragma: no cover - dependency guard
         raise RuntimeError(
             "gymnasium is required for the RL optimizer. Install with 'pip install agnitra[rl]'."
-        ) from exc
+        )
+
+    from stable_baselines3 import PPO  # type: ignore
+    from stable_baselines3.common.vec_env import DummyVecEnv  # type: ignore
+
+    import gymnasium as gym  # noqa: F401
+
     return PPO, DummyVecEnv
 
 
@@ -412,14 +419,32 @@ class PPOKernelOptimizer:
         return self._last_result
 
     def train(self, total_timesteps: Optional[int] = None) -> PPOKernelOptimizationResult:
+        steps = int(total_timesteps or self.config.total_timesteps)
+        if steps <= 0:
+            raise ValueError("total_timesteps must be positive")
+
+        if not self.config.prefer_sb3:
+            LOGGER.info(
+                "SB3 disabled via config; using simulated random-search fallback."
+            )
+            result = self._random_search(
+                total_timesteps,
+                reason="disabled",
+            )
+            self._last_result = result
+            return result
+
         try:
             PPO, DummyVecEnv = _require_sb3_dependencies()
-        except RuntimeError as exc:
+        except Exception as exc:  # pragma: no cover - optional dependency path
             LOGGER.info(
                 "PPO dependencies unavailable (%s); falling back to heuristic search.",
                 exc,
             )
-            result = self._random_search(total_timesteps)
+            result = self._random_search(
+                total_timesteps,
+                dependency_error=exc,
+            )
             self._last_result = result
             return result
 
@@ -437,19 +462,30 @@ class PPOKernelOptimizer:
                 verbose=self.config.verbose,
                 seed=self.config.seed,
             )
-            steps = int(total_timesteps or self.config.total_timesteps)
-            if steps <= 0:
-                raise ValueError("total_timesteps must be positive")
             model.learn(total_timesteps=steps)
             env = vec_env.envs[0]
             result = env.best_action_config()
+            self._last_result = result
+            return result
+        except Exception as exc:  # pragma: no cover - PPO runtime errors
+            LOGGER.info("PPO training failed (%s); using heuristic fallback.", exc)
+            result = self._random_search(
+                total_timesteps,
+                dependency_error=exc,
+            )
             self._last_result = result
             return result
         finally:
             vec_env.close()
 
 
-    def _random_search(self, total_timesteps: Optional[int]) -> PPOKernelOptimizationResult:
+    def _random_search(
+        self,
+        total_timesteps: Optional[int],
+        *,
+        dependency_error: Optional[Exception] = None,
+        reason: Optional[str] = None,
+    ) -> PPOKernelOptimizationResult:
         if _np is None:  # pragma: no cover - dependency guard
             raise RuntimeError(
                 "NumPy is required for the RL optimizer fallback. Install with 'pip install agnitra[rl]'."
@@ -511,19 +547,34 @@ class PPOKernelOptimizer:
                 "steps": eval_limit,
                 "strategy": "random-search",
                 "dependency_fallback": True,
+                "dependency_fallback_reason": reason or (
+                    f"{type(dependency_error).__name__}: {dependency_error}"
+                    if dependency_error
+                    else None
+                ),
+                "sb3_enabled": self.config.prefer_sb3,
             },
         )
+        if result.metadata.get("dependency_fallback_reason") is None:
+            result.metadata.pop("dependency_fallback_reason")
         return result
 
 
-def run_dummy_training_loop(total_timesteps: int = 3000) -> PPOKernelOptimizationResult:
+def run_dummy_training_loop(
+    total_timesteps: int = 3000,
+    *,
+    seed: Optional[int] = 7,
+    prefer_sb3: Optional[bool] = None,
+) -> PPOKernelOptimizationResult:
     """Convenience helper that runs a short PPO training session.
 
     This is intended for demos and unit tests; it does not require real hardware
     and finishes quickly while producing a plausible tuning configuration.
     """
 
-    optimizer = PPOKernelOptimizer()
+    prefer_flag = True if prefer_sb3 is None else bool(prefer_sb3)
+    config = PPOKernelOptimizerConfig(total_timesteps=total_timesteps, seed=seed, prefer_sb3=prefer_flag)
+    optimizer = PPOKernelOptimizer(config=config)
     result = optimizer.train(total_timesteps=total_timesteps)
     strategy = result.metadata.get("strategy", "ppo")
     LOGGER.info(
