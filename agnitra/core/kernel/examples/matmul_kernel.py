@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import torch
+import warnings
 
 try:
     import triton
@@ -77,31 +78,39 @@ def run_kernel(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
     a = a.to(dtype=torch.float32)
     b = b.to(dtype=torch.float32)
 
+    fallback = a @ b
     if triton is None:
-        return a @ b
+        return fallback
 
     M, K = a.shape
     _, N = b.shape
     c = torch.empty((M, N), device=a.device, dtype=a.dtype)
     grid = (triton.cdiv(M, BLOCK_M) * triton.cdiv(N, BLOCK_N),)
-    matmul_kernel[
-        grid
-    ](
-        a,
-        b,
-        c,
-        M,
-        N,
-        K,
-        a.stride(0),
-        a.stride(1),
-        b.stride(0),
-        b.stride(1),
-        c.stride(0),
-        c.stride(1),
-        BLOCK_M=BLOCK_M,
-        BLOCK_N=BLOCK_N,
-        BLOCK_K=BLOCK_K,
-        GROUP_M=GROUP_M,
-    )
+    try:
+        matmul_kernel[
+            grid
+        ](
+            a,
+            b,
+            c,
+            M,
+            N,
+            K,
+            a.stride(0),
+            a.stride(1),
+            b.stride(0),
+            b.stride(1),
+            c.stride(0),
+            c.stride(1),
+            BLOCK_M=BLOCK_M,
+            BLOCK_N=BLOCK_N,
+            BLOCK_K=BLOCK_K,
+            GROUP_M=GROUP_M,
+        )
+    except Exception as exc:  # pragma: no cover - triton runtime issues
+        warnings.warn(
+            f"Triton matmul kernel failed; falling back to torch: {exc}",
+            RuntimeWarning,
+        )
+        return fallback
     return c

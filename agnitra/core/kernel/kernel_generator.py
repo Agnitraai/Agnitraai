@@ -364,6 +364,7 @@ def _vector_add_template() -> str:
         from __future__ import annotations
 
         import torch
+        import warnings
 
         try:
             import triton
@@ -403,13 +404,21 @@ def _vector_add_template() -> str:
             x = x.to(dtype=torch.float32)
             y = y.to(dtype=torch.float32)
 
+            fallback = x + y
             if triton is None:
-                return x + y
+                return fallback
 
             n_elements = x.numel()
             output = torch.empty_like(x)
             grid = (_ceil_div(n_elements, BLOCK_SIZE),)
-            {{KERNEL_NAME}}[grid](x, y, output, n_elements, BLOCK_SIZE=BLOCK_SIZE)
+            try:
+                {{KERNEL_NAME}}[grid](x, y, output, n_elements, BLOCK_SIZE=BLOCK_SIZE)
+            except Exception as exc:  # pragma: no cover - triton runtime issues
+                warnings.warn(
+                    f"Triton vector_add kernel failed; falling back to torch: {exc}",
+                    RuntimeWarning,
+                )
+                return fallback
             return output
         '''
     ).strip()
@@ -423,6 +432,7 @@ def _matmul_template() -> str:
         from __future__ import annotations
 
         import torch
+        import warnings
 
         try:
             import triton
@@ -497,33 +507,41 @@ def _matmul_template() -> str:
             a = a.to(dtype=torch.float32)
             b = b.to(dtype=torch.float32)
 
+            fallback = a @ b
             if triton is None:
-                return a @ b
+                return fallback
 
             M, K = a.shape
             _, N = b.shape
             c = torch.empty((M, N), device=a.device, dtype=a.dtype)
             grid = (triton.cdiv(M, BLOCK_M) * triton.cdiv(N, BLOCK_N),)
-            {{KERNEL_NAME}}[
-                grid
-            ](
-                a,
-                b,
-                c,
-                M,
-                N,
-                K,
-                a.stride(0),
-                a.stride(1),
-                b.stride(0),
-                b.stride(1),
-                c.stride(0),
-                c.stride(1),
-                BLOCK_M=BLOCK_M,
-                BLOCK_N=BLOCK_N,
-                BLOCK_K=BLOCK_K,
-                GROUP_M=GROUP_M,
-            )
+            try:
+                {{KERNEL_NAME}}[
+                    grid
+                ](
+                    a,
+                    b,
+                    c,
+                    M,
+                    N,
+                    K,
+                    a.stride(0),
+                    a.stride(1),
+                    b.stride(0),
+                    b.stride(1),
+                    c.stride(0),
+                    c.stride(1),
+                    BLOCK_M=BLOCK_M,
+                    BLOCK_N=BLOCK_N,
+                    BLOCK_K=BLOCK_K,
+                    GROUP_M=GROUP_M,
+                )
+            except Exception as exc:  # pragma: no cover - triton runtime issues
+                warnings.warn(
+                    f"Triton matmul kernel failed; falling back to torch: {exc}",
+                    RuntimeWarning,
+                )
+                return fallback
             return c
         '''
     ).strip()
@@ -537,6 +555,7 @@ def _layer_norm_template() -> str:
         from __future__ import annotations
 
         import torch
+        import warnings
 
         try:
             import triton
@@ -578,20 +597,31 @@ def _layer_norm_template() -> str:
             if gamma.shape != (hidden,) or beta.shape != (hidden,):
                 raise ValueError("Gamma/Beta shapes must match the hidden dimension")
 
+            fallback = torch.nn.functional.layer_norm(
+                x, (hidden,), weight=gamma, bias=beta, eps=EPSILON
+            )
+
             if triton is None:
-                return torch.nn.functional.layer_norm(x, (hidden,), weight=gamma, bias=beta, eps=EPSILON)
+                return fallback
 
             output = torch.empty_like(x)
             grid = (batch,)
-            {{KERNEL_NAME}}[grid](
-                x,
-                gamma,
-                beta,
-                output,
-                x.stride(0),
-                hidden,
-                BLOCK_SIZE=BLOCK_SIZE,
-            )
+            try:
+                {{KERNEL_NAME}}[grid](
+                    x,
+                    gamma,
+                    beta,
+                    output,
+                    x.stride(0),
+                    hidden,
+                    BLOCK_SIZE=BLOCK_SIZE,
+                )
+            except Exception as exc:  # pragma: no cover - triton runtime issues
+                warnings.warn(
+                    f"Triton layer_norm kernel failed; falling back to torch: {exc}",
+                    RuntimeWarning,
+                )
+                return fallback
             return output
         '''
     ).strip()

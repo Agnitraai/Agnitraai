@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import torch
+import warnings
 
 try:
     import triton
@@ -42,11 +43,19 @@ def run_kernel(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
     x = x.to(dtype=torch.float32)
     y = y.to(dtype=torch.float32)
 
+    fallback = x + y
     if triton is None:
-        return x + y
+        return fallback
 
     n_elements = x.numel()
     output = torch.empty_like(x)
     grid = (_ceil_div(n_elements, BLOCK_SIZE),)
-    vector_add_kernel[grid](x, y, output, n_elements, BLOCK_SIZE=BLOCK_SIZE)
+    try:
+        vector_add_kernel[grid](x, y, output, n_elements, BLOCK_SIZE=BLOCK_SIZE)
+    except Exception as exc:  # pragma: no cover - triton runtime issues
+        warnings.warn(
+            f"Triton vector_add kernel failed; falling back to torch: {exc}",
+            RuntimeWarning,
+        )
+        return fallback
     return output

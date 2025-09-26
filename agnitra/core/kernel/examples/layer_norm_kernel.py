@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import torch
+import warnings
 
 try:
     import triton
@@ -44,18 +45,29 @@ def run_kernel(x: torch.Tensor, gamma: torch.Tensor, beta: torch.Tensor) -> torc
     if gamma.shape != (hidden,) or beta.shape != (hidden,):
         raise ValueError("Gamma/Beta shapes must match the hidden dimension")
 
+    fallback = torch.nn.functional.layer_norm(
+        x, (hidden,), weight=gamma, bias=beta, eps=EPSILON
+    )
+
     if triton is None:
-        return torch.nn.functional.layer_norm(x, (hidden,), weight=gamma, bias=beta, eps=EPSILON)
+        return fallback
 
     output = torch.empty_like(x)
     grid = (batch,)
-    layer_norm_kernel[grid](
-        x,
-        gamma,
-        beta,
-        output,
-        x.stride(0),
-        hidden,
-        BLOCK_SIZE=BLOCK_SIZE,
-    )
+    try:
+        layer_norm_kernel[grid](
+            x,
+            gamma,
+            beta,
+            output,
+            x.stride(0),
+            hidden,
+            BLOCK_SIZE=BLOCK_SIZE,
+        )
+    except Exception as exc:  # pragma: no cover - triton runtime issues
+        warnings.warn(
+            f"Triton layer_norm kernel failed; falling back to torch: {exc}",
+            RuntimeWarning,
+        )
+        return fallback
     return output
