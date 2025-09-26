@@ -93,4 +93,8 @@ temp/
 *.swp
 *.swo
 
-.agnitra/
+.agnitra/*
+!.agnitra/notebook-kernels/
+.agnitra/notebook-kernels/*
+!.agnitra/notebook-kernels/*.py
+.agnitra/notebook-kernels/__pycache__/
