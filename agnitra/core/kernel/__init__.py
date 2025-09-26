@@ -1,10 +1,17 @@
-"""Kernel generation utilities."""
+"""Kernel generation toolkit exposing Triton template utilities."""
 
-class KernelGenerator:
-    """Stub kernel generator."""
+from .kernel_generator import (
+    KernelGenerationResult,
+    KernelGenerator,
+    KernelTemplate,
+    KernelTestCase,
+    KernelValidationResult,
+)
 
-    def generate(self, policy: str) -> str:
-        """Return a fake kernel from the policy."""
-        return f"Kernel<{policy}>"
-
-__all__ = ["KernelGenerator"]
+__all__ = [
+    "KernelGenerator",
+    "KernelTemplate",
+    "KernelTestCase",
+    "KernelGenerationResult",
+    "KernelValidationResult",
+]

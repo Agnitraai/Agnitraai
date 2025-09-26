@@ -92,3 +92,5 @@ temp/
 *.tmp
 *.swp
 *.swo
+
+.agnitra/
