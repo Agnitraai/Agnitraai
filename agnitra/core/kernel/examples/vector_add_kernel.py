@@ -22,7 +22,7 @@ def _ceil_div(x: int, y: int) -> int:
 if triton is not None:
 
     @triton.jit
-    def vector_add_kernel(x_ptr, y_ptr, output_ptr, n_elements, *, BLOCK_SIZE: tl.constexpr):
+    def vector_add_kernel(x_ptr, y_ptr, output_ptr, n_elements, BLOCK_SIZE: tl.constexpr):
         pid = tl.program_id(axis=0)
         start = pid * BLOCK_SIZE
         offsets = start + tl.arange(0, BLOCK_SIZE)
