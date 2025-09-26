@@ -45,8 +45,8 @@ _DEFAULT_SYSTEM_PROMPT = (
 class LLMOptimizerConfig:
     """Configuration for :class:`LLMOptimizer`."""
 
-    model: str = "o4-mini"
-    fallback_model: Optional[str] = "gpt-5-2025-08-07"
+    model: str = "gpt-4.1-mini"
+    fallback_model: Optional[str] = "gpt-5-mini-2025-08-07"
     max_output_tokens: int = 400
     temperature: float = 0.0
     top_p: float = 0.9

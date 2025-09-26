@@ -94,7 +94,7 @@ Property           | Type     | Description
 `config`             | object   | Individual [config settings](https://github.com/openai/codex/blob/main/docs/config.md#config) that will override what is in `$CODEX_HOME/config.toml`.
 `cwd`                | string   | Working directory for the session. If relative, resolved against the server process's current directory.
 `include-plan-tool`  | boolean  | Whether to include the plan tool in the conversation.
-`model`             | string   | Optional override for the model name (e.g. `o3`, `o4-mini`).
+`model`             | string   | Optional override for the model name (e.g. `o3`, `gpt-4.1-mini`).
 `profile`            | string   | Configuration profile from `config.toml` to specify default options.
 `sandbox`           | string   | Sandbox mode: `read-only`, `workspace-write`, or `danger-full-access`.
 
