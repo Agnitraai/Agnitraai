@@ -41,9 +41,13 @@ def run_kernel(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         raise ValueError("Only 1D tensors are supported")
     x = x.to(dtype=torch.float32)
     y = y.to(dtype=torch.float32)
+    if x.device != y.device:
+        raise ValueError("Inputs must reside on the same device")
 
     fallback = x + y
-    if triton is None:
+    if triton is None or not torch.cuda.is_available():
+        return fallback
+    if x.device.type != "cuda":
         return fallback
 
     n_elements = x.numel()
