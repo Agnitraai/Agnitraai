@@ -27,7 +27,7 @@ def test_generate_vector_add_kernel(generator: KernelGenerator):
     )
     assert result.module_path.exists()
     content = result.module_path.read_text()
-    assert "BLOCK_SIZE = 64" in content
+    assert "DEFAULT_BLOCK_SIZE = 64" in content
     assert "def vector_add_test" in content
     assert result.validation is not None
     assert result.validation.status == "passed"

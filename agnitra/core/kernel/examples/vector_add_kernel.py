@@ -12,8 +12,7 @@ except ImportError:  # pragma: no cover - optional dependency
     triton = None
     tl = None
 
-
-BLOCK_SIZE = 256
+DEFAULT_BLOCK_SIZE = 256
 
 
 def _ceil_div(x: int, y: int) -> int:
@@ -49,9 +48,10 @@ def run_kernel(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
 
     n_elements = x.numel()
     output = torch.empty_like(x)
-    grid = (_ceil_div(n_elements, BLOCK_SIZE),)
+    block_size = DEFAULT_BLOCK_SIZE
+    grid = (_ceil_div(n_elements, block_size),)
     try:
-        vector_add_kernel[grid](x, y, output, n_elements, BLOCK_SIZE=BLOCK_SIZE)
+        vector_add_kernel[grid](x, y, output, n_elements, BLOCK_SIZE=block_size)
     except Exception as exc:  # pragma: no cover - triton runtime issues
         warnings.warn(
             f"Triton vector_add kernel failed; falling back to torch: {exc}",

@@ -373,8 +373,7 @@ def _vector_add_template() -> str:
             triton = None
             tl = None
 
-
-        BLOCK_SIZE = {{BLOCK_SIZE}}
+        DEFAULT_BLOCK_SIZE = {{BLOCK_SIZE}}
 
 
         def _ceil_div(x: int, y: int) -> int:
@@ -410,9 +409,10 @@ def _vector_add_template() -> str:
 
             n_elements = x.numel()
             output = torch.empty_like(x)
-            grid = (_ceil_div(n_elements, BLOCK_SIZE),)
+            block_size = DEFAULT_BLOCK_SIZE
+            grid = (_ceil_div(n_elements, block_size),)
             try:
-                {{KERNEL_NAME}}[grid](x, y, output, n_elements, BLOCK_SIZE=BLOCK_SIZE)
+                {{KERNEL_NAME}}[grid](x, y, output, n_elements, BLOCK_SIZE=block_size)
             except Exception as exc:  # pragma: no cover - triton runtime issues
                 warnings.warn(
                     f"Triton vector_add kernel failed; falling back to torch: {exc}",
