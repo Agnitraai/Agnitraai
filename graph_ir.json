@@ -1,0 +1,330 @@
+[
+  {
+    "name": "size",
+    "op": "size",
+    "target": "size",
+    "kind": "call_method",
+    "shape": [],
+    "dtype": "unknown",
+    "input_shapes": [],
+    "output_shapes": [],
+    "cuda_time_ms": 0.0,
+    "cpu_time_ms": 0.0,
+    "memory_bytes": 0,
+    "telemetry_sources": []
+  },
+  {
+    "name": "pos_pe",
+    "op": "pos.pe",
+    "target": "pos.pe",
+    "kind": "get_attr",
+    "shape": [
+      1,
+      512,
+      64
+    ],
+    "dtype": "unknown",
+    "input_shapes": [],
+    "output_shapes": [
+      [
+        1,
+        512,
+        64
+      ]
+    ],
+    "cuda_time_ms": 0.0,
+    "cpu_time_ms": 0.0,
+    "memory_bytes": 0,
+    "telemetry_sources": []
+  },
+  {
+    "name": "slice_tensor",
+    "op": "slice.tensor",
+    "target": "aten.slice.Tensor",
+    "kind": "call_function",
+    "shape": [
+      1,
+      16,
+      64
+    ],
+    "dtype": "unknown",
+    "input_shapes": [],
+    "output_shapes": [
+      [
+        1,
+        16,
+        64
+      ]
+    ],
+    "cuda_time_ms": 0.0,
+    "cpu_time_ms": 0.0,
+    "memory_bytes": 0,
+    "telemetry_sources": []
+  },
+  {
+    "name": "add",
+    "op": "add",
+    "target": "<built-in function add>",
+    "kind": "call_function",
+    "shape": [
+      1,
+      16,
+      64
+    ],
+    "dtype": "unknown",
+    "input_shapes": [],
+    "output_shapes": [
+      [
+        1,
+        16,
+        64
+      ]
+    ],
+    "cuda_time_ms": 0.0,
+    "cpu_time_ms": 0.018,
+    "memory_bytes": 0,
+    "telemetry_sources": [
+      "event"
+    ]
+  },
+  {
+    "name": "attn",
+    "op": "multiheadattention",
+    "target": "attn",
+    "kind": "call_module",
+    "shape": [
+      1,
+      16,
+      64
+    ],
+    "dtype": "unknown",
+    "input_shapes": [],
+    "output_shapes": [
+      [
+        1,
+        16,
+        64
+      ]
+    ],
+    "cuda_time_ms": 0.0,
+    "cpu_time_ms": 0.0,
+    "memory_bytes": 0,
+    "telemetry_sources": []
+  },
+  {
+    "name": "getitem",
+    "op": "getitem",
+    "target": "<built-in function getitem>",
+    "kind": "call_function",
+    "shape": [
+      1,
+      16,
+      64
+    ],
+    "dtype": "unknown",
+    "input_shapes": [],
+    "output_shapes": [
+      [
+        1,
+        16,
+        64
+      ]
+    ],
+    "cuda_time_ms": 0.0,
+    "cpu_time_ms": 0.0,
+    "memory_bytes": 0,
+    "telemetry_sources": []
+  },
+  {
+    "name": "getitem_1",
+    "op": "getitem",
+    "target": "<built-in function getitem>",
+    "kind": "call_function",
+    "shape": [],
+    "dtype": "unknown",
+    "input_shapes": [],
+    "output_shapes": [],
+    "cuda_time_ms": 0.0,
+    "cpu_time_ms": 0.0,
+    "memory_bytes": 0,
+    "telemetry_sources": []
+  },
+  {
+    "name": "add_1",
+    "op": "add",
+    "target": "<built-in function add>",
+    "kind": "call_function",
+    "shape": [
+      1,
+      16,
+      64
+    ],
+    "dtype": "unknown",
+    "input_shapes": [],
+    "output_shapes": [
+      [
+        1,
+        16,
+        64
+      ]
+    ],
+    "cuda_time_ms": 0.0,
+    "cpu_time_ms": 0.018,
+    "memory_bytes": 0,
+    "telemetry_sources": [
+      "event"
+    ]
+  },
+  {
+    "name": "norm1",
+    "op": "layernorm",
+    "target": "norm1",
+    "kind": "call_module",
+    "shape": [
+      1,
+      16,
+      64
+    ],
+    "dtype": "unknown",
+    "input_shapes": [],
+    "output_shapes": [
+      [
+        1,
+        16,
+        64
+      ]
+    ],
+    "cuda_time_ms": 0.0,
+    "cpu_time_ms": 0.0,
+    "memory_bytes": 0,
+    "telemetry_sources": []
+  },
+  {
+    "name": "mlp_0",
+    "op": "linear",
+    "target": "mlp.0",
+    "kind": "call_module",
+    "shape": [
+      1,
+      16,
+      128
+    ],
+    "dtype": "unknown",
+    "input_shapes": [],
+    "output_shapes": [
+      [
+        1,
+        16,
+        128
+      ]
+    ],
+    "cuda_time_ms": 0.0,
+    "cpu_time_ms": 0.355,
+    "memory_bytes": 0,
+    "telemetry_sources": [
+      "event"
+    ]
+  },
+  {
+    "name": "mlp_1",
+    "op": "gelu",
+    "target": "mlp.1",
+    "kind": "call_module",
+    "shape": [
+      1,
+      16,
+      128
+    ],
+    "dtype": "unknown",
+    "input_shapes": [],
+    "output_shapes": [
+      [
+        1,
+        16,
+        128
+      ]
+    ],
+    "cuda_time_ms": 0.0,
+    "cpu_time_ms": 0.104,
+    "memory_bytes": 0,
+    "telemetry_sources": [
+      "event"
+    ]
+  },
+  {
+    "name": "mlp_2",
+    "op": "linear",
+    "target": "mlp.2",
+    "kind": "call_module",
+    "shape": [
+      1,
+      16,
+      64
+    ],
+    "dtype": "unknown",
+    "input_shapes": [],
+    "output_shapes": [
+      [
+        1,
+        16,
+        64
+      ]
+    ],
+    "cuda_time_ms": 0.0,
+    "cpu_time_ms": 0.355,
+    "memory_bytes": 0,
+    "telemetry_sources": [
+      "event"
+    ]
+  },
+  {
+    "name": "add_2",
+    "op": "add",
+    "target": "<built-in function add>",
+    "kind": "call_function",
+    "shape": [
+      1,
+      16,
+      64
+    ],
+    "dtype": "unknown",
+    "input_shapes": [],
+    "output_shapes": [
+      [
+        1,
+        16,
+        64
+      ]
+    ],
+    "cuda_time_ms": 0.0,
+    "cpu_time_ms": 0.018,
+    "memory_bytes": 0,
+    "telemetry_sources": [
+      "event"
+    ]
+  },
+  {
+    "name": "norm2",
+    "op": "layernorm",
+    "target": "norm2",
+    "kind": "call_module",
+    "shape": [
+      1,
+      16,
+      64
+    ],
+    "dtype": "unknown",
+    "input_shapes": [],
+    "output_shapes": [
+      [
+        1,
+        16,
+        64
+      ]
+    ],
+    "cuda_time_ms": 0.0,
+    "cpu_time_ms": 0.0,
+    "memory_bytes": 0,
+    "telemetry_sources": []
+  }
+]

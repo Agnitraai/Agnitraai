@@ -1,0 +1,844 @@
+{
+  "events": [
+    {
+      "name": "forward",
+      "cuda_time_total": 0.0,
+      "cpu_time_total": 3765.0,
+      "self_cuda_memory_usage": 0,
+      "self_cpu_memory_usage": -16388,
+      "input_shapes": [],
+      "count": 1,
+      "self_cpu_time_total": 255.0,
+      "cuda_time_avg": 0.0,
+      "cpu_time_avg": 3765.0
+    },
+    {
+      "name": "aten::slice",
+      "cuda_time_total": 0.0,
+      "cpu_time_total": 519.0,
+      "self_cuda_memory_usage": 0,
+      "self_cpu_memory_usage": 0,
+      "input_shapes": [],
+      "count": 3,
+      "self_cpu_time_total": 486.0,
+      "cuda_time_avg": 0.0,
+      "cpu_time_avg": 173.0
+    },
+    {
+      "name": "aten::as_strided",
+      "cuda_time_total": 0.0,
+      "cpu_time_total": 35.0,
+      "self_cuda_memory_usage": 0,
+      "self_cpu_memory_usage": 0,
+      "input_shapes": [],
+      "count": 28,
+      "self_cpu_time_total": 35.0,
+      "cuda_time_avg": 0.0,
+      "cpu_time_avg": 1.25
+    },
+    {
+      "name": "aten::add",
+      "cuda_time_total": 0.0,
+      "cpu_time_total": 54.0,
+      "self_cuda_memory_usage": 0,
+      "self_cpu_memory_usage": 12288,
+      "input_shapes": [],
+      "count": 3,
+      "self_cpu_time_total": 54.0,
+      "cuda_time_avg": 0.0,
+      "cpu_time_avg": 18.0
+    },
+    {
+      "name": "aten::transpose",
+      "cuda_time_total": 0.0,
+      "cpu_time_total": 35.0,
+      "self_cuda_memory_usage": 0,
+      "self_cpu_memory_usage": 0,
+      "input_shapes": [],
+      "count": 15,
+      "self_cpu_time_total": 34.0,
+      "cuda_time_avg": 0.0,
+      "cpu_time_avg": 2.3333333333333335
+    },
+    {
+      "name": "aten::linear",
+      "cuda_time_total": 0.0,
+      "cpu_time_total": 1420.0,
+      "self_cuda_memory_usage": 0,
+      "self_cpu_memory_usage": 0,
+      "input_shapes": [],
+      "count": 4,
+      "self_cpu_time_total": 645.0,
+      "cuda_time_avg": 0.0,
+      "cpu_time_avg": 355.0
+    },
+    {
+      "name": "aten::reshape",
+      "cuda_time_total": 0.0,
+      "cpu_time_total": 11.0,
+      "self_cuda_memory_usage": 0,
+      "self_cpu_memory_usage": 0,
+      "input_shapes": [],
+      "count": 3,
+      "self_cpu_time_total": 4.0,
+      "cuda_time_avg": 0.0,
+      "cpu_time_avg": 3.6666666666666665
+    },
+    {
+      "name": "aten::view",
+      "cuda_time_total": 0.0,
+      "cpu_time_total": 33.0,
+      "self_cuda_memory_usage": 0,
+      "self_cpu_memory_usage": 0,
+      "input_shapes": [],
+      "count": 19,
+      "self_cpu_time_total": 33.0,
+      "cuda_time_avg": 0.0,
+      "cpu_time_avg": 1.736842105263158
+    },
+    {
+      "name": "aten::t",
+      "cuda_time_total": 0.0,
+      "cpu_time_total": 221.0,
+      "self_cuda_memory_usage": 0,
+      "self_cpu_memory_usage": 0,
+      "input_shapes": [],
+      "count": 4,
+      "self_cpu_time_total": 212.0,
+      "cuda_time_avg": 0.0,
+      "cpu_time_avg": 55.25
+    },
+    {
+      "name": "aten::addmm",
+      "cuda_time_total": 0.0,
+      "cpu_time_total": 538.0,
+      "self_cuda_memory_usage": 0,
+      "self_cpu_memory_usage": 28672,
+      "input_shapes": [],
+      "count": 4,
+      "self_cpu_time_total": 515.0,
+      "cuda_time_avg": 0.0,
+      "cpu_time_avg": 134.5
+    },
+    {
+      "name": "aten::expand",
+      "cuda_time_total": 0.0,
+      "cpu_time_total": 9.0,
+      "self_cuda_memory_usage": 0,
+      "self_cpu_memory_usage": 0,
+      "input_shapes": [],
+      "count": 4,
+      "self_cpu_time_total": 9.0,
+      "cuda_time_avg": 0.0,
+      "cpu_time_avg": 2.25
+    },
+    {
+      "name": "aten::copy_",
+      "cuda_time_total": 0.0,
+      "cpu_time_total": 17.0,
+      "self_cuda_memory_usage": 0,
+      "self_cpu_memory_usage": 0,
+      "input_shapes": [],
+      "count": 5,
+      "self_cpu_time_total": 17.0,
+      "cuda_time_avg": 0.0,
+      "cpu_time_avg": 3.4
+    },
+    {
+      "name": "aten::resolve_conj",
+      "cuda_time_total": 0.0,
+      "cpu_time_total": 0.0,
+      "self_cuda_memory_usage": 0,
+      "self_cpu_memory_usage": 0,
+      "input_shapes": [],
+      "count": 8,
+      "self_cpu_time_total": 0.0,
+      "cuda_time_avg": 0.0,
+      "cpu_time_avg": 0.0
+    },
+    {
+      "name": "aten::unflatten",
+      "cuda_time_total": 0.0,
+      "cpu_time_total": 8.0,
+      "self_cuda_memory_usage": 0,
+      "self_cpu_memory_usage": 0,
+      "input_shapes": [],
+      "count": 1,
+      "self_cpu_time_total": 6.0,
+      "cuda_time_avg": 0.0,
+      "cpu_time_avg": 8.0
+    },
+    {
+      "name": "aten::unsqueeze",
+      "cuda_time_total": 0.0,
+      "cpu_time_total": 6.0,
+      "self_cuda_memory_usage": 0,
+      "self_cpu_memory_usage": 0,
+      "input_shapes": [],
+      "count": 1,
+      "self_cpu_time_total": 5.0,
+      "cuda_time_avg": 0.0,
+      "cpu_time_avg": 6.0
+    },
+    {
+      "name": "aten::squeeze",
+      "cuda_time_total": 0.0,
+      "cpu_time_total": 6.0,
+      "self_cuda_memory_usage": 0,
+      "self_cpu_memory_usage": 0,
+      "input_shapes": [],
+      "count": 1,
+      "self_cpu_time_total": 6.0,
+      "cuda_time_avg": 0.0,
+      "cpu_time_avg": 6.0
+    },
+    {
+      "name": "aten::contiguous",
+      "cuda_time_total": 0.0,
+      "cpu_time_total": 788.0,
+      "self_cuda_memory_usage": 0,
+      "self_cpu_memory_usage": 0,
+      "input_shapes": [],
+      "count": 2,
+      "self_cpu_time_total": 265.0,
+      "cuda_time_avg": 0.0,
+      "cpu_time_avg": 394.0
+    },
+    {
+      "name": "aten::clone",
+      "cuda_time_total": 0.0,
+      "cpu_time_total": 523.0,
+      "self_cuda_memory_usage": 0,
+      "self_cpu_memory_usage": 0,
+      "input_shapes": [],
+      "count": 1,
+      "self_cpu_time_total": 317.0,
+      "cuda_time_avg": 0.0,
+      "cpu_time_avg": 523.0
+    },
+    {
+      "name": "aten::empty_like",
+      "cuda_time_total": 0.0,
+      "cpu_time_total": 203.0,
+      "self_cuda_memory_usage": 0,
+      "self_cpu_memory_usage": 0,
+      "input_shapes": [],
+      "count": 1,
+      "self_cpu_time_total": 155.0,
+      "cuda_time_avg": 0.0,
+      "cpu_time_avg": 203.0
+    },
+    {
+      "name": "aten::empty",
+      "cuda_time_total": 0.0,
+      "cpu_time_total": 60.0,
+      "self_cuda_memory_usage": 0,
+      "self_cpu_memory_usage": 42528,
+      "input_shapes": [],
+      "count": 16,
+      "self_cpu_time_total": 60.0,
+      "cuda_time_avg": 0.0,
+      "cpu_time_avg": 3.75
+    },
+    {
+      "name": "aten::select",
+      "cuda_time_total": 0.0,
+      "cpu_time_total": 15.0,
+      "self_cuda_memory_usage": 0,
+      "self_cpu_memory_usage": 0,
+      "input_shapes": [],
+      "count": 3,
+      "self_cpu_time_total": 15.0,
+      "cuda_time_avg": 0.0,
+      "cpu_time_avg": 5.0
+    },
+    {
+      "name": "aten::scaled_dot_product_attention",
+      "cuda_time_total": 0.0,
+      "cpu_time_total": 259.0,
+      "self_cuda_memory_usage": 0,
+      "self_cpu_memory_usage": 0,
+      "input_shapes": [],
+      "count": 1,
+      "self_cpu_time_total": 172.0,
+      "cuda_time_avg": 0.0,
+      "cpu_time_avg": 259.0
+    },
+    {
+      "name": "aten::_scaled_dot_product_flash_attention",
+      "cuda_time_total": 0.0,
+      "cpu_time_total": 87.0,
+      "self_cuda_memory_usage": 0,
+      "self_cpu_memory_usage": -17404,
+      "input_shapes": [],
+      "count": 1,
+      "self_cpu_time_total": 74.0,
+      "cuda_time_avg": 0.0,
+      "cpu_time_avg": 87.0
+    },
+    {
+      "name": "aten::permute",
+      "cuda_time_total": 0.0,
+      "cpu_time_total": 8.0,
+      "self_cuda_memory_usage": 0,
+      "self_cpu_memory_usage": 0,
+      "input_shapes": [],
+      "count": 1,
+      "self_cpu_time_total": 8.0,
+      "cuda_time_avg": 0.0,
+      "cpu_time_avg": 8.0
+    },
+    {
+      "name": "aten::detach",
+      "cuda_time_total": 0.0,
+      "cpu_time_total": 72.0,
+      "self_cuda_memory_usage": 0,
+      "self_cpu_memory_usage": 0,
+      "input_shapes": [],
+      "count": 10,
+      "self_cpu_time_total": 69.0,
+      "cuda_time_avg": 0.0,
+      "cpu_time_avg": 7.2
+    },
+    {
+      "name": "detach",
+      "cuda_time_total": 0.0,
+      "cpu_time_total": 5.0,
+      "self_cuda_memory_usage": 0,
+      "self_cpu_memory_usage": 0,
+      "input_shapes": [],
+      "count": 10,
+      "self_cpu_time_total": 5.0,
+      "cuda_time_avg": 0.0,
+      "cpu_time_avg": 0.5
+    },
+    {
+      "name": "<forward op>",
+      "cuda_time_total": 0.0,
+      "cpu_time_total": 399.0,
+      "self_cuda_memory_usage": 0,
+      "self_cpu_memory_usage": -4096,
+      "input_shapes": [],
+      "count": 1,
+      "self_cpu_time_total": 28.0,
+      "cuda_time_avg": 0.0,
+      "cpu_time_avg": 399.0
+    },
+    {
+      "name": "aten::native_layer_norm",
+      "cuda_time_total": 0.0,
+      "cpu_time_total": 185.0,
+      "self_cuda_memory_usage": 0,
+      "self_cpu_memory_usage": 0,
+      "input_shapes": [],
+      "count": 2,
+      "self_cpu_time_total": 177.0,
+      "cuda_time_avg": 0.0,
+      "cpu_time_avg": 92.5
+    },
+    {
+      "name": "aten::gelu",
+      "cuda_time_total": 0.0,
+      "cpu_time_total": 104.0,
+      "self_cuda_memory_usage": 0,
+      "self_cpu_memory_usage": 8192,
+      "input_shapes": [],
+      "count": 1,
+      "self_cpu_time_total": 104.0,
+      "cuda_time_avg": 0.0,
+      "cpu_time_avg": 104.0
+    },
+    {
+      "name": "[memory]",
+      "cuda_time_total": 0.0,
+      "cpu_time_total": 0.0,
+      "self_cuda_memory_usage": 0,
+      "self_cpu_memory_usage": -53792,
+      "input_shapes": [],
+      "count": 18,
+      "self_cpu_time_total": 0.0,
+      "cuda_time_avg": 0.0,
+      "cpu_time_avg": 0.0
+    }
+  ],
+  "gpu": {
+    "gpu_utilisation": null,
+    "memory_utilisation": null,
+    "power_watts": null,
+    "temperature_c": null,
+    "fan_speed_pct": null,
+    "name": null,
+    "driver_version": null,
+    "vram_total_mb": null,
+    "vram_used_mb": null,
+    "vram_free_mb": null,
+    "cuda_allocated_mb": null,
+    "cuda_reserved_mb": null
+  },
+  "gpu_timeline": [],
+  "meta": {
+    "python_version": "3.8.11",
+    "torch_version": "2.2.2",
+    "cuda_available": false,
+    "cuda_version": null,
+    "cudnn_version": null,
+    "device_name": "CPU",
+    "device_capability": null,
+    "model_num_parameters": 164544
+  },
+  "model": {
+    "layers": [
+      {
+        "name": "",
+        "type": "_Wrapper",
+        "class_path": "cli.profile._Wrapper",
+        "parameters": [],
+        "buffers": [],
+        "attributes": {},
+        "input_shapes": [
+          [
+            1,
+            16,
+            64
+          ]
+        ],
+        "output_shapes": [
+          [
+            1,
+            16,
+            64
+          ]
+        ],
+        "output_dtype": "float32",
+        "cuda_mem_alloc_delta_bytes": null,
+        "forward_time_ms": 6.230249999999993
+      },
+      {
+        "name": "inner",
+        "type": "RecursiveScriptModule",
+        "class_path": "torch.jit._script.RecursiveScriptModule",
+        "parameters": [],
+        "buffers": [],
+        "attributes": {},
+        "input_shapes": [],
+        "output_shapes": [],
+        "output_dtype": null,
+        "cuda_mem_alloc_delta_bytes": null,
+        "forward_time_ms": null
+      },
+      {
+        "name": "inner.embed",
+        "type": "RecursiveScriptModule",
+        "class_path": "torch.jit._script.RecursiveScriptModule",
+        "parameters": [
+          {
+            "name": "weight",
+            "shape": [
+              2048,
+              64
+            ],
+            "numel": 131072,
+            "dtype": "float32",
+            "device": "cpu",
+            "requires_grad": true,
+            "kind": "weight"
+          }
+        ],
+        "buffers": [],
+        "attributes": {},
+        "input_shapes": [],
+        "output_shapes": [],
+        "output_dtype": null,
+        "cuda_mem_alloc_delta_bytes": null,
+        "forward_time_ms": null
+      },
+      {
+        "name": "inner.pos",
+        "type": "RecursiveScriptModule",
+        "class_path": "torch.jit._script.RecursiveScriptModule",
+        "parameters": [],
+        "buffers": [
+          {
+            "name": "pe",
+            "shape": [
+              1,
+              512,
+              64
+            ],
+            "numel": 32768,
+            "dtype": "float32",
+            "device": "cpu",
+            "kind": "buffer"
+          }
+        ],
+        "attributes": {},
+        "input_shapes": [],
+        "output_shapes": [],
+        "output_dtype": null,
+        "cuda_mem_alloc_delta_bytes": null,
+        "forward_time_ms": null
+      },
+      {
+        "name": "inner.attn",
+        "type": "RecursiveScriptModule",
+        "class_path": "torch.jit._script.RecursiveScriptModule",
+        "parameters": [
+          {
+            "name": "in_proj_weight",
+            "shape": [
+              192,
+              64
+            ],
+            "numel": 12288,
+            "dtype": "float32",
+            "device": "cpu",
+            "requires_grad": true,
+            "kind": "parameter"
+          },
+          {
+            "name": "in_proj_bias",
+            "shape": [
+              192
+            ],
+            "numel": 192,
+            "dtype": "float32",
+            "device": "cpu",
+            "requires_grad": true,
+            "kind": "parameter"
+          }
+        ],
+        "buffers": [],
+        "attributes": {},
+        "input_shapes": [],
+        "output_shapes": [],
+        "output_dtype": null,
+        "cuda_mem_alloc_delta_bytes": null,
+        "forward_time_ms": null
+      },
+      {
+        "name": "inner.attn.out_proj",
+        "type": "RecursiveScriptModule",
+        "class_path": "torch.jit._script.RecursiveScriptModule",
+        "parameters": [
+          {
+            "name": "weight",
+            "shape": [
+              64,
+              64
+            ],
+            "numel": 4096,
+            "dtype": "float32",
+            "device": "cpu",
+            "requires_grad": true,
+            "kind": "weight"
+          },
+          {
+            "name": "bias",
+            "shape": [
+              64
+            ],
+            "numel": 64,
+            "dtype": "float32",
+            "device": "cpu",
+            "requires_grad": true,
+            "kind": "bias"
+          }
+        ],
+        "buffers": [],
+        "attributes": {},
+        "input_shapes": [],
+        "output_shapes": [],
+        "output_dtype": null,
+        "cuda_mem_alloc_delta_bytes": null,
+        "forward_time_ms": null
+      },
+      {
+        "name": "inner.norm1",
+        "type": "RecursiveScriptModule",
+        "class_path": "torch.jit._script.RecursiveScriptModule",
+        "parameters": [
+          {
+            "name": "weight",
+            "shape": [
+              64
+            ],
+            "numel": 64,
+            "dtype": "float32",
+            "device": "cpu",
+            "requires_grad": true,
+            "kind": "weight"
+          },
+          {
+            "name": "bias",
+            "shape": [
+              64
+            ],
+            "numel": 64,
+            "dtype": "float32",
+            "device": "cpu",
+            "requires_grad": true,
+            "kind": "bias"
+          }
+        ],
+        "buffers": [],
+        "attributes": {},
+        "input_shapes": [],
+        "output_shapes": [],
+        "output_dtype": null,
+        "cuda_mem_alloc_delta_bytes": null,
+        "forward_time_ms": null
+      },
+      {
+        "name": "inner.mlp",
+        "type": "RecursiveScriptModule",
+        "class_path": "torch.jit._script.RecursiveScriptModule",
+        "parameters": [],
+        "buffers": [],
+        "attributes": {},
+        "input_shapes": [],
+        "output_shapes": [],
+        "output_dtype": null,
+        "cuda_mem_alloc_delta_bytes": null,
+        "forward_time_ms": null
+      },
+      {
+        "name": "inner.mlp.0",
+        "type": "RecursiveScriptModule",
+        "class_path": "torch.jit._script.RecursiveScriptModule",
+        "parameters": [
+          {
+            "name": "weight",
+            "shape": [
+              128,
+              64
+            ],
+            "numel": 8192,
+            "dtype": "float32",
+            "device": "cpu",
+            "requires_grad": true,
+            "kind": "weight"
+          },
+          {
+            "name": "bias",
+            "shape": [
+              128
+            ],
+            "numel": 128,
+            "dtype": "float32",
+            "device": "cpu",
+            "requires_grad": true,
+            "kind": "bias"
+          }
+        ],
+        "buffers": [],
+        "attributes": {},
+        "input_shapes": [],
+        "output_shapes": [],
+        "output_dtype": null,
+        "cuda_mem_alloc_delta_bytes": null,
+        "forward_time_ms": null
+      },
+      {
+        "name": "inner.mlp.1",
+        "type": "RecursiveScriptModule",
+        "class_path": "torch.jit._script.RecursiveScriptModule",
+        "parameters": [],
+        "buffers": [],
+        "attributes": {},
+        "input_shapes": [],
+        "output_shapes": [],
+        "output_dtype": null,
+        "cuda_mem_alloc_delta_bytes": null,
+        "forward_time_ms": null
+      },
+      {
+        "name": "inner.mlp.2",
+        "type": "RecursiveScriptModule",
+        "class_path": "torch.jit._script.RecursiveScriptModule",
+        "parameters": [
+          {
+            "name": "weight",
+            "shape": [
+              64,
+              128
+            ],
+            "numel": 8192,
+            "dtype": "float32",
+            "device": "cpu",
+            "requires_grad": true,
+            "kind": "weight"
+          },
+          {
+            "name": "bias",
+            "shape": [
+              64
+            ],
+            "numel": 64,
+            "dtype": "float32",
+            "device": "cpu",
+            "requires_grad": true,
+            "kind": "bias"
+          }
+        ],
+        "buffers": [],
+        "attributes": {},
+        "input_shapes": [],
+        "output_shapes": [],
+        "output_dtype": null,
+        "cuda_mem_alloc_delta_bytes": null,
+        "forward_time_ms": null
+      },
+      {
+        "name": "inner.norm2",
+        "type": "RecursiveScriptModule",
+        "class_path": "torch.jit._script.RecursiveScriptModule",
+        "parameters": [
+          {
+            "name": "weight",
+            "shape": [
+              64
+            ],
+            "numel": 64,
+            "dtype": "float32",
+            "device": "cpu",
+            "requires_grad": true,
+            "kind": "weight"
+          },
+          {
+            "name": "bias",
+            "shape": [
+              64
+            ],
+            "numel": 64,
+            "dtype": "float32",
+            "device": "cpu",
+            "requires_grad": true,
+            "kind": "bias"
+          }
+        ],
+        "buffers": [],
+        "attributes": {},
+        "input_shapes": [],
+        "output_shapes": [],
+        "output_dtype": null,
+        "cuda_mem_alloc_delta_bytes": null,
+        "forward_time_ms": null
+      }
+    ],
+    "parameter_count_total": 164544,
+    "parameter_count_trainable": 164544,
+    "parameter_count_frozen": 0,
+    "parameter_dtypes": {
+      "float32": 164544
+    },
+    "buffer_dtypes": {
+      "float32": 32768
+    },
+    "model_dtype": "float32"
+  },
+  "behavior": {
+    "op_count_total": 30,
+    "unique_ops": 30,
+    "matmul_ops": 1,
+    "conv_ops": 0,
+    "activation_ops": 1,
+    "norm_ops": 1,
+    "inplace_ops": 1,
+    "kernel_launches": 0,
+    "top_cuda_ms": [
+      {
+        "name": "forward",
+        "cuda_ms": 0.0
+      },
+      {
+        "name": "aten::slice",
+        "cuda_ms": 0.0
+      },
+      {
+        "name": "aten::as_strided",
+        "cuda_ms": 0.0
+      },
+      {
+        "name": "aten::add",
+        "cuda_ms": 0.0
+      },
+      {
+        "name": "aten::transpose",
+        "cuda_ms": 0.0
+      },
+      {
+        "name": "aten::linear",
+        "cuda_ms": 0.0
+      },
+      {
+        "name": "aten::reshape",
+        "cuda_ms": 0.0
+      },
+      {
+        "name": "aten::view",
+        "cuda_ms": 0.0
+      },
+      {
+        "name": "aten::t",
+        "cuda_ms": 0.0
+      },
+      {
+        "name": "aten::addmm",
+        "cuda_ms": 0.0
+      }
+    ],
+    "top_cuda_mem_bytes": [
+      {
+        "name": "forward",
+        "bytes": 0
+      },
+      {
+        "name": "aten::slice",
+        "bytes": 0
+      },
+      {
+        "name": "aten::as_strided",
+        "bytes": 0
+      },
+      {
+        "name": "aten::add",
+        "bytes": 0
+      },
+      {
+        "name": "aten::transpose",
+        "bytes": 0
+      },
+      {
+        "name": "aten::linear",
+        "bytes": 0
+      },
+      {
+        "name": "aten::reshape",
+        "bytes": 0
+      },
+      {
+        "name": "aten::view",
+        "bytes": 0
+      },
+      {
+        "name": "aten::t",
+        "bytes": 0
+      },
+      {
+        "name": "aten::addmm",
+        "bytes": 0
+      }
+    ],
+    "activation_bytes_total": 8192,
+    "top_activation_layers": [
+      {
+        "name": "",
+        "bytes": 8192
+      }
+    ]
+  },
+  "opportunities": {
+    "fp16_bf16_candidates": [],
+    "prune_candidates": []
+  }
+}

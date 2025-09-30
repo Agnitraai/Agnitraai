@@ -1,0 +1,304 @@
+{
+  "events": [
+    {
+      "name": "forward",
+      "cuda_time_total": 0.0,
+      "cpu_time_total": 14006.0,
+      "self_cuda_memory_usage": 0,
+      "self_cpu_memory_usage": -16384,
+      "count": 2,
+      "cuda_time_avg": 0.0,
+      "cpu_time_avg": 7003.0
+    },
+    {
+      "name": "aten::slice",
+      "cuda_time_total": 0.0,
+      "cpu_time_total": 67.0,
+      "self_cuda_memory_usage": 0,
+      "self_cpu_memory_usage": 0,
+      "count": 12,
+      "cuda_time_avg": 0.0,
+      "cpu_time_avg": 5.583333333333333
+    },
+    {
+      "name": "aten::as_strided",
+      "cuda_time_total": 0.0,
+      "cpu_time_total": 15.0,
+      "self_cuda_memory_usage": 0,
+      "self_cpu_memory_usage": 0,
+      "count": 30,
+      "cuda_time_avg": 0.0,
+      "cpu_time_avg": 0.5
+    },
+    {
+      "name": "aten::add",
+      "cuda_time_total": 0.0,
+      "cpu_time_total": 45.0,
+      "self_cuda_memory_usage": 0,
+      "self_cpu_memory_usage": 8192,
+      "count": 6,
+      "cuda_time_avg": 0.0,
+      "cpu_time_avg": 7.5
+    },
+    {
+      "name": "aten::_native_multi_head_attention",
+      "cuda_time_total": 0.0,
+      "cpu_time_total": 10797.0,
+      "self_cuda_memory_usage": 0,
+      "self_cpu_memory_usage": -65536,
+      "count": 2,
+      "cuda_time_avg": 0.0,
+      "cpu_time_avg": 5398.5
+    },
+    {
+      "name": "aten::t",
+      "cuda_time_total": 0.0,
+      "cpu_time_total": 33.0,
+      "self_cuda_memory_usage": 0,
+      "self_cpu_memory_usage": 0,
+      "count": 8,
+      "cuda_time_avg": 0.0,
+      "cpu_time_avg": 4.125
+    },
+    {
+      "name": "aten::transpose",
+      "cuda_time_total": 0.0,
+      "cpu_time_total": 25.0,
+      "self_cuda_memory_usage": 0,
+      "self_cpu_memory_usage": 0,
+      "count": 10,
+      "cuda_time_avg": 0.0,
+      "cpu_time_avg": 2.5
+    },
+    {
+      "name": "aten::reshape",
+      "cuda_time_total": 0.0,
+      "cpu_time_total": 19.0,
+      "self_cuda_memory_usage": 0,
+      "self_cpu_memory_usage": 0,
+      "count": 8,
+      "cuda_time_avg": 0.0,
+      "cpu_time_avg": 2.375
+    },
+    {
+      "name": "aten::view",
+      "cuda_time_total": 0.0,
+      "cpu_time_total": 27.0,
+      "self_cuda_memory_usage": 0,
+      "self_cpu_memory_usage": 0,
+      "count": 40,
+      "cuda_time_avg": 0.0,
+      "cpu_time_avg": 0.675
+    },
+    {
+      "name": "aten::mm",
+      "cuda_time_total": 0.0,
+      "cpu_time_total": 64.0,
+      "self_cuda_memory_usage": 0,
+      "self_cpu_memory_usage": 24576,
+      "count": 2,
+      "cuda_time_avg": 0.0,
+      "cpu_time_avg": 32.0
+    },
+    {
+      "name": "aten::resolve_conj",
+      "cuda_time_total": 0.0,
+      "cpu_time_total": 0.0,
+      "self_cuda_memory_usage": 0,
+      "self_cpu_memory_usage": 0,
+      "count": 24,
+      "cuda_time_avg": 0.0,
+      "cpu_time_avg": 0.0
+    },
+    {
+      "name": "aten::_unsafe_view",
+      "cuda_time_total": 0.0,
+      "cpu_time_total": 1.0,
+      "self_cuda_memory_usage": 0,
+      "self_cpu_memory_usage": 0,
+      "count": 2,
+      "cuda_time_avg": 0.0,
+      "cpu_time_avg": 0.5
+    },
+    {
+      "name": "aten::_transform_bias_rescale_qkv",
+      "cuda_time_total": 0.0,
+      "cpu_time_total": 2637.0,
+      "self_cuda_memory_usage": 0,
+      "self_cpu_memory_usage": 0,
+      "count": 2,
+      "cuda_time_avg": 0.0,
+      "cpu_time_avg": 1318.5
+    },
+    {
+      "name": "aten::empty",
+      "cuda_time_total": 0.0,
+      "cpu_time_total": 26.0,
+      "self_cuda_memory_usage": 0,
+      "self_cpu_memory_usage": 49600,
+      "count": 16,
+      "cuda_time_avg": 0.0,
+      "cpu_time_avg": 1.625
+    },
+    {
+      "name": "aten::narrow",
+      "cuda_time_total": 0.0,
+      "cpu_time_total": 1230.0,
+      "self_cuda_memory_usage": 0,
+      "self_cpu_memory_usage": 0,
+      "count": 6,
+      "cuda_time_avg": 0.0,
+      "cpu_time_avg": 205.0
+    },
+    {
+      "name": "aten::bmm",
+      "cuda_time_total": 0.0,
+      "cpu_time_total": 3615.0,
+      "self_cuda_memory_usage": 0,
+      "self_cpu_memory_usage": 8192,
+      "count": 4,
+      "cuda_time_avg": 0.0,
+      "cpu_time_avg": 903.75
+    },
+    {
+      "name": "aten::_softmax",
+      "cuda_time_total": 0.0,
+      "cpu_time_total": 1153.0,
+      "self_cuda_memory_usage": 0,
+      "self_cpu_memory_usage": 0,
+      "count": 2,
+      "cuda_time_avg": 0.0,
+      "cpu_time_avg": 576.5
+    },
+    {
+      "name": "aten::permute",
+      "cuda_time_total": 0.0,
+      "cpu_time_total": 10.0,
+      "self_cuda_memory_usage": 0,
+      "self_cpu_memory_usage": 0,
+      "count": 2,
+      "cuda_time_avg": 0.0,
+      "cpu_time_avg": 5.0
+    },
+    {
+      "name": "aten::contiguous",
+      "cuda_time_total": 0.0,
+      "cpu_time_total": 103.0,
+      "self_cuda_memory_usage": 0,
+      "self_cpu_memory_usage": 0,
+      "count": 2,
+      "cuda_time_avg": 0.0,
+      "cpu_time_avg": 51.5
+    },
+    {
+      "name": "aten::clone",
+      "cuda_time_total": 0.0,
+      "cpu_time_total": 39.0,
+      "self_cuda_memory_usage": 0,
+      "self_cpu_memory_usage": 0,
+      "count": 2,
+      "cuda_time_avg": 0.0,
+      "cpu_time_avg": 19.5
+    },
+    {
+      "name": "aten::empty_like",
+      "cuda_time_total": 0.0,
+      "cpu_time_total": 14.0,
+      "self_cuda_memory_usage": 0,
+      "self_cpu_memory_usage": 0,
+      "count": 2,
+      "cuda_time_avg": 0.0,
+      "cpu_time_avg": 7.0
+    },
+    {
+      "name": "aten::copy_",
+      "cuda_time_total": 0.0,
+      "cpu_time_total": 28.0,
+      "self_cuda_memory_usage": 0,
+      "self_cpu_memory_usage": 0,
+      "count": 8,
+      "cuda_time_avg": 0.0,
+      "cpu_time_avg": 3.5
+    },
+    {
+      "name": "aten::addmm",
+      "cuda_time_total": 0.0,
+      "cpu_time_total": 119.0,
+      "self_cuda_memory_usage": 0,
+      "self_cpu_memory_usage": 32768,
+      "count": 6,
+      "cuda_time_avg": 0.0,
+      "cpu_time_avg": 19.833333333333332
+    },
+    {
+      "name": "aten::expand",
+      "cuda_time_total": 0.0,
+      "cpu_time_total": 10.0,
+      "self_cuda_memory_usage": 0,
+      "self_cpu_memory_usage": 0,
+      "count": 6,
+      "cuda_time_avg": 0.0,
+      "cpu_time_avg": 1.6666666666666667
+    },
+    {
+      "name": "fallback_function",
+      "cuda_time_total": 0.0,
+      "cpu_time_total": 1045.0,
+      "self_cuda_memory_usage": 0,
+      "self_cpu_memory_usage": 0,
+      "count": 2,
+      "cuda_time_avg": 0.0,
+      "cpu_time_avg": 522.5
+    },
+    {
+      "name": "aten::layer_norm",
+      "cuda_time_total": 0.0,
+      "cpu_time_total": 541.0,
+      "self_cuda_memory_usage": 0,
+      "self_cpu_memory_usage": -16896,
+      "count": 4,
+      "cuda_time_avg": 0.0,
+      "cpu_time_avg": 135.25
+    },
+    {
+      "name": "aten::native_layer_norm",
+      "cuda_time_total": 0.0,
+      "cpu_time_total": 359.0,
+      "self_cuda_memory_usage": 0,
+      "self_cpu_memory_usage": 64,
+      "count": 4,
+      "cuda_time_avg": 0.0,
+      "cpu_time_avg": 89.75
+    },
+    {
+      "name": "aten::linear",
+      "cuda_time_total": 0.0,
+      "cpu_time_total": 145.0,
+      "self_cuda_memory_usage": 0,
+      "self_cpu_memory_usage": -16384,
+      "count": 4,
+      "cuda_time_avg": 0.0,
+      "cpu_time_avg": 36.25
+    },
+    {
+      "name": "aten::gelu",
+      "cuda_time_total": 0.0,
+      "cpu_time_total": 162.0,
+      "self_cuda_memory_usage": 0,
+      "self_cpu_memory_usage": 0,
+      "count": 2,
+      "cuda_time_avg": 0.0,
+      "cpu_time_avg": 81.0
+    },
+    {
+      "name": "[memory]",
+      "cuda_time_total": 0.0,
+      "cpu_time_total": 0.0,
+      "self_cuda_memory_usage": 0,
+      "self_cpu_memory_usage": -4096,
+      "count": 1,
+      "cuda_time_avg": 0.0,
+      "cpu_time_avg": 0.0
+    }
+  ]
+}

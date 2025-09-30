@@ -1,0 +1,1095 @@
+{
+  "model": "tinyllama.pt",
+  "device": "CPU",
+  "meta": {
+    "python_version": "3.8.11",
+    "torch_version": "2.2.2",
+    "cuda_available": false,
+    "cuda_version": null,
+    "cudnn_version": null,
+    "device_name": "CPU",
+    "device_capability": null,
+    "model_num_parameters": 164544
+  },
+  "gpu": {
+    "gpu_utilisation": null,
+    "memory_utilisation": null,
+    "power_watts": null,
+    "temperature_c": null,
+    "fan_speed_pct": null,
+    "name": null,
+    "driver_version": null,
+    "vram_total_mb": null,
+    "vram_used_mb": null,
+    "vram_free_mb": null,
+    "cuda_allocated_mb": null,
+    "cuda_reserved_mb": null
+  },
+  "behavior": {
+    "op_count_total": 30,
+    "unique_ops": 30,
+    "matmul_ops": 1,
+    "conv_ops": 0,
+    "activation_ops": 1,
+    "norm_ops": 1,
+    "inplace_ops": 1,
+    "kernel_launches": 0,
+    "top_cuda_ms": [
+      {
+        "name": "forward",
+        "cuda_ms": 0.0
+      },
+      {
+        "name": "aten::slice",
+        "cuda_ms": 0.0
+      },
+      {
+        "name": "aten::as_strided",
+        "cuda_ms": 0.0
+      },
+      {
+        "name": "aten::add",
+        "cuda_ms": 0.0
+      },
+      {
+        "name": "aten::transpose",
+        "cuda_ms": 0.0
+      },
+      {
+        "name": "aten::linear",
+        "cuda_ms": 0.0
+      },
+      {
+        "name": "aten::reshape",
+        "cuda_ms": 0.0
+      },
+      {
+        "name": "aten::view",
+        "cuda_ms": 0.0
+      },
+      {
+        "name": "aten::t",
+        "cuda_ms": 0.0
+      },
+      {
+        "name": "aten::addmm",
+        "cuda_ms": 0.0
+      }
+    ],
+    "top_cuda_mem_bytes": [
+      {
+        "name": "forward",
+        "bytes": 0
+      },
+      {
+        "name": "aten::slice",
+        "bytes": 0
+      },
+      {
+        "name": "aten::as_strided",
+        "bytes": 0
+      },
+      {
+        "name": "aten::add",
+        "bytes": 0
+      },
+      {
+        "name": "aten::transpose",
+        "bytes": 0
+      },
+      {
+        "name": "aten::linear",
+        "bytes": 0
+      },
+      {
+        "name": "aten::reshape",
+        "bytes": 0
+      },
+      {
+        "name": "aten::view",
+        "bytes": 0
+      },
+      {
+        "name": "aten::t",
+        "bytes": 0
+      },
+      {
+        "name": "aten::addmm",
+        "bytes": 0
+      }
+    ],
+    "activation_bytes_total": 8192,
+    "top_activation_layers": [
+      {
+        "name": "",
+        "bytes": 8192
+      }
+    ]
+  },
+  "opportunities": {
+    "fp16_bf16_candidates": [],
+    "prune_candidates": []
+  },
+  "summary": {
+    "num_events": 30,
+    "total_cuda_time_ms": 0.0,
+    "total_cpu_time_ms": 0.009385,
+    "top_by_time": [
+      {
+        "name": "forward",
+        "cuda_ms": 0.0,
+        "cpu_ms": 0.003765,
+        "count": 1,
+        "cuda_mem": 0,
+        "cpu_mem": -16388
+      },
+      {
+        "name": "aten::slice",
+        "cuda_ms": 0.0,
+        "cpu_ms": 0.000519,
+        "count": 3,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::as_strided",
+        "cuda_ms": 0.0,
+        "cpu_ms": 3.5e-05,
+        "count": 28,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::add",
+        "cuda_ms": 0.0,
+        "cpu_ms": 5.4e-05,
+        "count": 3,
+        "cuda_mem": 0,
+        "cpu_mem": 12288
+      },
+      {
+        "name": "aten::transpose",
+        "cuda_ms": 0.0,
+        "cpu_ms": 3.5e-05,
+        "count": 15,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::linear",
+        "cuda_ms": 0.0,
+        "cpu_ms": 0.00142,
+        "count": 4,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::reshape",
+        "cuda_ms": 0.0,
+        "cpu_ms": 1.1e-05,
+        "count": 3,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::view",
+        "cuda_ms": 0.0,
+        "cpu_ms": 3.3e-05,
+        "count": 19,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::t",
+        "cuda_ms": 0.0,
+        "cpu_ms": 0.000221,
+        "count": 4,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::addmm",
+        "cuda_ms": 0.0,
+        "cpu_ms": 0.000538,
+        "count": 4,
+        "cuda_mem": 0,
+        "cpu_mem": 28672
+      },
+      {
+        "name": "aten::expand",
+        "cuda_ms": 0.0,
+        "cpu_ms": 9e-06,
+        "count": 4,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::copy_",
+        "cuda_ms": 0.0,
+        "cpu_ms": 1.7e-05,
+        "count": 5,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::resolve_conj",
+        "cuda_ms": 0.0,
+        "cpu_ms": 0.0,
+        "count": 8,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::unflatten",
+        "cuda_ms": 0.0,
+        "cpu_ms": 8e-06,
+        "count": 1,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::unsqueeze",
+        "cuda_ms": 0.0,
+        "cpu_ms": 6e-06,
+        "count": 1,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      }
+    ],
+    "top_by_mem": [
+      {
+        "name": "forward",
+        "cuda_mem": 0,
+        "cpu_mem": -16388
+      },
+      {
+        "name": "aten::slice",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::as_strided",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::add",
+        "cuda_mem": 0,
+        "cpu_mem": 12288
+      },
+      {
+        "name": "aten::transpose",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::linear",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::reshape",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::view",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::t",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::addmm",
+        "cuda_mem": 0,
+        "cpu_mem": 28672
+      },
+      {
+        "name": "aten::expand",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::copy_",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::resolve_conj",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::unflatten",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::unsqueeze",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      }
+    ]
+  },
+  "model_profile": {
+    "layers": [
+      {
+        "name": "",
+        "type": "_Wrapper",
+        "class_path": "cli.profile._Wrapper",
+        "parameters": [],
+        "buffers": [],
+        "attributes": {},
+        "input_shapes": [
+          [
+            1,
+            16,
+            64
+          ]
+        ],
+        "output_shapes": [
+          [
+            1,
+            16,
+            64
+          ]
+        ],
+        "output_dtype": "float32",
+        "cuda_mem_alloc_delta_bytes": null,
+        "forward_time_ms": 6.230249999999993
+      },
+      {
+        "name": "inner",
+        "type": "RecursiveScriptModule",
+        "class_path": "torch.jit._script.RecursiveScriptModule",
+        "parameters": [],
+        "buffers": [],
+        "attributes": {},
+        "input_shapes": [],
+        "output_shapes": [],
+        "output_dtype": null,
+        "cuda_mem_alloc_delta_bytes": null,
+        "forward_time_ms": null
+      },
+      {
+        "name": "inner.embed",
+        "type": "RecursiveScriptModule",
+        "class_path": "torch.jit._script.RecursiveScriptModule",
+        "parameters": [
+          {
+            "name": "weight",
+            "shape": [
+              2048,
+              64
+            ],
+            "numel": 131072,
+            "dtype": "float32",
+            "device": "cpu",
+            "requires_grad": true,
+            "kind": "weight"
+          }
+        ],
+        "buffers": [],
+        "attributes": {},
+        "input_shapes": [],
+        "output_shapes": [],
+        "output_dtype": null,
+        "cuda_mem_alloc_delta_bytes": null,
+        "forward_time_ms": null
+      },
+      {
+        "name": "inner.pos",
+        "type": "RecursiveScriptModule",
+        "class_path": "torch.jit._script.RecursiveScriptModule",
+        "parameters": [],
+        "buffers": [
+          {
+            "name": "pe",
+            "shape": [
+              1,
+              512,
+              64
+            ],
+            "numel": 32768,
+            "dtype": "float32",
+            "device": "cpu",
+            "kind": "buffer"
+          }
+        ],
+        "attributes": {},
+        "input_shapes": [],
+        "output_shapes": [],
+        "output_dtype": null,
+        "cuda_mem_alloc_delta_bytes": null,
+        "forward_time_ms": null
+      },
+      {
+        "name": "inner.attn",
+        "type": "RecursiveScriptModule",
+        "class_path": "torch.jit._script.RecursiveScriptModule",
+        "parameters": [
+          {
+            "name": "in_proj_weight",
+            "shape": [
+              192,
+              64
+            ],
+            "numel": 12288,
+            "dtype": "float32",
+            "device": "cpu",
+            "requires_grad": true,
+            "kind": "parameter"
+          },
+          {
+            "name": "in_proj_bias",
+            "shape": [
+              192
+            ],
+            "numel": 192,
+            "dtype": "float32",
+            "device": "cpu",
+            "requires_grad": true,
+            "kind": "parameter"
+          }
+        ],
+        "buffers": [],
+        "attributes": {},
+        "input_shapes": [],
+        "output_shapes": [],
+        "output_dtype": null,
+        "cuda_mem_alloc_delta_bytes": null,
+        "forward_time_ms": null
+      },
+      {
+        "name": "inner.attn.out_proj",
+        "type": "RecursiveScriptModule",
+        "class_path": "torch.jit._script.RecursiveScriptModule",
+        "parameters": [
+          {
+            "name": "weight",
+            "shape": [
+              64,
+              64
+            ],
+            "numel": 4096,
+            "dtype": "float32",
+            "device": "cpu",
+            "requires_grad": true,
+            "kind": "weight"
+          },
+          {
+            "name": "bias",
+            "shape": [
+              64
+            ],
+            "numel": 64,
+            "dtype": "float32",
+            "device": "cpu",
+            "requires_grad": true,
+            "kind": "bias"
+          }
+        ],
+        "buffers": [],
+        "attributes": {},
+        "input_shapes": [],
+        "output_shapes": [],
+        "output_dtype": null,
+        "cuda_mem_alloc_delta_bytes": null,
+        "forward_time_ms": null
+      },
+      {
+        "name": "inner.norm1",
+        "type": "RecursiveScriptModule",
+        "class_path": "torch.jit._script.RecursiveScriptModule",
+        "parameters": [
+          {
+            "name": "weight",
+            "shape": [
+              64
+            ],
+            "numel": 64,
+            "dtype": "float32",
+            "device": "cpu",
+            "requires_grad": true,
+            "kind": "weight"
+          },
+          {
+            "name": "bias",
+            "shape": [
+              64
+            ],
+            "numel": 64,
+            "dtype": "float32",
+            "device": "cpu",
+            "requires_grad": true,
+            "kind": "bias"
+          }
+        ],
+        "buffers": [],
+        "attributes": {},
+        "input_shapes": [],
+        "output_shapes": [],
+        "output_dtype": null,
+        "cuda_mem_alloc_delta_bytes": null,
+        "forward_time_ms": null
+      },
+      {
+        "name": "inner.mlp",
+        "type": "RecursiveScriptModule",
+        "class_path": "torch.jit._script.RecursiveScriptModule",
+        "parameters": [],
+        "buffers": [],
+        "attributes": {},
+        "input_shapes": [],
+        "output_shapes": [],
+        "output_dtype": null,
+        "cuda_mem_alloc_delta_bytes": null,
+        "forward_time_ms": null
+      },
+      {
+        "name": "inner.mlp.0",
+        "type": "RecursiveScriptModule",
+        "class_path": "torch.jit._script.RecursiveScriptModule",
+        "parameters": [
+          {
+            "name": "weight",
+            "shape": [
+              128,
+              64
+            ],
+            "numel": 8192,
+            "dtype": "float32",
+            "device": "cpu",
+            "requires_grad": true,
+            "kind": "weight"
+          },
+          {
+            "name": "bias",
+            "shape": [
+              128
+            ],
+            "numel": 128,
+            "dtype": "float32",
+            "device": "cpu",
+            "requires_grad": true,
+            "kind": "bias"
+          }
+        ],
+        "buffers": [],
+        "attributes": {},
+        "input_shapes": [],
+        "output_shapes": [],
+        "output_dtype": null,
+        "cuda_mem_alloc_delta_bytes": null,
+        "forward_time_ms": null
+      },
+      {
+        "name": "inner.mlp.1",
+        "type": "RecursiveScriptModule",
+        "class_path": "torch.jit._script.RecursiveScriptModule",
+        "parameters": [],
+        "buffers": [],
+        "attributes": {},
+        "input_shapes": [],
+        "output_shapes": [],
+        "output_dtype": null,
+        "cuda_mem_alloc_delta_bytes": null,
+        "forward_time_ms": null
+      },
+      {
+        "name": "inner.mlp.2",
+        "type": "RecursiveScriptModule",
+        "class_path": "torch.jit._script.RecursiveScriptModule",
+        "parameters": [
+          {
+            "name": "weight",
+            "shape": [
+              64,
+              128
+            ],
+            "numel": 8192,
+            "dtype": "float32",
+            "device": "cpu",
+            "requires_grad": true,
+            "kind": "weight"
+          },
+          {
+            "name": "bias",
+            "shape": [
+              64
+            ],
+            "numel": 64,
+            "dtype": "float32",
+            "device": "cpu",
+            "requires_grad": true,
+            "kind": "bias"
+          }
+        ],
+        "buffers": [],
+        "attributes": {},
+        "input_shapes": [],
+        "output_shapes": [],
+        "output_dtype": null,
+        "cuda_mem_alloc_delta_bytes": null,
+        "forward_time_ms": null
+      },
+      {
+        "name": "inner.norm2",
+        "type": "RecursiveScriptModule",
+        "class_path": "torch.jit._script.RecursiveScriptModule",
+        "parameters": [
+          {
+            "name": "weight",
+            "shape": [
+              64
+            ],
+            "numel": 64,
+            "dtype": "float32",
+            "device": "cpu",
+            "requires_grad": true,
+            "kind": "weight"
+          },
+          {
+            "name": "bias",
+            "shape": [
+              64
+            ],
+            "numel": 64,
+            "dtype": "float32",
+            "device": "cpu",
+            "requires_grad": true,
+            "kind": "bias"
+          }
+        ],
+        "buffers": [],
+        "attributes": {},
+        "input_shapes": [],
+        "output_shapes": [],
+        "output_dtype": null,
+        "cuda_mem_alloc_delta_bytes": null,
+        "forward_time_ms": null
+      }
+    ],
+    "parameter_count_total": 164544,
+    "parameter_count_trainable": 164544,
+    "parameter_count_frozen": 0,
+    "parameter_dtypes": {
+      "float32": 164544
+    },
+    "buffer_dtypes": {
+      "float32": 32768
+    },
+    "model_dtype": "float32"
+  },
+  "training_summary": {
+    "num_events": 84,
+    "total_cuda_time_ms": 0.0,
+    "total_cpu_time_ms": 0.23181600000000002,
+    "top_by_time": [
+      {
+        "name": "Optimizer.zero_grad#SGD.zero_grad",
+        "cuda_ms": 0.0,
+        "cpu_ms": 0.000645,
+        "count": 3,
+        "cuda_mem": 0,
+        "cpu_mem": -267776
+      },
+      {
+        "name": "forward",
+        "cuda_ms": 0.0,
+        "cpu_ms": 0.00246,
+        "count": 3,
+        "cuda_mem": 0,
+        "cpu_mem": -24576
+      },
+      {
+        "name": "aten::slice",
+        "cuda_ms": 0.0,
+        "cpu_ms": 6e-05,
+        "count": 9,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::as_strided",
+        "cuda_ms": 0.0,
+        "cpu_ms": 2.6e-05,
+        "count": 174,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::add",
+        "cuda_ms": 0.0,
+        "cpu_ms": 0.00012,
+        "count": 12,
+        "cuda_mem": 0,
+        "cpu_mem": 40960
+      },
+      {
+        "name": "aten::transpose",
+        "cuda_ms": 0.0,
+        "cpu_ms": 0.000232,
+        "count": 114,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::linear",
+        "cuda_ms": 0.0,
+        "cpu_ms": 0.000534,
+        "count": 12,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::reshape",
+        "cuda_ms": 0.0,
+        "cpu_ms": 0.001859,
+        "count": 57,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::view",
+        "cuda_ms": 0.0,
+        "cpu_ms": 0.000167,
+        "count": 105,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::t",
+        "cuda_ms": 0.0,
+        "cpu_ms": 0.000213,
+        "count": 39,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::addmm",
+        "cuda_ms": 0.0,
+        "cpu_ms": 0.00034,
+        "count": 12,
+        "cuda_mem": 0,
+        "cpu_mem": 86016
+      },
+      {
+        "name": "aten::expand",
+        "cuda_ms": 0.0,
+        "cpu_ms": 2.3e-05,
+        "count": 12,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::copy_",
+        "cuda_ms": 0.0,
+        "cpu_ms": 0.000249,
+        "count": 30,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::resolve_conj",
+        "cuda_ms": 0.0,
+        "cpu_ms": 0.0,
+        "count": 75,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::unflatten",
+        "cuda_ms": 0.0,
+        "cpu_ms": 2.1e-05,
+        "count": 3,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      }
+    ],
+    "top_by_mem": [
+      {
+        "name": "Optimizer.zero_grad#SGD.zero_grad",
+        "cuda_mem": 0,
+        "cpu_mem": -267776
+      },
+      {
+        "name": "forward",
+        "cuda_mem": 0,
+        "cpu_mem": -24576
+      },
+      {
+        "name": "aten::slice",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::as_strided",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::add",
+        "cuda_mem": 0,
+        "cpu_mem": 40960
+      },
+      {
+        "name": "aten::transpose",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::linear",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::reshape",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::view",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::t",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::addmm",
+        "cuda_mem": 0,
+        "cpu_mem": 86016
+      },
+      {
+        "name": "aten::expand",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::copy_",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::resolve_conj",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::unflatten",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      }
+    ]
+  },
+  "validation_summary": {
+    "num_events": 30,
+    "total_cuda_time_ms": 0.0,
+    "total_cpu_time_ms": 0.036335,
+    "top_by_time": [
+      {
+        "name": "forward",
+        "cuda_ms": 0.0,
+        "cpu_ms": 0.014006,
+        "count": 2,
+        "cuda_mem": 0,
+        "cpu_mem": -16384
+      },
+      {
+        "name": "aten::slice",
+        "cuda_ms": 0.0,
+        "cpu_ms": 6.7e-05,
+        "count": 12,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::as_strided",
+        "cuda_ms": 0.0,
+        "cpu_ms": 1.5e-05,
+        "count": 30,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::add",
+        "cuda_ms": 0.0,
+        "cpu_ms": 4.5e-05,
+        "count": 6,
+        "cuda_mem": 0,
+        "cpu_mem": 8192
+      },
+      {
+        "name": "aten::_native_multi_head_attention",
+        "cuda_ms": 0.0,
+        "cpu_ms": 0.010797,
+        "count": 2,
+        "cuda_mem": 0,
+        "cpu_mem": -65536
+      },
+      {
+        "name": "aten::t",
+        "cuda_ms": 0.0,
+        "cpu_ms": 3.3e-05,
+        "count": 8,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::transpose",
+        "cuda_ms": 0.0,
+        "cpu_ms": 2.5e-05,
+        "count": 10,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::reshape",
+        "cuda_ms": 0.0,
+        "cpu_ms": 1.9e-05,
+        "count": 8,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::view",
+        "cuda_ms": 0.0,
+        "cpu_ms": 2.7e-05,
+        "count": 40,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::mm",
+        "cuda_ms": 0.0,
+        "cpu_ms": 6.4e-05,
+        "count": 2,
+        "cuda_mem": 0,
+        "cpu_mem": 24576
+      },
+      {
+        "name": "aten::resolve_conj",
+        "cuda_ms": 0.0,
+        "cpu_ms": 0.0,
+        "count": 24,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::_unsafe_view",
+        "cuda_ms": 0.0,
+        "cpu_ms": 1e-06,
+        "count": 2,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::_transform_bias_rescale_qkv",
+        "cuda_ms": 0.0,
+        "cpu_ms": 0.002637,
+        "count": 2,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::empty",
+        "cuda_ms": 0.0,
+        "cpu_ms": 2.6e-05,
+        "count": 16,
+        "cuda_mem": 0,
+        "cpu_mem": 49600
+      },
+      {
+        "name": "aten::narrow",
+        "cuda_ms": 0.0,
+        "cpu_ms": 0.00123,
+        "count": 6,
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      }
+    ],
+    "top_by_mem": [
+      {
+        "name": "forward",
+        "cuda_mem": 0,
+        "cpu_mem": -16384
+      },
+      {
+        "name": "aten::slice",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::as_strided",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::add",
+        "cuda_mem": 0,
+        "cpu_mem": 8192
+      },
+      {
+        "name": "aten::_native_multi_head_attention",
+        "cuda_mem": 0,
+        "cpu_mem": -65536
+      },
+      {
+        "name": "aten::t",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::transpose",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::reshape",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::view",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::mm",
+        "cuda_mem": 0,
+        "cpu_mem": 24576
+      },
+      {
+        "name": "aten::resolve_conj",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::_unsafe_view",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::_transform_bias_rescale_qkv",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      },
+      {
+        "name": "aten::empty",
+        "cuda_mem": 0,
+        "cpu_mem": 49600
+      },
+      {
+        "name": "aten::narrow",
+        "cuda_mem": 0,
+        "cpu_mem": 0
+      }
+    ]
+  }
+}

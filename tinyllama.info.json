@@ -1,0 +1,8 @@
+{
+  "recommended_input_shape": [
+    1,
+    16,
+    64
+  ],
+  "note": "(batch, seq_len, embed_dim) for floating-point inputs; or pass token ids (1, 16) as integers"
+}
