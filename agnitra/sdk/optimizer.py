@@ -8,7 +8,7 @@ from torch import nn
 from torch.fx import symbolic_trace
 from torch.profiler import ProfilerActivity, profile, record_function
 
-from .deps import require_openai
+from .deps import require_openai, require_sb3
 from agnitra.core.optimizer import (
     PPOKernelOptimizer,
     PPOKernelOptimizerConfig,
@@ -123,6 +123,33 @@ def run_rl_tuning(telemetry: List[Dict[str, Any]], ir_nodes: List[Dict[str, Any]
 
     summary = summarize_kernel_telemetry(telemetry)
     config = PPOKernelOptimizerConfig(telemetry_summary=summary)
+
+    env: Any = None
+    PPO: Any = None
+    gym: Any = None
+    try:
+        PPO, gym = require_sb3()
+    except RuntimeError as exc:  # pragma: no cover - optional deps missing
+        logger.info("RL optimizer unavailable: %s", exc)
+    else:
+        try:
+            env = gym.make("AgnitraKernel-v0")
+        except Exception as env_exc:  # pragma: no cover - gym optional
+            logger.warning("Gym environment creation failed: %s", env_exc)
+        else:
+            try:
+                device = "cuda" if torch.cuda.is_available() else "cpu"
+                agent = PPO("MlpPolicy", env, verbose=0, device=device)
+                agent.learn(total_timesteps=max(1, config.total_timesteps // 10))
+            except Exception as exc:  # pragma: no cover - PPO optional
+                logger.info("SB3 PPO training failed: %s", exc)
+            finally:
+                if hasattr(env, "close"):
+                    try:
+                        env.close()
+                    except Exception:
+                        pass
+
     optimizer = PPOKernelOptimizer(config=config)
     try:
         result = optimizer.train()
