@@ -12,20 +12,26 @@ environments.
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import logging
+from pathlib import Path
+from typing import Any, Callable
 
 try:  # pragma: no cover - optional dependency
     import torch
+    from torch import nn
 except Exception:  # pragma: no cover - exercised when torch absent
     torch = None
+    nn = None  # type: ignore[assignment]
 
 from agnitra.sdk import (
-    Telemetry,
+    FXNodePatch,
     IRExtractor,
+    KernelGenerator,
     LLMOptimizer,
     RLAgent,
-    KernelGenerator,
     RuntimePatcher,
+    Telemetry,
 )
 from agnitra.telemetry_collector import profile_model
 
@@ -42,7 +48,8 @@ class DemoNet:
         self.patcher = RuntimePatcher()
 
     def optimize(self, model: str = "demo-model") -> str:
-        """Run the optimization pipeline and return the patched runtime."""
+        """Run the optimization pipeline and return a human-friendly summary."""
+
         self.telemetry.log("Starting optimization")
         ir = self.extractor.extract(model)
         telemetry_payload = {
@@ -63,9 +70,65 @@ class DemoNet:
         )
         policy = self.agent.learn(optimized)
         kernel = self.kernel_gen.generate(policy)
-        result = self.patcher.patch(kernel)
+        summary = self._inject_runtime_patch(kernel.module_path)
         self.telemetry.log("Optimization complete")
-        return result
+        return summary
+
+    # ------------------------------------------------------------------
+    # Runtime patch helpers
+    # ------------------------------------------------------------------
+    def _inject_runtime_patch(self, module_path: Path) -> str:
+        """Inject the generated kernel into a toy FX graph for demonstration."""
+
+        if torch is None:
+            # Torch absent → fall back to the legacy descriptor string.
+            return self.patcher.describe_kernel(module_path.name)
+
+        run_kernel = self._load_kernel_callable(module_path)
+
+        class VectorAddDemo(nn.Module):
+            def forward(self, x, y):  # type: ignore[override]
+                return x + y
+
+        baseline = VectorAddDemo()
+        sample_x = torch.arange(8, dtype=torch.float32)
+        sample_y = torch.linspace(0.1, 0.8, steps=8)
+        baseline_out = baseline(sample_x, sample_y)
+
+        patch = FXNodePatch(
+            name="vector-add",
+            target="operator.add",
+            kernel=lambda a, b: run_kernel(a, b),
+            metadata={"kernel_file": module_path.name},
+        )
+        report = self.patcher.patch(baseline, fx_patches=[patch], copy_module=True)
+        patched_module = report.module
+        optimized_out = patched_module(sample_x, sample_y)
+
+        max_delta = float(torch.max(torch.abs(optimized_out - baseline_out)))
+        applied_details = [
+            f"{log.name} via {log.strategy} ({', '.join(log.matched)})" for log in report.applied
+        ]
+        if not applied_details:
+            applied_details.append("no patches applied")
+        return (
+            "Runtime patch injector\n" +
+            "  " + "\n  ".join(applied_details) +
+            f"\n  max deviation vs baseline: {max_delta:.2e}"
+        )
+
+    def _load_kernel_callable(self, module_path: Path) -> Callable[[Any, Any], Any]:
+        """Dynamically import the generated kernel module and return ``run_kernel``."""
+
+        spec = importlib.util.spec_from_file_location(module_path.stem, module_path)
+        if spec is None or spec.loader is None:
+            raise RuntimeError(f"Unable to load kernel module from {module_path}")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module) # type: ignore[arg-type]
+        try:
+            return getattr(module, "run_kernel")
+        except AttributeError as exc:
+            raise AttributeError(f"Kernel module {module_path} lacks 'run_kernel'") from exc
 
 
 def _profile_llama3() -> None:

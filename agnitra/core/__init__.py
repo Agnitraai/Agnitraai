@@ -6,7 +6,13 @@ from .ir import IRExtractor
 from .optimizer import LLMOptimizer
 from .rl import RLAgent
 from .kernel import KernelGenerator
-from .runtime import RuntimePatcher
+from .runtime import (
+    FXNodePatch,
+    ForwardHookPatch,
+    PatchLog,
+    RuntimePatchReport,
+    RuntimePatcher,
+)
 
 __all__ = [
     "Telemetry",
@@ -14,5 +20,9 @@ __all__ = [
     "LLMOptimizer",
     "RLAgent",
     "KernelGenerator",
+    "FXNodePatch",
+    "ForwardHookPatch",
+    "PatchLog",
+    "RuntimePatchReport",
     "RuntimePatcher",
 ]

@@ -5,7 +5,14 @@ from agnitra.core.ir import IRExtractor
 from agnitra.core.optimizer import LLMOptimizer
 from agnitra.core.rl import RLAgent, CodexGuidedAgent
 from agnitra.core.kernel import KernelGenerator
-from agnitra.core.runtime import RuntimePatcher, apply_tuning_preset
+from agnitra.core.runtime import (
+    FXNodePatch,
+    ForwardHookPatch,
+    PatchLog,
+    RuntimePatchReport,
+    RuntimePatcher,
+    apply_tuning_preset,
+)
 
 __all__ = [
     "Telemetry",
@@ -14,6 +21,10 @@ __all__ = [
     "RLAgent",
     "CodexGuidedAgent",
     "KernelGenerator",
+    "FXNodePatch",
+    "ForwardHookPatch",
+    "PatchLog",
+    "RuntimePatchReport",
     "RuntimePatcher",
     "apply_tuning_preset",
 ]
