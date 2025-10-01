@@ -20,8 +20,43 @@ from agnitra.core.runtime import apply_tuning_preset
 logger = logging.getLogger(__name__)
 
 
+def _infer_module_device(module: nn.Module) -> Optional[torch.device]:
+    """Best-effort helper to detect which device a module currently uses."""
+
+    for accessor in ("parameters", "buffers"):
+        try:
+            iterator = getattr(module, accessor)()  # type: ignore[arg-type]
+        except Exception:
+            continue
+        for item in iterator:
+            if isinstance(item, torch.Tensor):
+                return item.device
+    return None
+
+
 def collect_telemetry(model: nn.Module, input_tensor: torch.Tensor) -> List[Dict[str, Any]]:
-    """Collect basic profiler telemetry for a single model forward pass."""
+    """Collect basic profiler telemetry for a single model forward pass.
+
+    The helper aligns the input tensor with the module's device before running the
+    profiler to avoid device-mismatch errors when callers reuse models that have
+    already been moved to GPU.
+    """
+
+    target_device = _infer_module_device(model)
+    if target_device is None and isinstance(input_tensor, torch.Tensor):
+        target_device = input_tensor.device
+    if target_device is None:
+        target_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    if isinstance(input_tensor, torch.Tensor) and input_tensor.device != target_device:
+        input_tensor = input_tensor.to(target_device)
+
+    if hasattr(model, "to"):
+        try:
+            model = model.to(target_device)  # type: ignore[assignment]
+        except Exception:
+            pass
+
     activities = [ProfilerActivity.CPU]
     if torch.cuda.is_available():
         activities.append(ProfilerActivity.CUDA)

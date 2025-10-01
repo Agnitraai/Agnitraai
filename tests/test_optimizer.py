@@ -10,6 +10,7 @@ from torch import nn
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from agnitra.sdk.optimizer import (
+    collect_telemetry,
     optimize_model,
     request_kernel_suggestions,
     run_rl_tuning,
@@ -103,6 +104,24 @@ def test_request_kernel_suggestions_requires_openai(monkeypatch):
 
     monkeypatch.setattr("agnitra.sdk.optimizer.require_openai", boom)
     assert request_kernel_suggestions([], []) is None
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA device required")
+def test_collect_telemetry_aligns_to_model_device(tmp_path):
+    class Dummy(nn.Module):
+        def __init__(self) -> None:
+            super().__init__()
+            self.proj = nn.Linear(8, 8)
+
+        def forward(self, x: torch.Tensor) -> torch.Tensor:
+            assert x.device == self.proj.weight.device
+            return self.proj(x)
+
+    model = Dummy().cuda()
+    input_cpu = torch.randn(2, 8)
+    telemetry = collect_telemetry(model, input_cpu)
+    assert isinstance(telemetry, list)
+    assert telemetry  # profiler should record at least one event
 
 
 def test_run_rl_tuning_requires_sb3(monkeypatch):
