@@ -1,4 +1,4 @@
-from agnitra.sdk import model_loader as ml
+from agnitra._sdk import model_loader as ml
 
 
 def test_quantized_selected_on_low_memory(monkeypatch):

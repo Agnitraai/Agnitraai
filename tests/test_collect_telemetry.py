@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 
-from agnitra.sdk import optimizer
+from agnitra._sdk import optimizer
 
 
 def test_collect_telemetry_handles_missing_cuda(monkeypatch):
@@ -50,4 +50,3 @@ def test_collect_telemetry_handles_missing_cuda(monkeypatch):
             "cuda_memory_bytes": 0,
         }
     ]
-

@@ -44,8 +44,8 @@ def test_optimize_uses_fallback_without_client():
     assert suggestion["tile_shape"] == [64, 64]
     assert pytest.approx(suggestion["expected_latency_ms"], rel=1e-3) == 7.6
     models = {entry["model"]: entry for entry in payload["models"]}
+    assert models["gpt-5-mini"]["status"] == "skipped"
     assert models["gpt-4.1-mini"]["status"] == "skipped"
-    assert models["gpt-5-mini-2025-08-07"]["status"] == "skipped"
     assert models["heuristic-fallback"]["status"] == "fallback"
 
 
@@ -91,15 +91,15 @@ def test_optimize_parses_json_response():
     result = optimizer.optimize(_sample_graph(), _sample_telemetry())
     payload = json.loads(result)
     best = payload["best_model"]
-    assert best["model"] == "gpt-4.1-mini"
+    assert best["model"] == "gpt-5-mini"
     suggestion = best["suggestion"]
     assert suggestion["block_size"] == 256
     assert suggestion["tile_shape"] == [64, 128]
     assert suggestion["unroll_factor"] == 4
     assert "Double buffering" in suggestion["rationale"]
     models = {entry["model"]: entry for entry in payload["models"]}
+    assert models["gpt-5-mini"]["status"] == "ok"
     assert models["gpt-4.1-mini"]["status"] == "ok"
-    assert models["gpt-5-mini-2025-08-07"]["status"] == "ok"
     user_prompt = client.responses.last_kwargs["input"][1]["content"][0]["text"]
     assert "1024" in user_prompt
     assert "10.2" in user_prompt
@@ -163,10 +163,10 @@ def test_optimize_falls_back_to_secondary_model():
     result = optimizer.optimize(_sample_graph(), _sample_telemetry())
     payload = json.loads(result)
     best = payload["best_model"]
-    assert best["model"] == "gpt-5-mini-2025-08-07"
+    assert best["model"] == "gpt-4.1-mini"
     assert best["suggestion"]["block_size"] == 320
     models = {entry["model"]: entry for entry in payload["models"]}
-    assert models["gpt-4.1-mini"]["status"] == "error"
-    assert models["gpt-5-mini-2025-08-07"]["status"] == "ok"
+    assert models["gpt-5-mini"]["status"] == "error"
+    assert models["gpt-4.1-mini"]["status"] == "ok"
     assert client.responses.calls == 2
-    assert client.responses.last_kwargs["model"] == "gpt-5-mini-2025-08-07"
+    assert client.responses.last_kwargs["model"] == "gpt-4.1-mini"

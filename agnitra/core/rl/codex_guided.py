@@ -37,7 +37,7 @@ class CodexGuidedAgent:
     model_name: str = "gpt-5-codex"
 
     def _require_openai(self):  # lazy import to avoid hard dependency
-        from agnitra.sdk.deps import require_openai
+        from agnitra._sdk.deps import require_openai
 
         try:
             OpenAI = require_openai()
@@ -97,9 +97,7 @@ class CodexGuidedAgent:
         try:
             import os as _os
             _model = _os.getenv("AGNITRA_LLM_MODEL", self.model_name)
-            resp = client.responses.create(
-                model=_model, input=[system, user], max_output_tokens=256, store=False
-            )
+            resp = client.responses.create(model=_model, input=[system, user], store=False)
         except Exception as exc:  # pragma: no cover - network/availability
             logger.info("Codex request failed: %s", exc)
             return None

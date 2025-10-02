@@ -11,14 +11,14 @@ def test_demo_net_optimize(monkeypatch):
     """Integration test for DemoNet.optimize."""
     # Mock potential heavy or network-bound operations
     monkeypatch.setattr(
-        "agnitra.sdk.optimizer.request_kernel_suggestions",
+        "agnitra._sdk.optimizer.request_kernel_suggestions",
         lambda *args, **kwargs: "mocked",
     )
     monkeypatch.setattr(
-        "agnitra.sdk.optimizer.run_rl_tuning",
+        "agnitra._sdk.optimizer.run_rl_tuning",
         lambda *args, **kwargs: None,
     )
 
     net = DemoNet()
     result = net.optimize(model="dummy-model")
-    assert result.startswith("Patched<")
+    assert "Runtime patch injector" in result

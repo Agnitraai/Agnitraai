@@ -1,7 +1,10 @@
+from __future__ import annotations
+
 import json
 import logging
-from typing import Any, Dict, List, Optional
 import os
+from pathlib import Path
+from typing import Any, Callable, Dict, List, Mapping, Optional
 
 import torch
 from torch import nn
@@ -10,8 +13,11 @@ from torch.profiler import ProfilerActivity, profile, record_function
 
 from .deps import require_openai, require_sb3
 from agnitra.core.optimizer import (
+    OpenEvolveResult,
+    OpenEvolveRunner,
     PPOKernelOptimizer,
     PPOKernelOptimizerConfig,
+    run_open_evolve_from_log,
     summarize_kernel_telemetry,
 )
 from agnitra.core.rl import CodexGuidedAgent
@@ -105,7 +111,7 @@ def request_kernel_suggestions(
     telemetry: List[Dict[str, Any]],
     ir_nodes: List[Dict[str, Any]],
     client: Optional[Any] = None,
-    model_name: str = "codex-latest",
+    model_name: str = "gpt-5-codex",
 ) -> Optional[str]:
     """Call an LLM to request kernel suggestions. Returns text or ``None``."""
     if client is None:
@@ -140,9 +146,7 @@ def request_kernel_suggestions(
     # Allow overriding the model via environment variable without changing callers
     import os as _os
     _model = _os.getenv("AGNITRA_LLM_MODEL", model_name)
-    response = client.responses.create(
-        model=_model, input=[system_message, user_message], max_output_tokens=1024, store=False
-    )
+    response = client.responses.create(model=_model, input=[system_message, user_message], store=False)
     optimized_text = ""
     try:
         for item in getattr(response, "output", []) or []:
@@ -225,6 +229,33 @@ def run_llm_guided_rl(
         return chosen
     except Exception:  # pragma: no cover - best effort
         logger.exception("LLM-guided RL failed")
+        return None
+
+
+def optimize_log_with_open_evolve(
+    log_path: str | Path,
+    *,
+    runner: Optional[OpenEvolveRunner] = None,
+    iterations: Optional[int] = None,
+    evaluator: Optional[Callable[[Path], Mapping[str, Any]]] = None,
+    extra_config: Optional[Mapping[str, Any]] = None,
+) -> Optional[OpenEvolveResult]:
+    """Best-effort optimisation of a saved Agnitra log via OpenEvolve."""
+
+    path_obj = Path(log_path)
+    if not path_obj.exists():
+        logger.error("OpenEvolve log file not found: %s", path_obj)
+        return None
+    try:
+        return run_open_evolve_from_log(
+            path_obj,
+            runner=runner,
+            iterations=iterations,
+            evaluator=evaluator,
+            extra_config=extra_config,
+        )
+    except Exception:  # pragma: no cover - optional dependency path
+        logger.exception("OpenEvolve optimisation failed for %s", path_obj)
         return None
 
 

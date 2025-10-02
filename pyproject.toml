@@ -26,8 +26,8 @@ nvml = [
 ]
 
 [project.scripts]
-agnitra = "cli.main:main"
-agnitra-optimize = "cli.optimize:main"
+agnitra = "agnitra.cli:main"
+agnitra-optimize = "agnitra.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]

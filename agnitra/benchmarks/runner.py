@@ -19,7 +19,7 @@ try:  # pragma: no cover - optional dependency
 except Exception:  # pragma: no cover - exercised when torch absent
     torch = None
 
-from agnitra.sdk.optimizer import optimize_model
+from agnitra._sdk.optimizer import optimize_model
 
 
 @dataclass
