@@ -31,12 +31,15 @@ def _sample_report() -> dict:
 def test_open_evolve_problem_from_report_generates_program(tmp_path):
     problem = OpenEvolveProblem.from_report(_sample_report(), name="sample")
     assert problem.name == "sample"
+    assert "# EVOLVE-BLOCK-START" in problem.initial_program
     assert "candidate_configuration" in problem.initial_program
     evaluator = problem.build_default_evaluator()
     candidate_file = tmp_path / "candidate.json"
     candidate_file.write_text(json.dumps({"expected_latency_ms": 7.9}))
     metrics = evaluator(candidate_file)
-    assert pytest.approx(metrics["score"], rel=1e-3) == 12.5 - 7.9
+    if hasattr(metrics, "metrics"):
+        metrics = metrics.metrics
+    assert pytest.approx(metrics["combined_score"], rel=1e-3) == 12.5 - 7.9
 
 
 def test_open_evolve_runner_requires_dependency():

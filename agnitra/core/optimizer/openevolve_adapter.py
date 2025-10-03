@@ -55,32 +55,53 @@ def _ensure_pair(value: Any, default: tuple[int, int]) -> tuple[int, int]:
     return default
 
 
-def _render_initial_program(suggestion: Mapping[str, Any], baseline_latency: Optional[float]) -> str:
+def _render_initial_program(
+    suggestion: Mapping[str, Any],
+    baseline_latency: Optional[float],
+    baseline_summary: Mapping[str, Any],
+) -> str:
     block_size = _to_int(suggestion.get("block_size"), 128)
     tile_m, tile_n = _ensure_pair(suggestion.get("tile_shape"), (64, 64))
     unroll = _to_int(suggestion.get("unroll_factor"), 2)
     expected_latency = _to_float(suggestion.get("expected_latency_ms"))
+    base_latency = baseline_latency or expected_latency or 7.5
     if expected_latency is None:
-        expected_latency = baseline_latency or 7.5
-    rationale = suggestion.get("rationale") or "Seed configuration derived from Agnitra log."
-    program = f"""
-# Auto-generated seed program from Agnitra log analysis
-BLOCK_SIZE = {block_size}
-TILE_M = {tile_m}
-TILE_N = {tile_n}
-UNROLL_FACTOR = {unroll}
-EXPECTED_LATENCY_MS = {expected_latency:.4f}
-
-
-def candidate_configuration():
-    return {{
-        "block_size": BLOCK_SIZE,
-        "tile_shape": (TILE_M, TILE_N),
-        "unroll_factor": UNROLL_FACTOR,
-        "expected_latency_ms": EXPECTED_LATENCY_MS,
-        "rationale": {json.dumps(str(rationale))}
-    }}
-"""
+        expected_latency = base_latency
+    target_latency = _to_float(suggestion.get("target_latency_ms"))
+    if target_latency is None:
+        target_latency = min(expected_latency, base_latency * 0.85)
+    rationale_literal = json.dumps(str(suggestion.get("rationale") or "Seed configuration derived from Agnitra log."))
+    metadata_literal = json.dumps({
+        "baseline": {
+            "op": baseline_summary.get("op"),
+            "shape": baseline_summary.get("shape"),
+            "latency_ms": baseline_summary.get("latency_ms", base_latency),
+        }
+    })
+    header = '"""Agnitra-generated kernel tuning seed for OpenEvolve."""'
+    program = (
+        f"{header}\n\n"
+        f"BASELINE_LATENCY_MS = {base_latency:.4f}\n"
+        f"TARGET_LATENCY_MS = {target_latency:.4f}\n"
+        f"METADATA = {metadata_literal}\n\n"
+        "# EVOLVE-BLOCK-START\n"
+        f"BLOCK_SIZE = {block_size}\n"
+        f"TILE_SHAPE = ({tile_m}, {tile_n})\n"
+        f"UNROLL_FACTOR = {unroll}\n"
+        f"EXPECTED_LATENCY_MS = {expected_latency:.4f}\n"
+        f"RATIONALE = {rationale_literal}\n\n"
+        "\n"
+        "def candidate_configuration():\n"
+        "    return {\n"
+        "        \"block_size\": BLOCK_SIZE,\n"
+        "        \"tile_shape\": [TILE_SHAPE[0], TILE_SHAPE[1]],\n"
+        "        \"unroll_factor\": UNROLL_FACTOR,\n"
+        "        \"expected_latency_ms\": EXPECTED_LATENCY_MS,\n"
+        "        \"target_latency_ms\": TARGET_LATENCY_MS,\n"
+        "        \"rationale\": RATIONALE,\n"
+        "    }\n"
+        "# EVOLVE-BLOCK-END\n"
+    )
     return textwrap.dedent(program).strip()
 
 
@@ -146,7 +167,7 @@ class OpenEvolveProblem:
             target = expected
         if target is None and baseline_latency is not None:
             target = baseline_latency * 0.85
-        initial_program = _render_initial_program(suggestion, baseline_latency)
+        initial_program = _render_initial_program(suggestion, baseline_latency, baseline)
         problem_name = name or str(payload.get("name") or best.get("model") or "agnitra-log")
         description = payload.get("description") or (
             f"Baseline latency {baseline_latency} ms for op {baseline.get('op')}"
@@ -187,11 +208,24 @@ class OpenEvolveProblem:
                 text = ""
             candidate_latency = _extract_expected_latency(text) or target
             improvement = baseline - candidate_latency
-            return {
-                "score": improvement,
+            metrics: Dict[str, Any] = {
+                "combined_score": improvement,
                 "baseline_latency_ms": baseline,
                 "candidate_latency_ms": candidate_latency,
+                "target_latency_ms": target,
+                "improvement_ms": improvement,
             }
+            artifacts = {
+                "candidate_source": text,
+                "baseline_latency_ms": baseline,
+                "target_latency_ms": target,
+            }
+            try:  # Optional dependency - gracefully fallback when unavailable
+                from openevolve.evaluation_result import EvaluationResult  # type: ignore
+
+                return EvaluationResult(metrics=metrics, artifacts=artifacts)
+            except Exception:
+                return metrics
 
         return evaluator
 
