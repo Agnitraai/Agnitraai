@@ -133,20 +133,20 @@
   "summary": {
     "num_events": 30,
     "total_cuda_time_ms": 0.0,
-    "total_cpu_time_ms": 0.009385,
+    "total_cpu_time_ms": 0.022197,
     "top_by_time": [
       {
         "name": "forward",
         "cuda_ms": 0.0,
-        "cpu_ms": 0.003765,
+        "cpu_ms": 0.008855,
         "count": 1,
         "cuda_mem": 0,
-        "cpu_mem": -16388
+        "cpu_mem": -4096
       },
       {
         "name": "aten::slice",
         "cuda_ms": 0.0,
-        "cpu_ms": 0.000519,
+        "cpu_ms": 0.000596,
         "count": 3,
         "cuda_mem": 0,
         "cpu_mem": 0
@@ -154,7 +154,7 @@
       {
         "name": "aten::as_strided",
         "cuda_ms": 0.0,
-        "cpu_ms": 3.5e-05,
+        "cpu_ms": 0.00012,
         "count": 28,
         "cuda_mem": 0,
         "cpu_mem": 0
@@ -162,7 +162,7 @@
       {
         "name": "aten::add",
         "cuda_ms": 0.0,
-        "cpu_ms": 5.4e-05,
+        "cpu_ms": 8.1e-05,
         "count": 3,
         "cuda_mem": 0,
         "cpu_mem": 12288
@@ -170,7 +170,7 @@
       {
         "name": "aten::transpose",
         "cuda_ms": 0.0,
-        "cpu_ms": 3.5e-05,
+        "cpu_ms": 0.000295,
         "count": 15,
         "cuda_mem": 0,
         "cpu_mem": 0
@@ -178,7 +178,7 @@
       {
         "name": "aten::linear",
         "cuda_ms": 0.0,
-        "cpu_ms": 0.00142,
+        "cpu_ms": 0.003663,
         "count": 4,
         "cuda_mem": 0,
         "cpu_mem": 0
@@ -186,7 +186,7 @@
       {
         "name": "aten::reshape",
         "cuda_ms": 0.0,
-        "cpu_ms": 1.1e-05,
+        "cpu_ms": 4.1e-05,
         "count": 3,
         "cuda_mem": 0,
         "cpu_mem": 0
@@ -194,7 +194,7 @@
       {
         "name": "aten::view",
         "cuda_ms": 0.0,
-        "cpu_ms": 3.3e-05,
+        "cpu_ms": 0.000171,
         "count": 19,
         "cuda_mem": 0,
         "cpu_mem": 0
@@ -202,7 +202,7 @@
       {
         "name": "aten::t",
         "cuda_ms": 0.0,
-        "cpu_ms": 0.000221,
+        "cpu_ms": 0.00077,
         "count": 4,
         "cuda_mem": 0,
         "cpu_mem": 0
@@ -210,7 +210,7 @@
       {
         "name": "aten::addmm",
         "cuda_ms": 0.0,
-        "cpu_ms": 0.000538,
+        "cpu_ms": 0.001353,
         "count": 4,
         "cuda_mem": 0,
         "cpu_mem": 28672
@@ -218,7 +218,7 @@
       {
         "name": "aten::expand",
         "cuda_ms": 0.0,
-        "cpu_ms": 9e-06,
+        "cpu_ms": 2.9e-05,
         "count": 4,
         "cuda_mem": 0,
         "cpu_mem": 0
@@ -226,7 +226,7 @@
       {
         "name": "aten::copy_",
         "cuda_ms": 0.0,
-        "cpu_ms": 1.7e-05,
+        "cpu_ms": 6.2e-05,
         "count": 5,
         "cuda_mem": 0,
         "cpu_mem": 0
@@ -242,7 +242,7 @@
       {
         "name": "aten::unflatten",
         "cuda_ms": 0.0,
-        "cpu_ms": 8e-06,
+        "cpu_ms": 2.5e-05,
         "count": 1,
         "cuda_mem": 0,
         "cpu_mem": 0
@@ -250,7 +250,7 @@
       {
         "name": "aten::unsqueeze",
         "cuda_ms": 0.0,
-        "cpu_ms": 6e-06,
+        "cpu_ms": 2.4e-05,
         "count": 1,
         "cuda_mem": 0,
         "cpu_mem": 0
@@ -260,7 +260,7 @@
       {
         "name": "forward",
         "cuda_mem": 0,
-        "cpu_mem": -16388
+        "cpu_mem": -4096
       },
       {
         "name": "aten::slice",
@@ -359,7 +359,7 @@
         ],
         "output_dtype": "float32",
         "cuda_mem_alloc_delta_bytes": null,
-        "forward_time_ms": 6.230249999999993
+        "forward_time_ms": 12.388416999999485
       },
       {
         "name": "inner",
@@ -687,12 +687,12 @@
   "training_summary": {
     "num_events": 84,
     "total_cuda_time_ms": 0.0,
-    "total_cpu_time_ms": 0.23181600000000002,
+    "total_cpu_time_ms": 0.5907390000000002,
     "top_by_time": [
       {
         "name": "Optimizer.zero_grad#SGD.zero_grad",
         "cuda_ms": 0.0,
-        "cpu_ms": 0.000645,
+        "cpu_ms": 0.002222,
         "count": 3,
         "cuda_mem": 0,
         "cpu_mem": -267776
@@ -700,15 +700,15 @@
       {
         "name": "forward",
         "cuda_ms": 0.0,
-        "cpu_ms": 0.00246,
+        "cpu_ms": 0.012987,
         "count": 3,
         "cuda_mem": 0,
-        "cpu_mem": -24576
+        "cpu_mem": -12288
       },
       {
         "name": "aten::slice",
         "cuda_ms": 0.0,
-        "cpu_ms": 6e-05,
+        "cpu_ms": 0.000241,
         "count": 9,
         "cuda_mem": 0,
         "cpu_mem": 0
@@ -716,7 +716,7 @@
       {
         "name": "aten::as_strided",
         "cuda_ms": 0.0,
-        "cpu_ms": 2.6e-05,
+        "cpu_ms": 0.000507,
         "count": 174,
         "cuda_mem": 0,
         "cpu_mem": 0
@@ -724,15 +724,15 @@
       {
         "name": "aten::add",
         "cuda_ms": 0.0,
-        "cpu_ms": 0.00012,
+        "cpu_ms": 0.000357,
         "count": 12,
         "cuda_mem": 0,
-        "cpu_mem": 40960
+        "cpu_mem": 32768
       },
       {
         "name": "aten::transpose",
         "cuda_ms": 0.0,
-        "cpu_ms": 0.000232,
+        "cpu_ms": 0.001266,
         "count": 114,
         "cuda_mem": 0,
         "cpu_mem": 0
@@ -740,7 +740,7 @@
       {
         "name": "aten::linear",
         "cuda_ms": 0.0,
-        "cpu_ms": 0.000534,
+        "cpu_ms": 0.002443,
         "count": 12,
         "cuda_mem": 0,
         "cpu_mem": 0
@@ -748,7 +748,7 @@
       {
         "name": "aten::reshape",
         "cuda_ms": 0.0,
-        "cpu_ms": 0.001859,
+        "cpu_ms": 0.009878,
         "count": 57,
         "cuda_mem": 0,
         "cpu_mem": 0
@@ -756,7 +756,7 @@
       {
         "name": "aten::view",
         "cuda_ms": 0.0,
-        "cpu_ms": 0.000167,
+        "cpu_ms": 0.001236,
         "count": 105,
         "cuda_mem": 0,
         "cpu_mem": 0
@@ -764,7 +764,7 @@
       {
         "name": "aten::t",
         "cuda_ms": 0.0,
-        "cpu_ms": 0.000213,
+        "cpu_ms": 0.00082,
         "count": 39,
         "cuda_mem": 0,
         "cpu_mem": 0
@@ -772,7 +772,7 @@
       {
         "name": "aten::addmm",
         "cuda_ms": 0.0,
-        "cpu_ms": 0.00034,
+        "cpu_ms": 0.001648,
         "count": 12,
         "cuda_mem": 0,
         "cpu_mem": 86016
@@ -780,7 +780,7 @@
       {
         "name": "aten::expand",
         "cuda_ms": 0.0,
-        "cpu_ms": 2.3e-05,
+        "cpu_ms": 0.000193,
         "count": 12,
         "cuda_mem": 0,
         "cpu_mem": 0
@@ -788,7 +788,7 @@
       {
         "name": "aten::copy_",
         "cuda_ms": 0.0,
-        "cpu_ms": 0.000249,
+        "cpu_ms": 0.000455,
         "count": 30,
         "cuda_mem": 0,
         "cpu_mem": 0
@@ -796,7 +796,7 @@
       {
         "name": "aten::resolve_conj",
         "cuda_ms": 0.0,
-        "cpu_ms": 0.0,
+        "cpu_ms": 3e-06,
         "count": 75,
         "cuda_mem": 0,
         "cpu_mem": 0
@@ -804,7 +804,7 @@
       {
         "name": "aten::unflatten",
         "cuda_ms": 0.0,
-        "cpu_ms": 2.1e-05,
+        "cpu_ms": 7.4e-05,
         "count": 3,
         "cuda_mem": 0,
         "cpu_mem": 0
@@ -819,7 +819,7 @@
       {
         "name": "forward",
         "cuda_mem": 0,
-        "cpu_mem": -24576
+        "cpu_mem": -12288
       },
       {
         "name": "aten::slice",
@@ -834,7 +834,7 @@
       {
         "name": "aten::add",
         "cuda_mem": 0,
-        "cpu_mem": 40960
+        "cpu_mem": 32768
       },
       {
         "name": "aten::transpose",
@@ -891,12 +891,12 @@
   "validation_summary": {
     "num_events": 30,
     "total_cuda_time_ms": 0.0,
-    "total_cpu_time_ms": 0.036335,
+    "total_cpu_time_ms": 0.090834,
     "top_by_time": [
       {
         "name": "forward",
         "cuda_ms": 0.0,
-        "cpu_ms": 0.014006,
+        "cpu_ms": 0.041303,
         "count": 2,
         "cuda_mem": 0,
         "cpu_mem": -16384
@@ -904,7 +904,7 @@
       {
         "name": "aten::slice",
         "cuda_ms": 0.0,
-        "cpu_ms": 6.7e-05,
+        "cpu_ms": 0.000178,
         "count": 12,
         "cuda_mem": 0,
         "cpu_mem": 0
@@ -912,7 +912,7 @@
       {
         "name": "aten::as_strided",
         "cuda_ms": 0.0,
-        "cpu_ms": 1.5e-05,
+        "cpu_ms": 7.8e-05,
         "count": 30,
         "cuda_mem": 0,
         "cpu_mem": 0
@@ -920,7 +920,7 @@
       {
         "name": "aten::add",
         "cuda_ms": 0.0,
-        "cpu_ms": 4.5e-05,
+        "cpu_ms": 0.001917,
         "count": 6,
         "cuda_mem": 0,
         "cpu_mem": 8192
@@ -928,7 +928,7 @@
       {
         "name": "aten::_native_multi_head_attention",
         "cuda_ms": 0.0,
-        "cpu_ms": 0.010797,
+        "cpu_ms": 0.019784,
         "count": 2,
         "cuda_mem": 0,
         "cpu_mem": -65536
@@ -936,7 +936,7 @@
       {
         "name": "aten::t",
         "cuda_ms": 0.0,
-        "cpu_ms": 3.3e-05,
+        "cpu_ms": 0.000157,
         "count": 8,
         "cuda_mem": 0,
         "cpu_mem": 0
@@ -944,7 +944,7 @@
       {
         "name": "aten::transpose",
         "cuda_ms": 0.0,
-        "cpu_ms": 2.5e-05,
+        "cpu_ms": 9.5e-05,
         "count": 10,
         "cuda_mem": 0,
         "cpu_mem": 0
@@ -952,7 +952,7 @@
       {
         "name": "aten::reshape",
         "cuda_ms": 0.0,
-        "cpu_ms": 1.9e-05,
+        "cpu_ms": 7e-05,
         "count": 8,
         "cuda_mem": 0,
         "cpu_mem": 0
@@ -960,7 +960,7 @@
       {
         "name": "aten::view",
         "cuda_ms": 0.0,
-        "cpu_ms": 2.7e-05,
+        "cpu_ms": 0.000152,
         "count": 40,
         "cuda_mem": 0,
         "cpu_mem": 0
@@ -968,7 +968,7 @@
       {
         "name": "aten::mm",
         "cuda_ms": 0.0,
-        "cpu_ms": 6.4e-05,
+        "cpu_ms": 0.000592,
         "count": 2,
         "cuda_mem": 0,
         "cpu_mem": 24576
@@ -976,7 +976,7 @@
       {
         "name": "aten::resolve_conj",
         "cuda_ms": 0.0,
-        "cpu_ms": 0.0,
+        "cpu_ms": 2e-06,
         "count": 24,
         "cuda_mem": 0,
         "cpu_mem": 0
@@ -984,7 +984,7 @@
       {
         "name": "aten::_unsafe_view",
         "cuda_ms": 0.0,
-        "cpu_ms": 1e-06,
+        "cpu_ms": 3.6e-05,
         "count": 2,
         "cuda_mem": 0,
         "cpu_mem": 0
@@ -992,7 +992,7 @@
       {
         "name": "aten::_transform_bias_rescale_qkv",
         "cuda_ms": 0.0,
-        "cpu_ms": 0.002637,
+        "cpu_ms": 0.00675,
         "count": 2,
         "cuda_mem": 0,
         "cpu_mem": 0
@@ -1000,15 +1000,15 @@
       {
         "name": "aten::empty",
         "cuda_ms": 0.0,
-        "cpu_ms": 2.6e-05,
+        "cpu_ms": 0.000755,
         "count": 16,
         "cuda_mem": 0,
-        "cpu_mem": 49600
+        "cpu_mem": 49664
       },
       {
         "name": "aten::narrow",
         "cuda_ms": 0.0,
-        "cpu_ms": 0.00123,
+        "cpu_ms": 0.003674,
         "count": 6,
         "cuda_mem": 0,
         "cpu_mem": 0
@@ -1083,7 +1083,7 @@
       {
         "name": "aten::empty",
         "cuda_mem": 0,
-        "cpu_mem": 49600
+        "cpu_mem": 49664
       },
       {
         "name": "aten::narrow",

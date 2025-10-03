@@ -3,15 +3,15 @@ LLM Optimizer Report
 Baseline latency: 0.000 ms
 Bottleneck op: forward
 
-Best candidate: gpt-4.1-mini
+Best candidate: gpt-5-mini
                 Source: llm
             Block size: 30
             Tile shape: [30, 0]
          Unroll factor: 30
 
 LLM backend preference: auto
-Model route used: gpt-4.1-mini
+Model route used: gpt-5-mini
 
 All model attempts:
+  - gpt-5-mini: ok
   - gpt-4.1-mini: ok
-  - gpt-5-mini-2025-08-07: ok

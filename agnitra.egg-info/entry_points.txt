@@ -1,3 +1,3 @@
 [console_scripts]
-agnitra = cli.main:main
-agnitra-optimize = cli.optimize:main
+agnitra = agnitra.cli:main
+agnitra-optimize = agnitra.cli:main
