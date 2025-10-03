@@ -19,6 +19,12 @@ with PYPROJECT.open("rb") as fh:
     config = tomllib.load(fh)
 project = config.get("project", {})
 
+scripts = project.get("scripts", {}) or {}
+console_scripts = [f"{name}={target}" for name, target in scripts.items()]
+entry_points = {"console_scripts": console_scripts} if console_scripts else {}
+
+optional_deps = project.get("optional-dependencies", {}) or {}
+
 long_description = README.read_text(encoding="utf-8") if README.exists() else ""
 
 setup(
@@ -29,7 +35,6 @@ setup(
     long_description_content_type="text/markdown",
     python_requires=project.get("requires-python", ">=3.8"),
     packages=find_packages(include=("agnitra*", "cli*")),
-    extras_require=project.get("optional-dependencies", {}),
-    entry_points={"console_scripts": project.get("scripts", {})},
+    extras_require=optional_deps,
+    entry_points=entry_points,
 )
-

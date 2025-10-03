@@ -1,15 +1,14 @@
 """Public SDK facade providing high-level helpers."""
 from __future__ import annotations
 
-from typing import Any, Optional, Sequence
+from typing import Any, Optional, Sequence, TYPE_CHECKING
 
-try:  # pragma: no cover - optional dependency
+if TYPE_CHECKING:  # pragma: no cover - imported for type checkers only
     import torch
     from torch import Tensor, nn
-except Exception:  # pragma: no cover - exercised in environments without torch
-    torch = None  # type: ignore[assignment]
+else:  # pragma: no cover - runtime fallbacks when torch absent
     Tensor = Any  # type: ignore[assignment]
-    nn = None  # type: ignore[assignment]
+    nn = Any  # type: ignore[assignment]
 
 from agnitra._sdk import (
     FXNodePatch,
@@ -29,6 +28,7 @@ from agnitra._sdk.optimizer import optimize_model as _optimize_model
 
 __all__ = [
     "optimize_model",
+    "resolve_input_tensor",
     "Telemetry",
     "IRExtractor",
     "LLMOptimizer",
@@ -44,6 +44,18 @@ __all__ = [
 ]
 
 
+def resolve_input_tensor(
+    model: "nn.Module",
+    input_tensor: Optional["Tensor"] = None,
+    *,
+    input_shape: Optional[Sequence[int]] = None,
+    device: Optional["torch.device"] = None,
+) -> "Tensor":
+    """Public helper mirroring the SDK input preparation logic."""
+
+    return _prepare_input(model, input_tensor, input_shape, device)
+
+
 def _prepare_input(
     model: "nn.Module",
     input_tensor: Optional["Tensor"],
@@ -52,20 +64,19 @@ def _prepare_input(
 ) -> "Tensor":
     """Resolve the tensor used for optimization telemetry collection."""
 
-    if torch is None:  # pragma: no cover - torch absent
-        raise RuntimeError("PyTorch is required to optimize models")
+    torch_mod = _require_torch()
 
     if input_tensor is not None:
         return input_tensor
 
     if input_shape is not None:
-        return torch.randn(*input_shape, device=device)
+        return torch_mod.randn(*input_shape, device=device)
 
     example = getattr(model, "example_input_array", None)
     if example is not None:
-        if isinstance(example, torch.Tensor):
+        if isinstance(example, torch_mod.Tensor):
             return example.to(device=device) if device else example
-        if isinstance(example, (list, tuple)) and example and isinstance(example[0], torch.Tensor):
+        if isinstance(example, (list, tuple)) and example and isinstance(example[0], torch_mod.Tensor):
             return example[0].to(device=device) if device else example[0]
 
     raise ValueError(
@@ -106,11 +117,26 @@ def optimize_model(
         The optimized module or the original instance when optimization fails.
     """
 
-    if torch is None:  # pragma: no cover - torch absent
-        raise RuntimeError("PyTorch is required to optimize models")
+    torch_mod = _require_torch()
 
-    tensor = _prepare_input(model, input_tensor, input_shape, device)
-    if device is not None and tensor.device != device:
+    tensor = resolve_input_tensor(model, input_tensor, input_shape=input_shape, device=device)
+    if device is not None and isinstance(tensor, torch_mod.Tensor) and tensor.device != device:
         tensor = tensor.to(device)
 
     return _optimize_model(model, tensor, enable_rl=enable_rl)
+
+
+_TORCH: Optional[Any] = None
+
+
+def _require_torch() -> "torch":
+    """Import ``torch`` lazily to keep optional dependency lightweight."""
+
+    global _TORCH
+    if _TORCH is None:
+        try:
+            import torch as torch_mod  # type: ignore[import-not-found]
+        except Exception as exc:  # pragma: no cover - torch absent at runtime
+            raise RuntimeError("PyTorch is required to optimize models") from exc
+        _TORCH = torch_mod
+    return _TORCH
