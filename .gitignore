@@ -72,6 +72,17 @@ htmlcov/
 logs/
 log/
 
+# Benchmark / optimization artifacts
+benchmarks/
+!benchmarks/.keep
+
+# Generated telemetry and context outputs
+agnitraai/context/
+telemetry*.json
+demo_artifacts/*.json
+demo_artifacts/*.txt
+
+
 # Data / model artifacts (large binaries)
 *.pt
 *.pth
