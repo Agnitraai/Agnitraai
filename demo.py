@@ -18,15 +18,19 @@ import os
 import shutil
 import subprocess
 import sys
-import time
 from pathlib import Path
-from typing import Iterable, Tuple
+from typing import Iterable, Optional, Tuple
 
 import torch
 
-from agnitra import optimize_model
 from agnitra.core.kernel import KernelGenerator
-from agnitra.core.runtime import FXNodePatch, ForwardHookPatch, RuntimePatcher
+from agnitra.core.metering import UsageMeter
+from agnitra.core.runtime import (
+    FXNodePatch,
+    ForwardHookPatch,
+    RuntimeOptimizationAgent,
+    RuntimePatcher,
+)
 
 ROOT = Path(__file__).resolve().parent
 MODEL_PATH = ROOT / "tinyllama.pt"
@@ -48,23 +52,30 @@ def _ensure_model(verbose: bool = True) -> Path:
     return MODEL_PATH
 
 
-def _measure_latency(module: torch.nn.Module, sample: torch.Tensor, *, repeats: int, warmup: int) -> float:
-    """Return average latency in milliseconds."""
-
-    module.eval()
-    with torch.inference_mode():
-        for _ in range(warmup):
-            module(sample)
-        start = time.perf_counter()
-        for _ in range(repeats):
-            module(sample)
-        duration = time.perf_counter() - start
-    return (duration / max(1, repeats)) * 1_000
-
-
 def _pretty_pct(delta: float) -> str:
     sign = "+" if delta >= 0 else ""
     return f"{sign}{delta:.1f}%"
+
+
+def _infer_device(module: torch.nn.Module) -> Optional[torch.device]:
+    for accessor in ("parameters", "buffers"):
+        if not hasattr(module, accessor):
+            continue
+        try:
+            iterator = getattr(module, accessor)()  # type: ignore[call-arg]
+        except Exception:
+            continue
+        for item in iterator:
+            if isinstance(item, torch.Tensor):
+                return item.device
+    return None
+
+
+def _align_for_module(module: torch.nn.Module, tensor: torch.Tensor) -> torch.Tensor:
+    target = _infer_device(module)
+    if target is not None and tensor.device != target:
+        return tensor.to(target)
+    return tensor
 
 
 def demonstrate_baseline_vs_optimized(sample_shape: Tuple[int, ...], *, repeats: int, warmup: int) -> None:
@@ -77,17 +88,61 @@ def demonstrate_baseline_vs_optimized(sample_shape: Tuple[int, ...], *, repeats:
     module = torch.jit.load(str(model_path)).eval()
     sample = torch.randn(*sample_shape)
 
-    baseline_ms = _measure_latency(module, sample, repeats=repeats, warmup=warmup)
-    optimized_module = optimize_model(module, input_tensor=sample.clone(), enable_rl=False)
-    optimized_ms = _measure_latency(optimized_module, sample, repeats=repeats, warmup=warmup)
+    meter = UsageMeter(rate_per_gpu_hour=3.0, margin_pct=0.25)
+    agent = RuntimeOptimizationAgent(
+        usage_meter=meter,
+        repeats=repeats,
+        warmup=warmup,
+        rate_per_gpu_hour=3.0,
+        success_margin_pct=0.25,
+    )
+    result = agent.optimize(
+        module,
+        sample,
+        project_id="demo",
+        model_name="TinyLlama",
+        enable_rl=False,
+        metadata={"source": "demo.baseline"},
+    )
 
-    uplift_pct = (baseline_ms - optimized_ms) / baseline_ms * 100 if baseline_ms else 0.0
-    print(f"Baseline latency : {baseline_ms:.3f} ms")
-    print(f"Optimized latency: {optimized_ms:.3f} ms")
-    print(f"Improvement      : {_pretty_pct(uplift_pct)}")
+    optimized_module = result.optimized_model
+    baseline_snapshot = result.baseline
+    optimized_snapshot = result.optimized
+    usage_event = result.usage_event
+
+    print(f"Baseline latency : {baseline_snapshot.latency_ms:.3f} ms ({baseline_snapshot.tokens_per_sec:.1f} tokens/s)")
+    print(f"Optimized latency: {optimized_snapshot.latency_ms:.3f} ms ({optimized_snapshot.tokens_per_sec:.1f} tokens/s)")
+
+    if usage_event is not None:
+        print(
+            "Improvement      : "
+            f"{usage_event.performance_uplift_pct:.1f}% uplift"
+        )
+        print(
+            "Billing snapshot : "
+            f"GPU hours saved {usage_event.gpu_hours_saved:.6f}, "
+            f"billable {usage_event.total_billable:.4f} {usage_event.currency}"
+        )
+    else:
+        uplift_pct = (
+            (baseline_snapshot.latency_ms - optimized_snapshot.latency_ms) / baseline_snapshot.latency_ms * 100
+            if baseline_snapshot.latency_ms
+            else 0.0
+        )
+        print(f"Improvement      : {_pretty_pct(uplift_pct)}")
+
+    baseline_util = baseline_snapshot.gpu_utilization
+    optimized_util = optimized_snapshot.gpu_utilization
+    if baseline_util is not None or optimized_util is not None:
+        before = f"{baseline_util:.1f}%" if baseline_util is not None else "n/a"
+        after = f"{optimized_util:.1f}%" if optimized_util is not None else "n/a"
+        print(f"GPU utilisation  : {before} -> {after}")
 
     with torch.inference_mode():
-        delta = torch.max(torch.abs(optimized_module(sample) - module(sample)))
+        sample_aligned = _align_for_module(optimized_module, sample.clone())
+        baseline_out = module(_align_for_module(module, sample.clone()))
+        optimized_out = optimized_module(sample_aligned)
+        delta = torch.max(torch.abs(optimized_out - baseline_out))
     print(f"L_inf difference  : {float(delta):.3e}\n")
 
 

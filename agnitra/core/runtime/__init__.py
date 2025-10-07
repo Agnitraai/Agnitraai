@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from .agent import OptimizationSnapshot, RuntimeOptimizationAgent, RuntimeOptimizationResult
 from .runtime_patcher import (
     FXNodePatch,
     ForwardHookPatch,
@@ -12,6 +13,9 @@ from .runtime_patcher import (
 from .tuning import apply_tuning_preset
 
 __all__ = [
+    "OptimizationSnapshot",
+    "RuntimeOptimizationAgent",
+    "RuntimeOptimizationResult",
     "FXNodePatch",
     "ForwardHookPatch",
     "PatchLog",

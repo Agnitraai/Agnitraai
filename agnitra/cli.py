@@ -3,14 +3,17 @@ from __future__ import annotations
 
 import importlib
 import logging
+import os
 from pathlib import Path
 from types import ModuleType
 from typing import Optional, Sequence, TYPE_CHECKING
 
 import click
 
-from . import optimize_model
-from .sdk import resolve_input_tensor
+from .sdk import optimize as optimize_with_metering, resolve_input_tensor
+
+# Backwards compatibility for older tests/importers expecting ``optimize_model``
+optimize_model = optimize_with_metering
 
 if TYPE_CHECKING:  # pragma: no cover - help type checkers only
     import torch
@@ -102,16 +105,28 @@ def optimize_command(
     except Exception as exc:
         raise click.ClickException(str(exc)) from exc
 
+    metadata = {
+        "source": "cli.optimize",
+        "device": device_name or "auto",
+    }
+    if hasattr(sample, "shape"):
+        metadata["input_shape"] = tuple(int(dim) for dim in sample.shape)  # type: ignore[misc]
+
     try:
-        optimized = optimize_model(
+        result = optimize_with_metering(
             model,
             input_tensor=sample,
             input_shape=None,
             device=device,
             enable_rl=not disable_rl,
+            project_id=os.getenv("AGNITRA_PROJECT_ID", "default"),
+            model_name=model_path.stem,
+            metadata=metadata,
         )
     except Exception as exc:
         raise click.ClickException(str(exc)) from exc
+
+    optimized = result.optimized_model
 
     output_path = _resolve_output_path(model_path, output_path)
 
@@ -121,6 +136,16 @@ def optimize_command(
         raise click.ClickException(f"Failed to save optimized model: {exc}") from exc
 
     click.echo(f"Optimized model written to {output_path}")
+
+    usage_event = getattr(result, "usage_event", None)
+    if usage_event is not None:
+        click.echo(
+            (
+                f"Performance uplift: {usage_event.performance_uplift_pct:.1f}% | "
+                f"GPU hours saved: {usage_event.gpu_hours_saved:.6f} | "
+                f"Billable: {usage_event.total_billable:.4f} {usage_event.currency}"
+            )
+        )
 
 
 def _load_model(model_path: Path, torch_mod: ModuleType) -> "nn.Module":

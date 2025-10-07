@@ -4,15 +4,17 @@ Agnitra is an end-to-end optimization platform that wraps model tuning, telemetr
 
 ## Highlights
 - Unified CLI (`agnitra`) and Python SDK for profiling, tuning, and exporting optimized TorchScript artifacts.
-- Runtime agent that can inject Triton kernels or forward hooks on the fly.
+- Runtime optimization agent couples dynamic kernel injection with usage metering (`RuntimeOptimizationAgent` + `UsageMeter`).
 - Telemetry collectors, LLM-guided kernel suggestions, and RL-backed refinements.
-- Usage metering architecture that links telemetry → usage logs → Stripe metered billing.
+- Usage-based SaaS pipeline that links telemetry → usage logs → Stripe metered billing with pay-per-optimization pricing.
 
 ## Installation
 
 ### From Wheel (recommended)
 
 ```
+
+Inject a custom `UsageMeter` if you need different pricing, and inspect `result.baseline` / `result.optimized` snapshots for telemetry, GPU usage, and billing metadata that can be forwarded to your control plane.
 pip install agnitra
 ```
 
@@ -50,9 +52,11 @@ The script performs three sequential demos:
 
 | Segment | What it shows |
 | --- | --- |
-| **Baseline vs Optimized** | Uses `agnitra.optimize_model` with the TinyLlama fixture and reports latency uplift. |
-| **CLI Optimization** | Executes `agnitra optimize --model tinyllama.pt` and saves an optimized TorchScript artifact. |
+| **Baseline vs Optimized** | Runs `RuntimeOptimizationAgent` (`agnitra.optimize`) on the TinyLlama fixture and reports latency + billing uplift. |
+| **CLI Optimization** | Executes `agnitra optimize --model tinyllama.pt` and shows the pay-per-optimization summary before saving the artifact. |
 | **Kernel Injection** | Generates a Triton kernel and swaps an FX node via `RuntimePatcher`. |
+
+Each segment emits a structured usage event. The CLI mirrors the SDK output, printing tokens/sec uplift, GPU hours saved, and the metered charge so teams can verify billing before rollout.
 
 ### 3. CLI cheatsheet
 
@@ -65,19 +69,28 @@ agnitra optimize --model tinyllama.pt --input-shape 1,16,64
 
 ```python
 import torch
-from agnitra import optimize_model
+from agnitra import optimize
 
 model = torch.jit.load("tinyllama.pt")
 sample = torch.randn(1, 16, 64)
-optimized = optimize_model(model, input_tensor=sample, enable_rl=False)
+
+result = optimize(
+    model,
+    input_tensor=sample,
+    enable_rl=False,
+    project_id="demo",
+)
+optimized = result.optimized_model
+usage_event = result.usage_event
+print(f"GPU hours saved: {usage_event.gpu_hours_saved:.6f}, billable: {usage_event.total_billable:.4f} {usage_event.currency}")
 ```
 
 ## Usage-Based SaaS Architecture
 
 The repository tracks the implementation plan for a pay-per-optimization product. Key building blocks:
 
-- **Runtime Agent** – intercepts CUDA/ROCm/Triton workloads, applies passes (KernelAutoTuner, TensorLayoutOptimizer, MemoryPrefetcher, GraphFuser) and records tokens/sec, latency, GPU utilisation before/after optimization.
-- **Telemetry + Metering** – usage events flow through `agnitra.sdk.telemetry` (buffer + signer), land in the control plane via `/usage/ingest`, and roll up into GPU-hour and performance-uplift metrics per project.
+- **Runtime Agent** – `agnitra.core.runtime.agent.RuntimeOptimizationAgent` intercepts CUDA/ROCm/Triton workloads, applies runtime patches, and records tokens/sec, latency, and GPU utilisation before/after optimization.
+- **Telemetry + Metering** – `UsageMeter` converts those snapshots into GPU-hour, cost-savings, and billable records that the CLI/SDK emit as structured usage events.
 - **Control Plane** – FastAPI (REST) + gRPC fronting an `Optimize()` endpoint. Async workers aggregate usage, enrich with cost data, and call Stripe Metered Billing. Webhooks reconcile invoices with project owners.
 - **Billing Loop** – Stripe metered usage records keyed by project ID + region + tag. Usage snapshots are bundled into invoices. Saved reports highlight cost savings vs baseline compute spend.
 - **Developer Surface** – function wrapper (`agnitra.optimize`), context manager (`optimize_ctx`), and decorator (`agnitra_step`) so optimisation happens automatically.

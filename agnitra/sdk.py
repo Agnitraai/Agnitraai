@@ -1,7 +1,7 @@
 """Public SDK facade providing high-level helpers."""
 from __future__ import annotations
 
-from typing import Any, Optional, Sequence, TYPE_CHECKING
+from typing import Any, Mapping, Optional, Sequence, TYPE_CHECKING
 
 if TYPE_CHECKING:  # pragma: no cover - imported for type checkers only
     import torch
@@ -25,8 +25,15 @@ from agnitra._sdk import (
     apply_tuning_preset,
 )
 from agnitra._sdk.optimizer import optimize_model as _optimize_model
+from agnitra.core.metering import UsageEvent, UsageMeter
+from agnitra.core.runtime import (
+    OptimizationSnapshot,
+    RuntimeOptimizationAgent,
+    RuntimeOptimizationResult,
+)
 
 __all__ = [
+    "optimize",
     "optimize_model",
     "resolve_input_tensor",
     "Telemetry",
@@ -40,6 +47,11 @@ __all__ = [
     "PatchLog",
     "RuntimePatchReport",
     "RuntimePatcher",
+    "OptimizationSnapshot",
+    "RuntimeOptimizationAgent",
+    "RuntimeOptimizationResult",
+    "UsageEvent",
+    "UsageMeter",
     "apply_tuning_preset",
 ]
 
@@ -124,6 +136,48 @@ def optimize_model(
         tensor = tensor.to(device)
 
     return _optimize_model(model, tensor, enable_rl=enable_rl)
+
+
+def optimize(
+    model: "nn.Module",
+    input_tensor: Optional["Tensor"] = None,
+    *,
+    input_shape: Optional[Sequence[int]] = None,
+    device: Optional["torch.device"] = None,
+    enable_rl: bool = True,
+    project_id: str = "default",
+    model_name: Optional[str] = None,
+    usage_meter: Optional[UsageMeter] = None,
+    repeats: int = 10,
+    warmup: int = 3,
+    rate_per_gpu_hour: float = 2.5,
+    success_margin_pct: float = 0.2,
+    metadata: Optional[Mapping[str, Any]] = None,
+) -> RuntimeOptimizationResult:
+    """Optimize ``model`` and return a metered runtime optimization report."""
+
+    torch_mod = _require_torch()
+    tensor = resolve_input_tensor(model, input_tensor, input_shape=input_shape, device=device)
+    if device is not None and isinstance(tensor, torch_mod.Tensor) and tensor.device != device:
+        tensor = tensor.to(device)
+
+    agent = RuntimeOptimizationAgent(
+        usage_meter=usage_meter,
+        repeats=repeats,
+        warmup=warmup,
+        rate_per_gpu_hour=rate_per_gpu_hour,
+        success_margin_pct=success_margin_pct,
+    )
+
+    result = agent.optimize(
+        model,
+        tensor,
+        project_id=project_id,
+        model_name=model_name,
+        enable_rl=enable_rl,
+        metadata=dict(metadata or {}),
+    )
+    return result
 
 
 _TORCH: Optional[Any] = None
