@@ -82,6 +82,13 @@ telemetry*.json
 demo_artifacts/*.json
 demo_artifacts/*.txt
 
+# Usage / metering artifacts
+usage_events/
+usage_logs/
+*.usage.json
+*.usage.csv
+*.usage.ndjson
+
 
 # Data / model artifacts (large binaries)
 *.pt
