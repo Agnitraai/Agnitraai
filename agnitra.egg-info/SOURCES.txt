@@ -36,7 +36,11 @@ agnitra/core/rl/__init__.py
 agnitra/core/rl/codex_guided.py
 agnitra/core/runtime/__init__.py
 agnitra/core/runtime/agent.py
+agnitra/core/runtime/cache.py
+agnitra/core/runtime/control_plane.py
+agnitra/core/runtime/fingerprint.py
 agnitra/core/runtime/runtime_patcher.py
+agnitra/core/runtime/telemetry_client.py
 agnitra/core/runtime/tuning.py
 agnitra/core/telemetry/__init__.py
 agnitra/core/telemetry/collector.py

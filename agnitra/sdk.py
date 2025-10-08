@@ -1,7 +1,9 @@
 """Public SDK facade providing high-level helpers."""
 from __future__ import annotations
 
-from typing import Any, Mapping, Optional, Sequence, TYPE_CHECKING
+import logging
+import time
+from typing import Any, Dict, Mapping, Optional, Sequence, TYPE_CHECKING
 
 if TYPE_CHECKING:  # pragma: no cover - imported for type checkers only
     import torch
@@ -31,6 +33,10 @@ from agnitra.core.runtime import (
     RuntimeOptimizationAgent,
     RuntimeOptimizationResult,
 )
+from agnitra.core.runtime.cache import CachedProfile, OptimizationCache
+from agnitra.core.runtime.control_plane import ControlPlaneClient, OptimizationPolicy
+from agnitra.core.runtime.fingerprint import fingerprint_signature, fingerprint_workload
+from agnitra.core.runtime.telemetry_client import TelemetryClient, TelemetryConfig
 
 __all__ = [
     "optimize",
@@ -54,6 +60,8 @@ __all__ = [
     "UsageMeter",
     "apply_tuning_preset",
 ]
+
+LOGGER = logging.getLogger(__name__)
 
 
 def resolve_input_tensor(
@@ -153,6 +161,9 @@ def optimize(
     rate_per_gpu_hour: float = 2.5,
     success_margin_pct: float = 0.2,
     metadata: Optional[Mapping[str, Any]] = None,
+    telemetry_client: Optional[TelemetryClient] = None,
+    control_plane_client: Optional[ControlPlaneClient] = None,
+    optimization_cache: Optional[OptimizationCache] = None,
 ) -> RuntimeOptimizationResult:
     """Optimize ``model`` and return a metered runtime optimization report."""
 
@@ -161,22 +172,102 @@ def optimize(
     if device is not None and isinstance(tensor, torch_mod.Tensor) and tensor.device != device:
         tensor = tensor.to(device)
 
+    metadata_map: Dict[str, Any] = dict(metadata or {})
+    metadata_map.setdefault("project_id", project_id)
+
+    telemetry_client_instance = telemetry_client or TelemetryClient(TelemetryConfig())
+    control_client = control_plane_client or ControlPlaneClient()
+    cache = optimization_cache or OptimizationCache()
+    cache.clear_expired()
+
+    fingerprint_obj = fingerprint_workload(
+        model,
+        tensor,
+        metadata={
+            "project_id": project_id,
+            "model_name": model_name or getattr(model, "__class__", type(model)).__name__,
+        },
+    )
+    fingerprint_dict = fingerprint_obj.to_dict()
+    fingerprint_sig = fingerprint_signature(fingerprint_dict)
+
+    try:
+        policy = control_client.fetch_policy(project_id, fingerprint_dict)
+    except Exception:
+        LOGGER.exception("Failed to fetch optimization policy; using default")
+        policy = OptimizationPolicy()
+
+    cached_profile: Optional[CachedProfile] = cache.lookup(fingerprint_sig)
+    if cached_profile:
+        LOGGER.info("Optimization cache hit for signature %s", fingerprint_sig[:8])
+
+    policy_repeats = policy.calibration_iterations if policy else repeats
+    policy_warmup = policy.calibration_warmup if policy else warmup
+    calibration_repeats = max(repeats, policy_repeats)
+    calibration_warmup = max(warmup, policy_warmup)
+
     agent = RuntimeOptimizationAgent(
         usage_meter=usage_meter,
-        repeats=repeats,
-        warmup=warmup,
+        repeats=calibration_repeats,
+        warmup=calibration_warmup,
         rate_per_gpu_hour=rate_per_gpu_hour,
         success_margin_pct=success_margin_pct,
     )
 
+    start_time = time.time()
     result = agent.optimize(
         model,
         tensor,
         project_id=project_id,
         model_name=model_name,
         enable_rl=enable_rl,
-        metadata=dict(metadata or {}),
+        metadata={
+            **metadata_map,
+            "fingerprint_signature": fingerprint_sig,
+        },
+        policy=policy,
+        cached_profile=cached_profile,
+        telemetry_client=telemetry_client_instance,
+        fingerprint=fingerprint_dict,
+        fingerprint_signature=fingerprint_sig,
+        cache_signature=fingerprint_sig,
     )
+    duration = time.time() - start_time
+
+    optimization_context = result.notes.get("optimization_context", {}) if isinstance(result.notes, dict) else {}
+    applied_preset = optimization_context.get("applied_preset")
+    usage_payload = result.notes.get("usage_event_payload", {})
+    improved = result.optimized.latency_ms <= result.baseline.latency_ms
+
+    cache_payload = {
+        "applied_preset": applied_preset,
+        "policy_id": policy.policy_id,
+        "baseline_latency_ms": result.baseline.latency_ms,
+        "optimized_latency_ms": result.optimized.latency_ms,
+        "tokens_processed": result.optimized.tokens_processed,
+        "usage_event": usage_payload.get("billing"),
+        "cached_at": time.time(),
+        "duration_ms": duration * 1000.0,
+    }
+    cache_stored = False
+    ttl_seconds = policy.cache_ttl_seconds if policy else 86400
+    if applied_preset or improved:
+        cache.store(fingerprint_sig, cache_payload, ttl_seconds=ttl_seconds)
+        cache_stored = True
+
+    cache_info = {
+        "signature": fingerprint_sig,
+        "hit": bool(cached_profile),
+        "stored": cache_stored,
+        "ttl_seconds": ttl_seconds,
+    }
+    if isinstance(result.notes, dict):
+        result.notes["cache_info"] = cache_info
+        result.notes["fingerprint"] = fingerprint_dict
+
+    if telemetry_client is None:
+        telemetry_client_instance.close()
+
     return result
 
 

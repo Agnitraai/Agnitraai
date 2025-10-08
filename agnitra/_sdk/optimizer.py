@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import time
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Mapping, Optional
 
@@ -264,28 +265,56 @@ def optimize_model(
     input_tensor: torch.Tensor,
     client: Optional[Any] = None,
     enable_rl: bool = True,
+    *,
+    preset: Optional[Mapping[str, Any]] = None,
+    context: Optional[Dict[str, Any]] = None,
+    policy: Optional[Mapping[str, Any]] = None,
 ) -> nn.Module:
     """Run the optimization pipeline with graceful fallbacks.
 
     On any stage failure, the exception is logged and the baseline model is returned
     untouched.
     """
+    context_map: Dict[str, Any] = context if context is not None else {}
+    context_map.setdefault("rl_enabled", bool(enable_rl))
+    context_map.setdefault("policy", dict(policy or {}))
+    context_map["invoked_at"] = time.time()
+
+    applied_preset: Optional[Dict[str, Any]] = None
+    if preset:
+        try:
+            model = apply_tuning_preset(model, dict(preset))
+            applied_preset = dict(preset)
+            context_map["applied_preset_source"] = "preset_override"
+        except Exception:
+            logger.exception("Failed to apply preset override")
+
     try:
         telemetry = collect_telemetry(model, input_tensor)
     except Exception:  # pragma: no cover - exercised via tests
         logger.exception("Telemetry collection failed")
         return model
+    context_map["telemetry_event_count"] = len(telemetry)
 
     try:
         ir_nodes = extract_ir(model, telemetry)
     except Exception:  # pragma: no cover - exercised via tests
         logger.exception("IR extraction failed")
         return model
+    context_map["ir_node_count"] = len(ir_nodes)
 
     try:
-        suggestion = request_kernel_suggestions(telemetry, ir_nodes, client=client)
+        llm_model_name = None
+        if policy:
+            llm_model_name = policy.get("llm_model")
+        suggestion = request_kernel_suggestions(telemetry, ir_nodes, client=client, model_name=llm_model_name or "gpt-5-codex")
         if suggestion:
             logger.info("LLM suggestion: %s", suggestion)
+            context_map["llm_suggestion_raw"] = suggestion
+            try:
+                context_map["llm_suggestion"] = json.loads(suggestion)
+            except Exception:
+                pass
     except Exception:  # pragma: no cover - exercised via tests
         logger.exception("LLM call failed")
         return model
@@ -295,13 +324,15 @@ def optimize_model(
         # environments without network/deps are not affected by default.
         if os.getenv("AGNITRA_ENABLE_LLM_RL") == "1":
             try:
-                preset = run_llm_guided_rl(telemetry, ir_nodes, client=client)
-                if preset:
-                    model = apply_tuning_preset(model, preset)
+                preset_candidate = run_llm_guided_rl(telemetry, ir_nodes, client=client)
+                if preset_candidate:
+                    applied_preset = dict(preset_candidate)
+                    model = apply_tuning_preset(model, preset_candidate)
             except Exception:  # pragma: no cover - best effort
                 logger.exception("LLM-guided RL failed")
             # Optionally skip PPO-based RL entirely when using LLM
             if os.getenv("AGNITRA_ONLY_LLM") == "1":
+                context_map["applied_preset"] = applied_preset
                 return model
         try:
             run_rl_tuning(telemetry, ir_nodes)
@@ -309,4 +340,6 @@ def optimize_model(
             logger.exception("RL tuning failed")
             return model
 
+    context_map["applied_preset"] = applied_preset
+    setattr(model, "_agnitra_last_optimization", context_map)
     return model

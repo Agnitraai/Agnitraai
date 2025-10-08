@@ -49,7 +49,7 @@ def test_runtime_agent_generates_usage_event(monkeypatch):
     # Avoid the heavy optimisation pipeline inside the agent for unit testing.
     monkeypatch.setattr(
         "agnitra.core.runtime.agent._optimize_model",
-        lambda model, tensor, enable_rl=True: model,
+        lambda model, tensor, enable_rl=True, **_: model,
     )
 
     def _fake_profile(module, tensor):

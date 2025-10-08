@@ -90,7 +90,7 @@ def test_rl_failure_returns_baseline(monkeypatch, caplog):
     monkeypatch.setattr("agnitra._sdk.optimizer.extract_ir", lambda m, t: [])
     monkeypatch.setattr(
         "agnitra._sdk.optimizer.request_kernel_suggestions",
-        lambda t, i, client=None: None,
+        lambda t, i, client=None, **_: None,
     )
 
     def boom(*args, **kwargs):
