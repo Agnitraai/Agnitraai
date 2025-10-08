@@ -329,6 +329,12 @@ class RuntimeOptimizationAgent:
                 measured_tensor = measured_tensor.to(tensor.device)
         except Exception:
             pass
+        target_device = _infer_module_device(module)
+        try:
+            if target_device is not None and hasattr(measured_tensor, "device") and measured_tensor.device != target_device:
+                measured_tensor = measured_tensor.to(target_device)
+        except Exception:
+            pass
         warmup_iters = max(0, int(warmup))
         repeat_iters = max(1, int(repeats))
         with torch_mod.inference_mode():
