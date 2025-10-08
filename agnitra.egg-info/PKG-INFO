@@ -15,111 +15,149 @@ Requires-Dist: pynvml>=11.0.0; extra == "nvml"
 
 # agnitraai
 
-Agnitra is an experimentation toolkit for accelerating PyTorch models with telemetry-guided optimization. It ships unified CLI and Python APIs for profiling,
-FX graph introspection, and LLM/RL-assisted tuning loops.
+Agnitra is an end-to-end optimization platform that wraps model tuning, telemetry, and metered billing into a single developer flow. The SDK and CLI make `agnitra.optimize(model)` feel instantaneous while the control plane meters GPU hours for a usage-based SaaS model.
 
-## Features
-- CLI entry points (`agnitra`, `agnitra-optimize`) to profile models and apply optimization recipes.
-- Telemetry collectors that turn profiler traces into FX graphs enriched with runtime metadata.
-- LLM and PPO-based optimizers (`LLMOptimizer`, `PPOKernelOptimizer`) for iterative kernel parameter search.
-- Ready-made demos, including a Colab notebook and a TinyLlama telemetry pipeline.
-- Extensible SDK modules under `agnitra.sdk` for stitching telemetry, optimizers, and deployment runtimes together.
+## Highlights
+- Unified CLI (`agnitra`) and Python SDK for profiling, tuning, and exporting optimized TorchScript artifacts.
+- Runtime optimization agent couples dynamic kernel injection with usage metering (`RuntimeOptimizationAgent` + `UsageMeter`).
+- Telemetry collectors, LLM-guided kernel suggestions, and RL-backed refinements.
+- Usage-based SaaS pipeline that links telemetry → usage logs → Stripe metered billing with pay-per-optimization pricing.
 
 ## Installation
 
-Install from source in editable mode along with the recommended extras:
+### From Wheel (recommended)
+
+```
+
+Inject a custom `UsageMeter` if you need different pricing, and inspect `result.baseline` / `result.optimized` snapshots for telemetry, GPU usage, and billing metadata that can be forwarded to your control plane.
+pip install agnitra
+```
+
+Rebuild the wheel from source when iterating locally:
+
+```
+python -m build --wheel
+python -m pip install --force-reinstall --no-index --find-links dist agnitra
+```
+
+### From Source
 
 ```
 pip install -e .[openai,rl]
 ```
 
-Optional extras unlock additional integrations: install `agnitra[nvml]` for GPU telemetry via NVML, keep `agnitra[openai]` when using the OpenAI Responses API, and add `agnitra[rl]` for Stable Baselines3/Gymnasium support. Export `OPENAI_API_KEY` in your shell or notebook before invoking the LLM-powered helpers.
+Optional extras:
+- `agnitra[openai]` → OpenAI Responses API client.
+- `agnitra[rl]` → PPO tuning via Stable Baselines3 + Gymnasium.
+- `agnitra[nvml]` → GPU telemetry using NVML.
 
 ## Quick Start
 
-### CLI
+### 1. Watch the walkthrough
+
+- `launch_demo.mp4` – short narrated slides covering the milestone demo.
+
+### 2. Run the milestone script
+
+```
+python demo.py --sample-shape 1,16,64
+```
+
+The script performs three sequential demos:
+
+| Segment | What it shows |
+| --- | --- |
+| **Baseline vs Optimized** | Runs `RuntimeOptimizationAgent` (`agnitra.optimize`) on the TinyLlama fixture and reports latency + billing uplift. |
+| **CLI Optimization** | Executes `agnitra optimize --model tinyllama.pt` and shows the pay-per-optimization summary before saving the artifact. |
+| **Kernel Injection** | Generates a Triton kernel and swaps an FX node via `RuntimePatcher`. |
+
+Each segment emits a structured usage event. The CLI mirrors the SDK output, printing tokens/sec uplift, GPU hours saved, and the metered charge so teams can verify billing before rollout.
+
+### 3. CLI cheatsheet
 
 ```
 agnitra --help
-agnitra-optimize --model demo-model
+agnitra optimize --model tinyllama.pt --input-shape 1,16,64
 ```
 
-The CLI prints optimization summaries and writes telemetry artifacts (JSON) next to your model inputs. Provide either a model handle or a config file; add `--output` to control the telemetry path.
-
-### SDK
+### 4. SDK in your code
 
 ```python
-from agnitra.demo import DemoNet
+import torch
+from agnitra import optimize
 
-net = DemoNet()
-patched_runtime = net.optimize("demo-model")
-print(patched_runtime)
+model = torch.jit.load("tinyllama.pt")
+sample = torch.randn(1, 16, 64)
+
+result = optimize(
+    model,
+    input_tensor=sample,
+    enable_rl=False,
+    project_id="demo",
+)
+optimized = result.optimized_model
+usage_event = result.usage_event
+print(f"GPU hours saved: {usage_event.gpu_hours_saved:.6f}, billable: {usage_event.total_billable:.4f} {usage_event.currency}")
 ```
 
-The SDK mirrors the CLI flow and gives you direct access to optimizers such as `agnitra.core.optimizer.llm_optimizer.LLMOptimizer` and `agnitra.core.optimizer.rl_optimizer.PPOKernelOptimizer` inside your own pipelines.
+## Usage-Based SaaS Architecture
 
-## Profiling Workflow
+The repository tracks the implementation plan for a pay-per-optimization product. Key building blocks:
 
-Capture telemetry and visualize the resulting FX graph:
+- **Runtime Agent** – `agnitra.core.runtime.agent.RuntimeOptimizationAgent` intercepts CUDA/ROCm/Triton workloads, applies runtime patches, and records tokens/sec, latency, and GPU utilisation before/after optimization.
+- **Telemetry + Metering** – `UsageMeter` converts those snapshots into GPU-hour, cost-savings, and billable records that the CLI/SDK emit as structured usage events.
+- **Control Plane** – FastAPI (REST) + gRPC fronting an `Optimize()` endpoint. Async workers aggregate usage, enrich with cost data, and call Stripe Metered Billing. Webhooks reconcile invoices with project owners.
+- **Billing Loop** – Stripe metered usage records keyed by project ID + region + tag. Usage snapshots are bundled into invoices. Saved reports highlight cost savings vs baseline compute spend.
+- **Developer Surface** – function wrapper (`agnitra.optimize`), context manager (`optimize_ctx`), and decorator (`agnitra_step`) so optimisation happens automatically.
 
-1. Profile a model to emit telemetry:
-   ```
-   python -m cli.main profile tinyllama.pt --input-shape 1,16,64 --output telemetry.json
-   ```
-2. Load the telemetry and generate a graph IR snapshot:
-   ```python
-   import json
-   import torch
+### Repository Layout (Monorepo blueprint)
 
-   from agnitra.core.ir.graph_extractor import extract_graph_ir
-   from prepare_tinyllama import TinyLlama
-
-   telemetry = json.load(open("telemetry.json"))
-   model = TinyLlama().eval()
-   example_inputs = (torch.randn(1, 16, 64),)
-   graph_ir = extract_graph_ir(model, example_inputs=example_inputs, telemetry=telemetry)
-   print(f"Nodes: {len(graph_ir)}")
-   print(graph_ir[0])
-   ```
-3. Open `agnitra_enhanced_demo.ipynb` to explore the graph with ipywidgets, Plotly dashboards, and side-by-side CLI controls.
-
-## Colab Notebook
-
-Launch the hosted demo:
-
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/drvt69talati/agnitraai/blob/main/agnitra_enhanced_demo.ipynb)
-
-In Colab, bootstrap credentials with `google.colab.userdata`:
-
-```python
-from google.colab import userdata
-import os
-
-userdata.set("OPENAI_API_KEY", "sk-...")
-os.environ["OPENAI_API_KEY"] = userdata.get("OPENAI_API_KEY")
+```
+agnitra/
+├─ sdk/python/
+│  ├─ agnitra/
+│  │  ├─ optimize.py        # optimize(), optimize_ctx, agnitra_step
+│  │  ├─ passes/            # pluggable optimization passes
+│  │  ├─ backends/          # torch/tf/jax adapters
+│  │  ├─ telemetry.py       # usage events buffer + signer
+│  │  ├─ auth.py            # session token management
+│  │  ├─ config.py          # Config dataclass
+│  │  └─ cli.py             # Click CLI wiring
+│  └─ pyproject.toml
+├─ control-plane/
+│  ├─ api/                  # REST/gRPC services
+│  ├─ metering/             # aggregation, rating, invoicing
+│  ├─ billing/              # Stripe/Paddle adapters + webhooks
+│  └─ db/                   # migrations for usage tables
+└─ infra/                   # Docker, Helm, Terraform manifests
 ```
 
-The notebook walks through profiling popular open models (LLaMA-3, Whisper, Stable Diffusion) and visualizing telemetry without leaving the browser.
+### Metering Flow
 
-## Project Layout
-- `agnitra/` core SDK modules (optimizers, RL policies, telemetry helpers).
-- `cli/` command-line entry points (`agnitra`, `agnitra-optimize`).
-- `tests/` pytest suite mirroring the package structure.
-- `docs/` additional guides including `responses_api.md`.
-- `agnitra_enhanced_demo.ipynb` widget-driven sandbox for Graph IR exploration.
+1. SDK attaches to a model – emits a `usage.attach` event with tags (`model`, `env`, `region`).
+2. Runtime agent records baseline + optimized telemetry (latency, tokens/sec, GPU utilisation).
+3. Control plane ingests events, aggregates GPU hours optimised, and calculates uplift.
+4. Stripe metered billing rates GPU hours / tokens and issues invoices.
+5. Dashboard (future) visualises savings and lets teams approve optimisations before rollout.
+
+## Profiling & Visualisation
+
+The classic profiling flow remains available:
+
+1. Profile a model: `python -m agnitra.cli profile tinyllama.pt --input-shape 1,16,64 --output telemetry.json`
+2. Load telemetry + extract an FX graph IR via `agnitra.core.ir.graph_extractor`.
+3. Explore results inside `agnitra_enhanced_demo.ipynb` (Colab badge included).
 
 ## Development
-
-Run the test suite after installing dependencies:
 
 ```
 pytest -q
 ```
 
-The harness writes profiling artifacts to the working directory; clear them between runs if you swap models. Document user-visible changes in `README.md` or `docs/` and accompany new behaviour with tests.
+Artifacts generated by tests (profiles, telemetry) live under `benchmarks/` and `agnitraai/context/`; consult `.gitignore` for the latest ignore rules. Update docs when the CLI or SDK experience changes.
 
-## Additional Resources
-- `docs/responses_api.md` for the latest OpenAI Responses API specification.
-- `docs/non_interactive_codex_usage.txt` for headless Codex integration tips.
-- `AGENTS.md` for agent orchestration concepts that back the optimization demos.
-- `notes.yaml` for high-level project notes and TODOs.
+## Resources
+- `docs/responses_api.md` – OpenAI Responses API spec followed by the SDK.
+- `docs/non_interactive_codex_usage.txt` – headless Codex automation notes.
+- `docs/ui_ux_handoff.md` – UX flows and SaaS onboarding notes.
+- `AGENTS.md` + `notes.yaml` – roadmap fragments and agent experiments.

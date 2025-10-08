@@ -26,6 +26,8 @@ agnitra/core/kernel/examples/__init__.py
 agnitra/core/kernel/examples/layer_norm_kernel.py
 agnitra/core/kernel/examples/matmul_kernel.py
 agnitra/core/kernel/examples/vector_add_kernel.py
+agnitra/core/metering/__init__.py
+agnitra/core/metering/usage_meter.py
 agnitra/core/optimizer/__init__.py
 agnitra/core/optimizer/llm_optimizer.py
 agnitra/core/optimizer/openevolve_adapter.py
@@ -33,6 +35,7 @@ agnitra/core/optimizer/rl_optimizer.py
 agnitra/core/rl/__init__.py
 agnitra/core/rl/codex_guided.py
 agnitra/core/runtime/__init__.py
+agnitra/core/runtime/agent.py
 agnitra/core/runtime/runtime_patcher.py
 agnitra/core/runtime/tuning.py
 agnitra/core/telemetry/__init__.py
@@ -58,6 +61,7 @@ tests/test_model_loader.py
 tests/test_openevolve_adapter.py
 tests/test_optimizer.py
 tests/test_rl_optimizer.py
+tests/test_runtime_agent.py
 tests/test_runtime_patcher.py
 tests/test_sdk_top_level.py
 tests/test_telemetry.py
