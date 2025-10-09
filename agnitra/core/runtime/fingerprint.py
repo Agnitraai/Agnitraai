@@ -180,13 +180,26 @@ def fingerprint_workload(
 def fingerprint_signature(payload: Mapping[str, Any]) -> str:
     """Generate a stable signature for the fingerprint mapping."""
 
+    def _normalise(value: Any) -> Any:
+        if isinstance(value, Mapping):
+            return {
+                k: _normalise(v)
+                for k, v in value.items()
+                if k not in {"created_at", "extra_metadata"}
+            }
+        if isinstance(value, list):
+            return [_normalise(item) for item in value]
+        if isinstance(value, tuple):
+            return tuple(_normalise(item) for item in value)
+        return value
+
+    normalised = _normalise(payload)
     try:
-        encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+        encoded = json.dumps(normalised, sort_keys=True, separators=(",", ":"))
     except TypeError:
-        encoded = json.dumps(json.loads(json.dumps(payload, default=str)), sort_keys=True)
+        encoded = json.dumps(json.loads(json.dumps(normalised, default=str)), sort_keys=True)
     digest = hashlib.sha256(encoded.encode("utf-8")).hexdigest()
     return digest
 
 
 __all__ = ["fingerprint_workload", "fingerprint_signature", "WorkloadFingerprint"]
-

@@ -52,6 +52,7 @@ class TelemetryClient:
         enriched.setdefault("event_id", str(uuid.uuid4()))
         enriched.setdefault("ts", int(time.time()))
         enriched.setdefault("emitted_at", time.time())
+        enriched.setdefault("idempotency_key", enriched.get("event_id"))
         with self._lock:
             self._buffer.append(enriched)
             should_flush = len(self._buffer) >= self.config.batch_size or (
@@ -141,4 +142,3 @@ class TelemetryClient:
 
 
 __all__ = ["TelemetryClient", "TelemetryConfig"]
-

@@ -8,6 +8,7 @@ import threading
 import time
 import uuid
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Dict, Mapping, Optional
 
 try:  # pragma: no cover - optional dependency guard
@@ -165,6 +166,10 @@ class RuntimeOptimizationAgent:
         sample = self._prepare_tensor(model, input_tensor, torch_mod)
         calibration_warmup = max(0, int(policy.calibration_warmup if policy else self.warmup))
         calibration_iterations = max(1, int(policy.calibration_iterations if policy else self.repeats))
+        if policy and policy.abtest_warmup is not None:
+            calibration_warmup = max(calibration_warmup, int(policy.abtest_warmup))
+        if policy and policy.abtest_iterations is not None:
+            calibration_iterations = max(calibration_iterations, int(policy.abtest_iterations))
 
         meta_base: Dict[str, Any] = dict(metadata or {})
         meta_base.setdefault("project_id", project_id)
@@ -187,6 +192,12 @@ class RuntimeOptimizationAgent:
             "policy_id": policy.policy_id if policy else None,
             "fingerprint_signature": fingerprint_signature,
         }
+        if policy and policy.llm_model:
+            optimization_context["llm_model"] = policy.llm_model
+        if policy and policy.pass_presets:
+            optimization_context["policy_pass_presets"] = policy.pass_presets
+        optimization_context["abtest_repeats"] = calibration_iterations
+        optimization_context["abtest_warmup"] = calibration_warmup
 
         preset_override: Optional[Mapping[str, Any]] = None
         if cached_profile:
@@ -247,6 +258,14 @@ class RuntimeOptimizationAgent:
         auto_retrain_needed = bool(policy and policy.auto_retrain)
         optimization_context["auto_retrain_scheduled"] = auto_retrain_needed
 
+        auto_retrain_payload: Mapping[str, Any] = {
+            **(policy_payload or {}),
+            "project_id": project_id,
+            "model_name": named_model,
+            "fingerprint_signature": fingerprint_signature,
+            "auto_retrain_interval": getattr(policy, "auto_retrain_interval", None) if policy else None,
+        }
+
         usage_payload = self._build_usage_payload(
             project_id=project_id,
             run_id=run_id,
@@ -267,7 +286,7 @@ class RuntimeOptimizationAgent:
                 LOGGER.exception("Failed to emit telemetry usage payload")
 
         if auto_retrain_needed:
-            self._schedule_auto_retrain(model, sample.clone(), torch_mod, policy_payload or {})
+            self._schedule_auto_retrain(model, sample.clone(), torch_mod, auto_retrain_payload)
 
         result = RuntimeOptimizationResult(
             optimized_model=optimized_model,
@@ -517,10 +536,28 @@ class RuntimeOptimizationAgent:
     ) -> None:
         def _runner() -> None:
             try:
-                time.sleep(0.1)
+                interval = policy_payload.get("auto_retrain_interval")
+                delay = float(interval) if interval else 0.1
+                time.sleep(max(delay, 0.1))
+                job = {
+                    "created_at": time.time(),
+                    "policy_id": policy_payload.get("policy_id"),
+                    "project_id": policy_payload.get("project_id"),
+                    "model_name": policy_payload.get("model_name"),
+                    "fingerprint_signature": policy_payload.get("fingerprint_signature"),
+                    "retrain_request": {
+                        "llm_model": policy_payload.get("llm_model"),
+                        "pass_presets": policy_payload.get("pass_presets"),
+                    },
+                }
+                jobs_path = Path("agnitraai/context/auto_retrain_jobs.jsonl")
+                jobs_path.parent.mkdir(parents=True, exist_ok=True)
+                with jobs_path.open("a", encoding="utf-8") as fh:
+                    fh.write(json.dumps(job, sort_keys=True) + "\n")
                 LOGGER.info(
-                    "Auto-retrain placeholder executed for policy %s",
-                    policy_payload.get("policy_id"),
+                    "Auto-retrain job recorded for policy %s (project %s)",
+                    job.get("policy_id"),
+                    job.get("project_id"),
                 )
             except Exception:
                 LOGGER.debug("Auto-retrain job failed", exc_info=True)

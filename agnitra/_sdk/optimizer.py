@@ -281,6 +281,7 @@ def optimize_model(
     context_map["invoked_at"] = time.time()
 
     applied_preset: Optional[Dict[str, Any]] = None
+    applied_pass_presets: List[Dict[str, Any]] = []
     if preset:
         try:
             model = apply_tuning_preset(model, dict(preset))
@@ -288,6 +289,23 @@ def optimize_model(
             context_map["applied_preset_source"] = "preset_override"
         except Exception:
             logger.exception("Failed to apply preset override")
+
+    policy_pass_presets = None
+    if policy:
+        policy_pass_presets = policy.get("pass_presets") or policy.get("passes")
+    if policy_pass_presets:
+        context_map.setdefault("policy_pass_presets", policy_pass_presets)
+        for idx, pass_cfg in enumerate(policy_pass_presets):
+            if not isinstance(pass_cfg, Mapping):
+                continue
+            try:
+                preset_result = apply_tuning_preset(model, dict(pass_cfg))
+                model = preset_result
+                applied_pass_presets.append(dict(pass_cfg))
+            except Exception:
+                logger.exception("Failed to apply policy pass preset #%s", idx)
+    if applied_pass_presets:
+        context_map["applied_pass_presets"] = applied_pass_presets
 
     try:
         telemetry = collect_telemetry(model, input_tensor)

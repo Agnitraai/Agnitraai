@@ -51,6 +51,11 @@ class OptimizationPolicy:
     telemetry_sample_rate: float = 1.0
     default_preset: Optional[Dict[str, Any]] = None
     auto_retrain: bool = False
+    llm_model: Optional[str] = None
+    pass_presets: Optional[List[Dict[str, Any]]] = None
+    abtest_iterations: Optional[int] = None
+    abtest_warmup: Optional[int] = None
+    auto_retrain_interval: Optional[int] = None
     extra: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
@@ -65,6 +70,11 @@ class OptimizationPolicy:
             "telemetry_sample_rate": self.telemetry_sample_rate,
             "default_preset": self.default_preset,
             "auto_retrain": self.auto_retrain,
+            "llm_model": self.llm_model,
+            "pass_presets": self.pass_presets,
+            "abtest_iterations": self.abtest_iterations,
+            "abtest_warmup": self.abtest_warmup,
+            "auto_retrain_interval": self.auto_retrain_interval,
         }
         payload.update(self.extra)
         return payload
@@ -145,6 +155,12 @@ class ControlPlaneClient:
         if "project_id" not in extra:
             extra["project_id"] = project_id
         extra["fingerprint_signature"] = payload.get("fingerprint_signature")
+        pass_presets = payload.get("pass_presets") or payload.get("passes")
+        if isinstance(pass_presets, list):
+            extra["pass_presets"] = pass_presets
+        llm_model = payload.get("llm_model")
+        if llm_model:
+            extra["llm_model"] = llm_model
         return OptimizationPolicy(
             policy_id=str(payload.get("policy_id", "default")),
             plan_objective=str(payload.get("plan", {}).get("objective", payload.get("plan_objective", "throughput"))),
@@ -156,9 +172,13 @@ class ControlPlaneClient:
             telemetry_sample_rate=float(payload.get("telemetry_sample_rate", 1.0)),
             default_preset=payload.get("default_preset") or payload.get("preset"),
             auto_retrain=bool(payload.get("auto_retrain", False)),
+            llm_model=payload.get("llm_model"),
+            pass_presets=pass_presets if isinstance(pass_presets, list) else None,
+            abtest_iterations=payload.get("abtest_iterations"),
+            abtest_warmup=payload.get("abtest_warmup"),
+            auto_retrain_interval=payload.get("auto_retrain_interval"),
             extra=extra,
         )
 
 
 __all__ = ["ControlPlaneClient", "OptimizationPolicy"]
-
