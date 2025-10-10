@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import io
 import json
+import mimetypes
 import tempfile
 import uuid
 import zipfile
@@ -30,13 +31,20 @@ from starlette.templating import Jinja2Templates
 
 
 @dataclass
-class KernelArtifact:
-    """Metadata describing an uploaded kernel or IR artifact."""
+class DashboardAsset:
+    """Metadata describing an uploaded artifact exposed by the dashboard."""
 
     identifier: str
     name: str
     path: Path
+    category: str
     description: Optional[str] = None
+    media_type: Optional[str] = None
+    size_bytes: int = 0
+
+
+# Backwards compatibility export expected by tests/imports.
+KernelArtifact = DashboardAsset
 
 
 @dataclass
@@ -44,14 +52,17 @@ class DashboardData:
     """In-memory store for dashboard uploads and derived analytics."""
 
     model_name: Optional[str] = None
-    model_path: Optional[Path] = None
-    hardware_path: Optional[Path] = None
-    logs: List[Path] = field(default_factory=list)
+    model_asset: Optional[DashboardAsset] = None
+    hardware_asset: Optional[DashboardAsset] = None
+    telemetry_before_asset: Optional[DashboardAsset] = None
+    telemetry_after_asset: Optional[DashboardAsset] = None
+    usage_event_asset: Optional[DashboardAsset] = None
+    log_assets: List[DashboardAsset] = field(default_factory=list)
     telemetry_before: Optional[Dict[str, Any]] = None
     telemetry_after: Optional[Dict[str, Any]] = None
     usage_event: Optional[Dict[str, Any]] = None
-    usage_event_path: Optional[Path] = None
-    kernel_artifacts: List[KernelArtifact] = field(default_factory=list)
+    asset_index: Dict[str, DashboardAsset] = field(default_factory=dict)
+    kernel_artifacts: List[DashboardAsset] = field(default_factory=list)
 
 
 def create_app(templates_dir: Optional[Path] = None) -> Starlette:
@@ -65,6 +76,21 @@ def create_app(templates_dir: Optional[Path] = None) -> Starlette:
         "tojson", lambda value, indent=2: Markup(json.dumps(value, indent=indent))
     )
 
+    def _register_asset(asset: DashboardAsset) -> None:
+        data.asset_index[asset.identifier] = asset
+
+    def _replace_asset(attr: str, asset: DashboardAsset) -> None:
+        existing = getattr(data, attr)
+        if isinstance(existing, DashboardAsset):
+            data.asset_index.pop(existing.identifier, None)
+        setattr(data, attr, asset)
+        _register_asset(asset)
+
+    def _append_asset(attr: str, asset: DashboardAsset) -> None:
+        collection = getattr(data, attr)
+        collection.append(asset)
+        _register_asset(asset)
+
     async def dashboard_view(request: Request) -> HTMLResponse:
         tab = request.query_params.get("tab", "overview")
         async with lock:
@@ -75,11 +101,14 @@ def create_app(templates_dir: Optional[Path] = None) -> Starlette:
                     "identifier": artifact.identifier,
                     "name": artifact.name,
                     "description": artifact.description,
-                    "download_url": f"/artifacts/{artifact.identifier}",
+                    "download_url": f"/assets/{artifact.identifier}",
+                    "size": _format_size(artifact.size_bytes),
+                    "media_type": artifact.media_type,
                 }
                 for artifact in data.kernel_artifacts
             ]
             model_name = data.model_name
+            uploads = build_upload_overview(data, summary)
 
         context = {
             "request": request,
@@ -88,6 +117,7 @@ def create_app(templates_dir: Optional[Path] = None) -> Starlette:
             "layer_stats": layer_stats,
             "artifacts": artifacts,
             "model_name": model_name,
+            "uploads": uploads,
         }
         return templates.TemplateResponse(request, "dashboard.html", context)
 
@@ -112,54 +142,85 @@ def create_app(templates_dir: Optional[Path] = None) -> Starlette:
                 data.model_name = model_name.strip() or None
 
             if isinstance(notes, str) and notes.strip():
-                notes_path = _write_text_file(
+                note_asset = _write_text_asset(
                     storage_dir,
                     f"notes_{uuid.uuid4().hex[:8]}.txt",
                     notes.strip(),
+                    category="note",
+                    description="Analyst note",
                 )
-                data.logs.append(notes_path)
+                _append_asset("log_assets", note_asset)
 
             model_file = _as_upload(upload_fields["model_file"])
             if model_file:
-                data.model_path = await _store_upload(
-                    storage_dir, model_file, prefix="model"
+                model_asset = await _store_upload_asset(
+                    storage_dir,
+                    model_file,
+                    prefix="model",
+                    category="model",
+                    description="Uploaded model",
                 )
+                _replace_asset("model_asset", model_asset)
 
             log_file = _as_upload(upload_fields["log_file"])
             if log_file:
-                data.logs.append(
-                    await _store_upload(storage_dir, log_file, prefix="log")
+                log_asset = await _store_upload_asset(
+                    storage_dir,
+                    log_file,
+                    prefix="log",
+                    category="log",
+                    description="Runtime log",
                 )
+                _append_asset("log_assets", log_asset)
 
             hardware_file = _as_upload(upload_fields["hardware_file"])
             if hardware_file:
-                data.hardware_path = await _store_upload(
-                    storage_dir, hardware_file, prefix="hardware"
+                hardware_asset = await _store_upload_asset(
+                    storage_dir,
+                    hardware_file,
+                    prefix="hardware",
+                    category="hardware",
+                    description="Hardware inventory",
                 )
+                _replace_asset("hardware_asset", hardware_asset)
 
             telemetry_before = _as_upload(upload_fields["telemetry_before"])
             if telemetry_before:
-                path, parsed = await _store_json_upload(
-                    storage_dir, telemetry_before, prefix="baseline"
+                baseline_asset, parsed = await _store_json_upload(
+                    storage_dir,
+                    telemetry_before,
+                    prefix="baseline",
+                    category="telemetry",
+                    description="Baseline telemetry",
                 )
                 data.telemetry_before = parsed
+                _replace_asset("telemetry_before_asset", baseline_asset)
                 _maybe_set_model_name(data, parsed)
 
             telemetry_after = _as_upload(upload_fields["telemetry_after"])
             if telemetry_after:
-                path, parsed = await _store_json_upload(
-                    storage_dir, telemetry_after, prefix="optimized"
+                optimized_asset, parsed = await _store_json_upload(
+                    storage_dir,
+                    telemetry_after,
+                    prefix="optimized",
+                    category="telemetry",
+                    description="Optimized telemetry",
                 )
                 data.telemetry_after = parsed
+                _replace_asset("telemetry_after_asset", optimized_asset)
                 _maybe_set_model_name(data, parsed)
 
             usage_file = _as_upload(upload_fields["usage_event_file"])
             if usage_file:
-                path, parsed = await _store_json_upload(
-                    storage_dir, usage_file, prefix="usage"
+                usage_asset, parsed = await _store_json_upload(
+                    storage_dir,
+                    usage_file,
+                    prefix="usage",
+                    category="usage",
+                    description="Usage event",
                 )
                 data.usage_event = parsed
-                data.usage_event_path = path
+                _replace_asset("usage_event_asset", usage_asset)
                 _maybe_set_model_name(data, parsed)
 
             for key, label in (
@@ -168,17 +229,15 @@ def create_app(templates_dir: Optional[Path] = None) -> Starlette:
             ):
                 upload = _as_upload(upload_fields[key])
                 if upload:
-                    artifact_path = await _store_upload(
-                        storage_dir, upload, prefix="artifact"
+                    artifact_asset = await _store_upload_asset(
+                        storage_dir,
+                        upload,
+                        prefix="artifact",
+                        category="artifact",
+                        description=label,
                     )
-                    data.kernel_artifacts.append(
-                        KernelArtifact(
-                            identifier=uuid.uuid4().hex,
-                            name=_safe_filename(upload.filename),
-                            path=artifact_path,
-                            description=label,
-                        )
-                    )
+                    data.kernel_artifacts.append(artifact_asset)
+                    _register_asset(artifact_asset)
 
         referer = request.headers.get("referer") or "/"
         return RedirectResponse(url=referer, status_code=303)
@@ -200,31 +259,35 @@ def create_app(templates_dir: Optional[Path] = None) -> Starlette:
                     "identifier": artifact.identifier,
                     "name": artifact.name,
                     "description": artifact.description,
-                    "download_url": f"/artifacts/{artifact.identifier}",
+                    "download_url": f"/assets/{artifact.identifier}",
+                    "media_type": artifact.media_type,
+                    "size_bytes": artifact.size_bytes,
                 }
                 for artifact in data.kernel_artifacts
             ]
         return JSONResponse({"artifacts": artifacts})
 
-    async def download_artifact(request: Request) -> FileResponse:
-        artifact_id = request.path_params["artifact_id"]
+    async def api_uploads(request: Request) -> JSONResponse:
         async with lock:
-            artifact = next(
-                (
-                    item
-                    for item in data.kernel_artifacts
-                    if item.identifier == artifact_id
-                ),
-                None,
-            )
-            if not artifact:
+            uploads = build_upload_overview(data)
+        return JSONResponse(uploads)
+
+    async def download_asset(request: Request) -> FileResponse:
+        artifact_id = request.path_params.get("artifact_id")
+        asset_id = request.path_params.get("asset_id") or artifact_id
+        if asset_id is None:
+            raise HTTPException(status_code=404, detail="Unknown asset")
+        async with lock:
+            asset = data.asset_index.get(asset_id)
+            if not asset:
                 raise HTTPException(status_code=404, detail="Artifact not found")
-            path = artifact.path
-            filename = artifact.name
+            path = asset.path
+            filename = asset.name
+            media_type = asset.media_type or "application/octet-stream"
 
         return FileResponse(
             path,
-            media_type="application/octet-stream",
+            media_type=media_type,
             filename=filename,
         )
 
@@ -251,7 +314,9 @@ def create_app(templates_dir: Optional[Path] = None) -> Starlette:
         Route("/api/summary", api_summary, methods=["GET"]),
         Route("/api/model-analyzer", api_model_analyzer, methods=["GET"]),
         Route("/api/kernel-artifacts", api_kernel_artifacts, methods=["GET"]),
-        Route("/artifacts/{artifact_id}", download_artifact, methods=["GET"]),
+        Route("/api/uploads", api_uploads, methods=["GET"]),
+        Route("/assets/{asset_id}", download_asset, methods=["GET"]),
+        Route("/artifacts/{artifact_id}", download_asset, methods=["GET"]),
         Route("/export/sdk-pack", export_sdk_pack, methods=["GET"]),
     ]
 
@@ -276,24 +341,26 @@ def _as_upload(value: Any) -> Optional[UploadFile]:
     return value if isinstance(value, UploadFile) else None
 
 
-async def _store_upload(
+async def _persist_upload(
     storage_dir: Path, upload: UploadFile, prefix: str
-) -> Path:
+) -> Tuple[Path, bytes, str]:
     safe_name = _safe_filename(upload.filename)
     destination = storage_dir / f"{prefix}_{safe_name}"
     destination.parent.mkdir(parents=True, exist_ok=True)
     content = await upload.read()
     destination.write_bytes(content)
-    return destination
+    return destination, content, safe_name
 
 
 async def _store_json_upload(
-    storage_dir: Path, upload: UploadFile, prefix: str
-) -> Tuple[Path, Dict[str, Any]]:
-    safe_name = _safe_filename(upload.filename)
-    destination = storage_dir / f"{prefix}_{safe_name}"
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    content = await upload.read()
+    storage_dir: Path,
+    upload: UploadFile,
+    prefix: str,
+    *,
+    category: str,
+    description: Optional[str] = None,
+) -> Tuple[DashboardAsset, Dict[str, Any]]:
+    destination, content, safe_name = await _persist_upload(storage_dir, upload, prefix)
     try:
         parsed = json.loads(content.decode("utf-8"))
     except json.JSONDecodeError as exc:
@@ -301,15 +368,315 @@ async def _store_json_upload(
             status_code=400,
             detail=f"Invalid JSON payload for {safe_name}: {exc}",
         ) from exc
-    destination.write_bytes(content)
-    return destination, parsed
+    asset = DashboardAsset(
+        identifier=uuid.uuid4().hex,
+        name=safe_name,
+        path=destination,
+        category=category,
+        description=description,
+        media_type=_guess_media_type(upload, safe_name),
+        size_bytes=len(content),
+    )
+    return asset, parsed
 
 
-def _write_text_file(storage_dir: Path, filename: str, text: str) -> Path:
+async def _store_upload_asset(
+    storage_dir: Path,
+    upload: UploadFile,
+    *,
+    prefix: str,
+    category: str,
+    description: Optional[str] = None,
+) -> DashboardAsset:
+    destination, content, safe_name = await _persist_upload(storage_dir, upload, prefix)
+    return DashboardAsset(
+        identifier=uuid.uuid4().hex,
+        name=safe_name,
+        path=destination,
+        category=category,
+        description=description,
+        media_type=_guess_media_type(upload, safe_name),
+        size_bytes=len(content),
+    )
+
+
+def _write_text_asset(
+    storage_dir: Path,
+    filename: str,
+    text: str,
+    *,
+    category: str,
+    description: Optional[str] = None,
+) -> DashboardAsset:
     path = storage_dir / filename
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(text)
-    return path
+    encoded = text.encode("utf-8")
+    path.write_bytes(encoded)
+    return DashboardAsset(
+        identifier=uuid.uuid4().hex,
+        name=filename,
+        path=path,
+        category=category,
+        description=description,
+        media_type="text/plain",
+        size_bytes=len(encoded),
+    )
+
+
+def _guess_media_type(upload: UploadFile, filename: str) -> Optional[str]:
+    if upload.content_type and upload.content_type != "application/octet-stream":
+        return upload.content_type
+    guessed, _ = mimetypes.guess_type(filename)
+    return guessed or upload.content_type
+
+
+def build_upload_overview(
+    data: DashboardData, summary: Optional[Dict[str, Any]] = None
+) -> Dict[str, Any]:
+    """Prepare a view model describing uploaded assets for rendering or APIs."""
+    summary = summary or build_performance_summary(data)
+    uploads = {
+        "model": _serialize_asset(data.model_asset),
+        "hardware": _build_hardware_entry(data.hardware_asset),
+        "telemetry": {
+            "baseline": _build_telemetry_entry(
+                "baseline",
+                data.telemetry_before_asset,
+                data.telemetry_before,
+                summary,
+            ),
+            "optimized": _build_telemetry_entry(
+                "optimized",
+                data.telemetry_after_asset,
+                data.telemetry_after,
+                summary,
+            ),
+        },
+        "usage": _build_usage_entry(data.usage_event_asset, data.usage_event),
+        "logs": [_build_log_entry(asset) for asset in data.log_assets],
+    }
+    return uploads
+
+
+def _serialize_asset(
+    asset: Optional[DashboardAsset],
+    *,
+    preview: Optional[str] = None,
+    extra: Optional[Dict[str, Any]] = None,
+) -> Optional[Dict[str, Any]]:
+    if asset is None:
+        return None
+    descriptor: Dict[str, Any] = {
+        "identifier": asset.identifier,
+        "name": asset.name,
+        "category": asset.category,
+        "description": asset.description,
+        "download_url": f"/assets/{asset.identifier}",
+        "size": _format_size(asset.size_bytes),
+        "size_bytes": asset.size_bytes,
+        "media_type": asset.media_type,
+    }
+    if preview:
+        descriptor["preview"] = preview
+    if extra:
+        for key, value in extra.items():
+            if value is None:
+                continue
+            descriptor[key] = value
+    return descriptor
+
+
+def _build_log_entry(asset: DashboardAsset) -> Dict[str, Any]:
+    preview = _read_text_preview(asset.path)
+    extra = {"is_note": asset.category == "note"}
+    entry = _serialize_asset(asset, preview=preview, extra=extra)
+    # _serialize_asset only returns None when asset is None, which never happens here.
+    assert entry is not None
+    return entry
+
+
+def _build_hardware_entry(
+    asset: Optional[DashboardAsset],
+) -> Optional[Dict[str, Any]]:
+    if asset is None:
+        return None
+    payload = None
+    preview = None
+    try:
+        payload = json.loads(asset.path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        preview = _read_text_preview(asset.path)
+    else:
+        preview = _json_preview(payload)
+    extra: Dict[str, Any] = {}
+    if payload is not None:
+        summary = _summarize_hardware_payload(payload)
+        if summary:
+            extra["summary"] = summary
+    return _serialize_asset(asset, preview=preview, extra=extra or None)
+
+
+def _build_telemetry_entry(
+    variant: str,
+    asset: Optional[DashboardAsset],
+    payload: Optional[Dict[str, Any]],
+    summary: Dict[str, Any],
+) -> Optional[Dict[str, Any]]:
+    if asset is None:
+        return None
+    metrics: List[Dict[str, Any]] = []
+    for metric in summary.get("metrics", []):
+        value = metric.get("baseline" if variant == "baseline" else "optimized")
+        if value is not None:
+            metrics.append({"label": metric["label"], "value": value})
+    events = _get_events(payload)
+    extra: Dict[str, Any] = {
+        "variant": variant,
+        "event_count": len(events) if events is not None else 0,
+    }
+    if metrics:
+        extra["metrics"] = metrics
+    if payload and isinstance(payload.get("bottleneck"), dict):
+        extra["bottleneck"] = _summarize_bottleneck(payload["bottleneck"])
+    preview = _json_preview(payload)
+    return _serialize_asset(asset, preview=preview, extra=extra)
+
+
+def _build_usage_entry(
+    asset: Optional[DashboardAsset],
+    payload: Optional[Dict[str, Any]],
+) -> Optional[Dict[str, Any]]:
+    if asset is None:
+        return None
+    highlights: List[Dict[str, Any]] = []
+    if payload:
+        for dotted_key, label in (
+            ("baseline_latency_ms", "Baseline latency (ms)"),
+            ("optimized_latency_ms", "Optimized latency (ms)"),
+            ("baseline_tokens_per_sec", "Baseline tokens/s"),
+            ("optimized_tokens_per_sec", "Optimized tokens/s"),
+            ("gpu_hours_saved", "GPU hours saved"),
+            ("cost_savings", "Cost savings (USD)"),
+            ("total_billable", "Total billable (USD)"),
+        ):
+            value = _dig(payload, dotted_key)
+            if value is not None:
+                highlights.append({"label": label, "value": value})
+    extra = {"highlights": highlights} if highlights else {}
+    preview = _json_preview(payload)
+    return _serialize_asset(asset, preview=preview, extra=extra or None)
+
+
+def _summarize_bottleneck(payload: Dict[str, Any]) -> Dict[str, Any]:
+    summary: Dict[str, Any] = {}
+    for key in ("op", "node", "name", "layer"):
+        value = payload.get(key)
+        if isinstance(value, str) and value:
+            summary["name"] = value
+            break
+    latency = payload.get("latency_ms") or payload.get("duration_ms")
+    if latency is not None:
+        summary["latency_ms"] = _to_float(latency)
+    shape = payload.get("shape")
+    if shape:
+        summary["shape"] = shape
+    return summary
+
+
+def _summarize_hardware_payload(payload: Any) -> Optional[Dict[str, Any]]:
+    if isinstance(payload, dict):
+        summary: Dict[str, Any] = {}
+        gpu_section = payload.get("gpus") or payload.get("devices") or payload.get(
+            "gpu"
+        )
+        gpus: List[Dict[str, Any]] = []
+        if isinstance(gpu_section, list):
+            for item in gpu_section[:4]:
+                parsed = _summarize_gpu_entry(item)
+                if parsed:
+                    gpus.append(parsed)
+        elif isinstance(gpu_section, dict):
+            parsed = _summarize_gpu_entry(gpu_section)
+            if parsed:
+                gpus.append(parsed)
+        if gpus:
+            summary["gpus"] = gpus
+            summary["gpu_count"] = (
+                len(gpu_section)
+                if isinstance(gpu_section, list)
+                else summary.get("gpus") and len(summary["gpus"])
+            )
+        cpu_section = payload.get("cpu") or payload.get("cpus")
+        if isinstance(cpu_section, dict):
+            cpu_name = cpu_section.get("model") or cpu_section.get("name")
+            if isinstance(cpu_name, str):
+                summary["cpu"] = cpu_name
+        memory = (
+            payload.get("memory")
+            or payload.get("system_memory")
+            or payload.get("ram")
+        )
+        if memory is not None:
+            summary["memory"] = memory
+        return summary or None
+    if isinstance(payload, list):
+        return {"entries": len(payload)}
+    return None
+
+
+def _summarize_gpu_entry(payload: Any) -> Optional[Dict[str, Any]]:
+    if not isinstance(payload, dict):
+        return None
+    summary: Dict[str, Any] = {}
+    name = payload.get("name") or payload.get("model")
+    if isinstance(name, str):
+        summary["name"] = name
+    for mem_key in ("memory", "memory_gb", "total_memory"):
+        value = payload.get(mem_key)
+        if value is not None:
+            summary["memory"] = value
+            break
+    count = payload.get("count") or payload.get("quantity")
+    if isinstance(count, int):
+        summary["count"] = count
+    return summary or None
+
+
+def _read_text_preview(path: Path, limit: int = 700) -> Optional[str]:
+    try:
+        with path.open("r", encoding="utf-8", errors="ignore") as handle:
+            snippet = handle.read(limit + 1)
+    except OSError:
+        return None
+    snippet = snippet.strip()
+    if not snippet:
+        return None
+    if len(snippet) > limit:
+        return snippet[:limit].rstrip() + "…"
+    return snippet
+
+
+def _json_preview(payload: Optional[Dict[str, Any]], limit: int = 700) -> Optional[str]:
+    if not payload:
+        return None
+    serialized = json.dumps(payload, indent=2, sort_keys=True)
+    if len(serialized) > limit:
+        return serialized[:limit].rstrip() + "…"
+    return serialized
+
+
+def _format_size(size_bytes: int) -> str:
+    if size_bytes <= 0:
+        return "0 B"
+    units = ["B", "KB", "MB", "GB", "TB"]
+    value = float(size_bytes)
+    for unit in units:
+        if value < 1024 or unit == units[-1]:
+            if unit == "B":
+                return f"{int(value)} {unit}"
+            return f"{value:.1f} {unit}"
+        value /= 1024
+    return f"{size_bytes} B"
 
 
 def _maybe_set_model_name(data: DashboardData, payload: Dict[str, Any]) -> None:
@@ -572,6 +939,15 @@ def build_sdk_pack_bytes(data: DashboardData) -> bytes:
                 "telemetry/usage_event.json",
                 json.dumps(data.usage_event, indent=2),
             )
+        if data.hardware_asset and data.hardware_asset.path.exists():
+            zf.write(
+                data.hardware_asset.path,
+                arcname=f"context/{data.hardware_asset.name}",
+            )
+        for log_asset in data.log_assets:
+            if log_asset.path.exists():
+                arcname = f"logs/{log_asset.name}"
+                zf.write(log_asset.path, arcname=arcname)
         for artifact in data.kernel_artifacts:
             if artifact.path.exists():
                 arcname = f"artifacts/{artifact.name}"
@@ -582,10 +958,12 @@ def build_sdk_pack_bytes(data: DashboardData) -> bytes:
 
 
 __all__ = [
+    "DashboardAsset",
     "DashboardData",
     "KernelArtifact",
     "build_layer_stats",
     "build_performance_summary",
+    "build_upload_overview",
     "build_sdk_pack_bytes",
     "create_app",
 ]

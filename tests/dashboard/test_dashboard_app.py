@@ -37,6 +37,13 @@ def test_dashboard_upload_and_summary_roundtrip() -> None:
             {"name": "decoder.layer2", "latency_ms": 15.1, "shape": [1, 4096]},
         ],
     }
+    hardware = {
+        "cpu": {"model": "AMD EPYC 7742"},
+        "gpus": [
+            {"name": "NVIDIA A100", "memory": "80GB", "count": 2},
+        ],
+        "memory": "512GB",
+    }
     usage_event = {
         "project_id": "demo",
         "model_name": "TinyLlama",
@@ -51,6 +58,13 @@ def test_dashboard_upload_and_summary_roundtrip() -> None:
     }
 
     files = {
+        "model_file": ("model.pt", b"pretend-model", "application/octet-stream"),
+        "hardware_file": (
+            "hardware.json",
+            json.dumps(hardware),
+            "application/json",
+        ),
+        "log_file": ("run.log", "INFO starting run", "text/plain"),
         "telemetry_before": (
             "baseline.json",
             json.dumps(baseline),
@@ -85,6 +99,26 @@ def test_dashboard_upload_and_summary_roundtrip() -> None:
     assert metrics["Latency (ms)"]["optimized"] == 62.9
     assert metrics["Tokens / second"]["optimized"] == 4168.0
 
+    uploads = client.get("/api/uploads").json()
+    assert uploads["model"]["name"] == "model.pt"
+    assert uploads["hardware"]["summary"]["gpu_count"] >= 1
+    assert uploads["hardware"]["summary"]["gpus"][0]["name"] == "NVIDIA A100"
+    assert uploads["hardware"]["summary"]["gpus"][0]["count"] == 2
+    assert uploads["telemetry"]["baseline"]["event_count"] == 2
+    assert uploads["telemetry"]["optimized"]["metrics"]
+    assert uploads["usage"]["highlights"]
+    assert len(uploads["logs"]) == 2
+    note_entry = next(log for log in uploads["logs"] if log["is_note"])
+    log_entry = next(log for log in uploads["logs"] if not log["is_note"])
+    assert "Profiling run" in note_entry["preview"]
+
+    model_download = client.get(uploads["model"]["download_url"])
+    assert model_download.status_code == 200
+    hardware_download = client.get(uploads["hardware"]["download_url"])
+    assert hardware_download.status_code == 200
+    log_download = client.get(log_entry["download_url"])
+    assert log_download.status_code == 200
+
     layers = client.get("/api/model-analyzer").json()["layers"]
     first_layer = {layer["name"]: layer for layer in layers}["decoder.layer1"]
     assert first_layer["baseline_latency_ms"] == 20.0
@@ -92,6 +126,7 @@ def test_dashboard_upload_and_summary_roundtrip() -> None:
 
     artifacts = client.get("/api/kernel-artifacts").json()["artifacts"]
     assert len(artifacts) == 2
+    assert all(item["size_bytes"] > 0 for item in artifacts)
     download_response = client.get(artifacts[0]["download_url"])
     assert download_response.status_code == 200
     assert download_response.content
@@ -107,5 +142,8 @@ def test_dashboard_upload_and_summary_roundtrip() -> None:
         assert "summary.json" in names
         assert "telemetry/baseline.json" in names
         assert "telemetry/optimized.json" in names
+        assert "context/hardware.json" in names
+        assert "logs/run.log" in names
+        assert any(name.startswith("logs/notes_") for name in names)
         summary_payload = json.loads(archive.read("summary.json"))
         assert summary_payload["metrics"]

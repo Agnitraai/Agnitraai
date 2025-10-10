@@ -205,7 +205,9 @@ def _evaluate_improvement(
     unroll_delta = abs(unroll_idx - target_unroll)
     fusion_match = 1.0 if fusion_idx == target_fusion else -0.5
     penalty = params.penalty_scale * (tile_delta * 0.7 + unroll_delta * 0.5)
-    penalty += 0.1 * fusion_match
+    # Matching the fusion preference should reduce the penalty, while mismatches
+    # should increase it.  The previous formulation inverted this relationship.
+    penalty -= 0.1 * fusion_match
     improvement = params.target_bonus - penalty
     tile_values = tuple(tuning_space.tile_sizes)
     if tile_idx < len(tile_values):

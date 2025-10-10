@@ -5,11 +5,13 @@ from __future__ import annotations
 import pytest
 
 from agnitra.core.optimizer import (
+    KernelTuningSpace,
     PPOKernelOptimizerConfig,
     PPOKernelOptimizer,
     run_dummy_training_loop,
     summarize_kernel_telemetry,
 )
+from agnitra.core.optimizer.rl_optimizer import _EpisodeParameters, _evaluate_improvement
 
 try:  # NumPy is an optional dependency; skip when unavailable.
     import numpy as np  # type: ignore
@@ -51,3 +53,17 @@ def test_optimizer_train_respects_prefer_sb3_flag() -> None:
     result = optimizer.train()
     assert result.metadata["dependency_fallback"] is True
     assert result.metadata.get("dependency_fallback_reason") == "disabled"
+
+
+def test_fusion_penalty_rewards_matching_signature() -> None:
+    space = KernelTuningSpace()
+    params = _EpisodeParameters(
+        baseline_latency_ms=8.0,
+        baseline_tokens_per_sec=1400.0,
+        target_signature=(1, 2, 1),
+        target_bonus=0.25,
+        penalty_scale=0.1,
+    )
+    matched = _evaluate_improvement((1, 2, 1), space, params)
+    mismatched = _evaluate_improvement((1, 2, 0), space, params)
+    assert matched > mismatched

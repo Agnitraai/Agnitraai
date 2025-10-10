@@ -114,9 +114,153 @@
         .artifact a {
             color: #88f2ff;
         }
+        .artifact-meta {
+            display: block;
+            font-size: 0.8rem;
+            color: #9fb7e1;
+        }
         .empty-state {
             color: #8aa4cb;
             margin-top: 1rem;
+        }
+        .cards-grid {
+            display: grid;
+            gap: 1rem;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        }
+        .card {
+            background-color: #15203a;
+            border: 1px solid #1f2a44;
+            border-radius: 8px;
+            padding: 1rem 1.2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+        }
+        .card h3 {
+            margin: 0;
+            font-size: 1rem;
+        }
+        .asset-meta {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            color: #9fb7e1;
+        }
+        .asset-description {
+            margin: 0;
+            font-size: 0.85rem;
+            color: #c3d9ff;
+        }
+        .asset-summary {
+            padding-left: 1rem;
+            margin: 0;
+            display: grid;
+            gap: 0.25rem;
+        }
+        .asset-summary ul {
+            margin: 0.3rem 0 0 0.6rem;
+            padding: 0;
+            list-style: disc;
+        }
+        .asset-summary li {
+            font-size: 0.85rem;
+        }
+        .asset-actions {
+            display: flex;
+            gap: 0.6rem;
+            margin-top: auto;
+        }
+        .asset-actions a {
+            color: #88f2ff;
+            font-size: 0.85rem;
+        }
+        .asset-preview {
+            background: #0f172c;
+            border: 1px solid #1f2a44;
+            border-radius: 6px;
+            padding: 0.6rem;
+            font-size: 0.8rem;
+            max-height: 160px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .highlight-list {
+            margin: 0;
+            padding: 0;
+            display: grid;
+            gap: 0.3rem;
+        }
+        .highlight-list li {
+            list-style: none;
+            font-size: 0.85rem;
+            display: flex;
+            justify-content: space-between;
+            color: #c3d9ff;
+        }
+        .log-entries {
+            display: grid;
+            gap: 1rem;
+        }
+        .log-entry {
+            border: 1px solid #1f2a44;
+            border-radius: 8px;
+            padding: 0.9rem;
+            background: #141f36;
+        }
+        .log-entry-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9rem;
+            color: #9fb7e1;
+        }
+        .log-entry-header strong {
+            color: #e5f4ff;
+        }
+        .log-entry-note {
+            color: #63ffc9;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .log-entry pre {
+            margin-top: 0.6rem;
+            max-height: 200px;
+            overflow-y: auto;
+            background: #0f172c;
+            border: 1px solid #1f2a44;
+            border-radius: 6px;
+            padding: 0.6rem;
+            font-size: 0.8rem;
+            white-space: pre-wrap;
+        }
+        .comparison-bar {
+            margin-top: 0.4rem;
+            display: grid;
+            gap: 0.25rem;
+        }
+        .comparison-bar-label {
+            font-size: 0.75rem;
+            color: #8aa4cb;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .comparison-bar-track {
+            height: 6px;
+            background: #1f2a44;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .comparison-bar-fill {
+            height: 100%;
+            border-radius: 4px;
+        }
+        .comparison-bar-fill.baseline {
+            background: #ff8f7f;
+        }
+        .comparison-bar-fill.optimized {
+            background: #63ffc9;
         }
     </style>
 </head>
@@ -156,6 +300,191 @@
                 </form>
             </section>
             <section>
+                <h2>Run context assets</h2>
+                <div class="cards-grid">
+                    <div class="card">
+                        <h3>Model Artifact</h3>
+                        {% set model_asset = uploads.model %}
+                        {% if model_asset %}
+                            <div class="asset-meta">
+                                <span>{{ model_asset.name }}</span>
+                                <span>{{ model_asset.size }}</span>
+                            </div>
+                            {% if model_asset.description %}
+                                <p class="asset-description">{{ model_asset.description }}</p>
+                            {% endif %}
+                            <div class="asset-actions">
+                                <a href="{{ model_asset.download_url }}">Download</a>
+                            </div>
+                        {% else %}
+                            <p class="empty-state">Upload a model checkpoint to anchor telemetry comparisons.</p>
+                        {% endif %}
+                    </div>
+                    <div class="card">
+                        <h3>Hardware Inventory</h3>
+                        {% set hardware_asset = uploads.hardware %}
+                        {% if hardware_asset %}
+                            <div class="asset-meta">
+                                <span>{{ hardware_asset.name }}</span>
+                                <span>{{ hardware_asset.size }}</span>
+                            </div>
+                            {% if hardware_asset.summary %}
+                                <ul class="asset-summary">
+                                    {% if hardware_asset.summary.cpu %}
+                                        <li><strong>CPU</strong> {{ hardware_asset.summary.cpu }}</li>
+                                    {% endif %}
+                                    {% if hardware_asset.summary.memory %}
+                                        <li><strong>Memory</strong> {{ hardware_asset.summary.memory }}</li>
+                                    {% endif %}
+                                    {% if hardware_asset.summary.gpus %}
+                                        <li><strong>GPUs</strong>
+                                            <ul>
+                                                {% for gpu in hardware_asset.summary.gpus %}
+                                                    <li>{{ gpu.name or "GPU" }}{% if gpu.count %} ×{{ gpu.count }}{% endif %}{% if gpu.memory %} — {{ gpu.memory }}{% endif %}</li>
+                                                {% endfor %}
+                                            </ul>
+                                        </li>
+                                    {% endif %}
+                                </ul>
+                            {% endif %}
+                            {% if hardware_asset.preview %}
+                                <pre class="asset-preview">{{ hardware_asset.preview }}</pre>
+                            {% endif %}
+                            <div class="asset-actions">
+                                <a href="{{ hardware_asset.download_url }}">Download</a>
+                            </div>
+                        {% else %}
+                            <p class="empty-state">Upload a hardware snapshot (JSON or text) to capture the cluster shape.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </section>
+            <section>
+                <h2>Telemetry & Usage</h2>
+                <div class="cards-grid">
+                    <div class="card">
+                        <h3>Baseline Telemetry</h3>
+                        {% set baseline = uploads.telemetry.baseline %}
+                        {% if baseline %}
+                            <div class="asset-meta">
+                                <span>{{ baseline.name }}</span>
+                                <span>{{ baseline.size }}</span>
+                            </div>
+                            {% if baseline.metrics %}
+                                <ul class="highlight-list">
+                                    {% for metric in baseline.metrics %}
+                                        <li>
+                                            <span>{{ metric.label }}</span>
+                                            <span>
+                                                {% if metric.value is number %}
+                                                    {{ "%.3f"|format(metric.value) }}
+                                                {% else %}
+                                                    {{ metric.value }}
+                                                {% endif %}
+                                            </span>
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            {% endif %}
+                            {% if baseline.bottleneck %}
+                                <p class="asset-description">
+                                    Bottleneck: {{ baseline.bottleneck.name }}
+                                    {% if baseline.bottleneck.latency_ms is not none %}
+                                        ({{ "%.3f"|format(baseline.bottleneck.latency_ms) }} ms)
+                                    {% endif %}
+                                </p>
+                            {% endif %}
+                            <p class="asset-description">Layers profiled: {{ baseline.event_count }}</p>
+                            {% if baseline.preview %}
+                                <pre class="asset-preview">{{ baseline.preview }}</pre>
+                            {% endif %}
+                            <div class="asset-actions">
+                                <a href="{{ baseline.download_url }}">Download JSON</a>
+                            </div>
+                        {% else %}
+                            <p class="empty-state">Upload baseline telemetry JSON to anchor comparisons.</p>
+                        {% endif %}
+                    </div>
+                    <div class="card">
+                        <h3>Optimized Telemetry</h3>
+                        {% set optimized = uploads.telemetry.optimized %}
+                        {% if optimized %}
+                            <div class="asset-meta">
+                                <span>{{ optimized.name }}</span>
+                                <span>{{ optimized.size }}</span>
+                            </div>
+                            {% if optimized.metrics %}
+                                <ul class="highlight-list">
+                                    {% for metric in optimized.metrics %}
+                                        <li>
+                                            <span>{{ metric.label }}</span>
+                                            <span>
+                                                {% if metric.value is number %}
+                                                    {{ "%.3f"|format(metric.value) }}
+                                                {% else %}
+                                                    {{ metric.value }}
+                                                {% endif %}
+                                            </span>
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            {% endif %}
+                            {% if optimized.bottleneck %}
+                                <p class="asset-description">
+                                    Bottleneck: {{ optimized.bottleneck.name }}
+                                    {% if optimized.bottleneck.latency_ms is not none %}
+                                        ({{ "%.3f"|format(optimized.bottleneck.latency_ms) }} ms)
+                                    {% endif %}
+                                </p>
+                            {% endif %}
+                            <p class="asset-description">Layers profiled: {{ optimized.event_count }}</p>
+                            {% if optimized.preview %}
+                                <pre class="asset-preview">{{ optimized.preview }}</pre>
+                            {% endif %}
+                            <div class="asset-actions">
+                                <a href="{{ optimized.download_url }}">Download JSON</a>
+                            </div>
+                        {% else %}
+                            <p class="empty-state">Upload optimized telemetry JSON to track gains.</p>
+                        {% endif %}
+                    </div>
+                    <div class="card">
+                        <h3>Usage Event</h3>
+                        {% set usage = uploads.usage %}
+                        {% if usage %}
+                            <div class="asset-meta">
+                                <span>{{ usage.name }}</span>
+                                <span>{{ usage.size }}</span>
+                            </div>
+                            {% if usage.highlights %}
+                                <ul class="highlight-list">
+                                    {% for highlight in usage.highlights %}
+                                        <li>
+                                            <span>{{ highlight.label }}</span>
+                                            <span>
+                                                {% if highlight.value is number %}
+                                                    {{ "%.3f"|format(highlight.value) }}
+                                                {% else %}
+                                                    {{ highlight.value }}
+                                                {% endif %}
+                                            </span>
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            {% endif %}
+                            {% if usage.preview %}
+                                <pre class="asset-preview">{{ usage.preview }}</pre>
+                            {% endif %}
+                            <div class="asset-actions">
+                                <a href="{{ usage.download_url }}">Download JSON</a>
+                            </div>
+                        {% else %}
+                            <p class="empty-state">Optional: upload a billing or usage event to capture savings.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </section>
+            <section>
                 <h2>Performance snapshot</h2>
                 {% if summary.metrics %}
                     <table>
@@ -164,16 +493,38 @@
                                 <th>Metric</th>
                                 <th>Baseline</th>
                                 <th>Optimized</th>
+                                <th>Trend</th>
                                 <th>Delta</th>
                                 <th>Delta %</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for metric in summary.metrics %}
+                                {% set baseline_value = metric.baseline if metric.baseline is not none else 0 %}
+                                {% set optimized_value = metric.optimized if metric.optimized is not none else 0 %}
+                                {% set baseline_abs = baseline_value if baseline_value >= 0 else -baseline_value %}
+                                {% set optimized_abs = optimized_value if optimized_value >= 0 else -optimized_value %}
+                                {% set max_value = baseline_abs if baseline_abs > optimized_abs else optimized_abs %}
                                 <tr>
                                     <td>{{ metric.label }}</td>
                                     <td>{{ metric.baseline if metric.baseline is not none else "—" }}</td>
                                     <td>{{ metric.optimized if metric.optimized is not none else "—" }}</td>
+                                    <td>
+                                        {% if max_value > 0 %}
+                                            <div class="comparison-bar">
+                                                <span class="comparison-bar-label">Baseline</span>
+                                                <div class="comparison-bar-track">
+                                                    <div class="comparison-bar-fill baseline" style="width: {{ (baseline_abs / max_value) * 100 }}%;"></div>
+                                                </div>
+                                                <span class="comparison-bar-label">Optimized</span>
+                                                <div class="comparison-bar-track">
+                                                    <div class="comparison-bar-fill optimized" style="width: {{ (optimized_abs / max_value) * 100 }}%;"></div>
+                                                </div>
+                                            </div>
+                                        {% else %}
+                                            <span class="empty-state">No data</span>
+                                        {% endif %}
+                                    </td>
                                     <td class="{% if metric.delta is not none and metric.delta < 0 %}metric-delta-positive{% elif metric.delta is not none and metric.delta > 0 %}metric-delta-negative{% endif %}">
                                         {% if metric.delta is not none %}
                                             {{ "%.3f"|format(metric.delta) }}
@@ -194,6 +545,35 @@
                     </table>
                 {% else %}
                     <p class="empty-state">Upload baseline and optimized telemetry to populate this view.</p>
+                {% endif %}
+            </section>
+            <section>
+                <h2>Logs & Notes</h2>
+                {% if uploads.logs %}
+                    <div class="log-entries">
+                        {% for log in uploads.logs %}
+                            <div class="log-entry">
+                                <div class="log-entry-header">
+                                    <strong>{{ log.name }}</strong>
+                                    <span>{{ log.size }}</span>
+                                </div>
+                                {% if log.is_note %}
+                                    <div class="log-entry-note">Note</div>
+                                {% endif %}
+                                {% if log.description %}
+                                    <p class="asset-description">{{ log.description }}</p>
+                                {% endif %}
+                                {% if log.preview %}
+                                    <pre>{{ log.preview }}</pre>
+                                {% endif %}
+                                <div class="asset-actions">
+                                    <a href="{{ log.download_url }}">Download</a>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="empty-state">Attach runtime logs or analyst notes to keep the optimization trail together.</p>
                 {% endif %}
             </section>
         {% elif tab == "model-analyzer" %}
@@ -238,8 +618,16 @@
                         {% for artifact in artifacts %}
                             <div class="artifact">
                                 <strong>{{ artifact.name }}</strong><br>
-                                <span>{{ artifact.description or "Uploaded artifact" }}</span><br>
-                                <a href="{{ artifact.download_url }}">Download</a>
+                                <span class="artifact-meta">{{ artifact.description or "Uploaded artifact" }}</span>
+                                {% if artifact.media_type %}
+                                    <span class="artifact-meta">{{ artifact.media_type }}</span>
+                                {% endif %}
+                                {% if artifact.size %}
+                                    <span class="artifact-meta">{{ artifact.size }}</span>
+                                {% endif %}
+                                <div class="asset-actions">
+                                    <a href="{{ artifact.download_url }}">Download</a>
+                                </div>
                             </div>
                         {% endfor %}
                     </div>
@@ -257,16 +645,38 @@
                                 <th>Metric</th>
                                 <th>Baseline</th>
                                 <th>Optimized</th>
+                                <th>Trend</th>
                                 <th>Delta</th>
                                 <th>Delta %</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for metric in summary.metrics %}
+                                {% set baseline_value = metric.baseline if metric.baseline is not none else 0 %}
+                                {% set optimized_value = metric.optimized if metric.optimized is not none else 0 %}
+                                {% set baseline_abs = baseline_value if baseline_value >= 0 else -baseline_value %}
+                                {% set optimized_abs = optimized_value if optimized_value >= 0 else -optimized_value %}
+                                {% set max_value = baseline_abs if baseline_abs > optimized_abs else optimized_abs %}
                                 <tr>
                                     <td>{{ metric.label }}</td>
                                     <td>{{ metric.baseline if metric.baseline is not none else "—" }}</td>
                                     <td>{{ metric.optimized if metric.optimized is not none else "—" }}</td>
+                                    <td>
+                                        {% if max_value > 0 %}
+                                            <div class="comparison-bar">
+                                                <span class="comparison-bar-label">Baseline</span>
+                                                <div class="comparison-bar-track">
+                                                    <div class="comparison-bar-fill baseline" style="width: {{ (baseline_abs / max_value) * 100 }}%;"></div>
+                                                </div>
+                                                <span class="comparison-bar-label">Optimized</span>
+                                                <div class="comparison-bar-track">
+                                                    <div class="comparison-bar-fill optimized" style="width: {{ (optimized_abs / max_value) * 100 }}%;"></div>
+                                                </div>
+                                            </div>
+                                        {% else %}
+                                            <span class="empty-state">No data</span>
+                                        {% endif %}
+                                    </td>
                                     <td class="{% if metric.delta is not none and metric.delta < 0 %}metric-delta-positive{% elif metric.delta is not none and metric.delta > 0 %}metric-delta-negative{% endif %}">
                                         {% if metric.delta is not none %}
                                             {{ "%.3f"|format(metric.delta) }}

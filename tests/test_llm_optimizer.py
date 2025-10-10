@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from agnitra.core.optimizer import LLMOptimizer
+from agnitra.core.optimizer import LLMOptimizer, LLMOptimizerConfig
 
 
 def _sample_graph():
@@ -100,9 +100,32 @@ def test_optimize_parses_json_response():
     models = {entry["model"]: entry for entry in payload["models"]}
     assert models["gpt-5-mini"]["status"] == "ok"
     assert models["gpt-4.1-mini"]["status"] == "ok"
+    assert client.responses.last_kwargs["temperature"] == 0.0
+    assert client.responses.last_kwargs["top_p"] == 0.9
+    assert client.responses.last_kwargs["max_output_tokens"] == 400
     user_prompt = client.responses.last_kwargs["input"][1]["content"][0]["text"]
     assert "1024" in user_prompt
     assert "10.2" in user_prompt
+
+
+def test_plain_gpt5_skips_sampling_controls():
+    client = _DummyClient(
+        json.dumps(
+            {
+                "block_size": 128,
+                "tile_shape": [32, 64],
+                "unroll_factor": 2,
+            }
+        )
+    )
+    config = LLMOptimizerConfig(model="gpt-5", fallback_model=None)
+    optimizer = LLMOptimizer(client=client, config=config)
+    optimizer.optimize(_sample_graph(), _sample_telemetry())
+    kwargs = client.responses.last_kwargs
+    assert kwargs["model"] == "gpt-5"
+    assert "temperature" not in kwargs
+    assert "top_p" not in kwargs
+    assert "max_output_tokens" not in kwargs
 
 
 def test_optimize_parses_key_value_text():

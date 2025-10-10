@@ -341,11 +341,34 @@ class LLMOptimizer:
         client = self._client
         if client is None:
             raise RuntimeError("LLM client not configured for responses backend")
-        response = client.responses.create(
-            model=model_name,
-            input=messages,
-            store=False,
-        )
+        model_key = str(model_name).strip().lower()
+
+        def _supports_sampling_controls() -> bool:
+            # The canonical gpt-5 model refuses decoding parameters such as temperature,
+            # top_p, and max_output_tokens. Guard against that specific model name while
+            # still allowing sibling variants (e.g. gpt-5-mini) to receive the knobs.
+            return model_key not in {"gpt-5"}
+
+        payload: Dict[str, Any] = {
+            "model": model_name,
+            "input": messages,
+            "store": False,
+        }
+        supports_sampling = _supports_sampling_controls()
+        # Respect configured decoding controls where supported by the target model.
+        if self._config.max_output_tokens is not None and supports_sampling:
+            payload["max_output_tokens"] = int(self._config.max_output_tokens)
+        if (
+            self._config.temperature is not None
+            and supports_sampling
+        ):
+            payload["temperature"] = float(self._config.temperature)
+        if (
+            self._config.top_p is not None
+            and supports_sampling
+        ):
+            payload["top_p"] = float(self._config.top_p)
+        response = client.responses.create(**payload)
         return _extract_text(response)
 
     def _invoke_codex_cli(
