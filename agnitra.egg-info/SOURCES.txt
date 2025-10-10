@@ -44,6 +44,10 @@ agnitra/core/runtime/telemetry_client.py
 agnitra/core/runtime/tuning.py
 agnitra/core/telemetry/__init__.py
 agnitra/core/telemetry/collector.py
+agnitra/dashboard/__init__.py
+agnitra/dashboard/app.py
+agnitra/dashboard/cli.py
+agnitra/dashboard/templates/dashboard.html
 agnitra/demo/__init__.py
 agnitra/demo/demo.py
 cli/__init__.py
@@ -53,6 +57,7 @@ cli/profile.py
 tests/test_benchmarks_runner.py
 tests/test_cli_click.py
 tests/test_cli_main.py
+tests/test_codex_guided.py
 tests/test_collect_telemetry.py
 tests/test_demo_integration.py
 tests/test_demo_main.py
@@ -67,6 +72,7 @@ tests/test_optimizer.py
 tests/test_rl_optimizer.py
 tests/test_runtime_agent.py
 tests/test_runtime_patcher.py
+tests/test_runtime_snapshot.py
 tests/test_sdk_top_level.py
 tests/test_telemetry.py
 tests/test_telemetry_collector.py

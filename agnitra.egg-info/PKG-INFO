@@ -4,6 +4,10 @@ Version: 0.1.0
 Summary: Agnitra project
 Requires-Python: >=3.8
 Description-Content-Type: text/markdown
+Requires-Dist: starlette>=0.27.0
+Requires-Dist: uvicorn>=0.22.0
+Requires-Dist: jinja2>=3.1.0
+Requires-Dist: python-multipart>=0.0.6
 Provides-Extra: openai
 Requires-Dist: openai>=1.0.0; extra == "openai"
 Requires-Dist: httpx>=0.23; extra == "openai"
