@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Agnitra Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            background-color: #0e1220;
+            color: #e5f4ff;
+        }
+        header {
+            padding: 1.5rem 2rem;
+            background-color: #11172a;
+            border-bottom: 1px solid #1f2a44;
+        }
+        header h1 {
+            margin: 0;
+            font-size: 1.6rem;
+        }
+        main {
+            padding: 2rem;
+        }
+        nav {
+            display: flex;
+            gap: 1rem;
+            margin-top: 0.75rem;
+        }
+        nav a {
+            color: #88f2ff;
+            text-decoration: none;
+            padding: 0.4rem 0.8rem;
+            border-radius: 4px;
+            border: 1px solid transparent;
+        }
+        nav a.active {
+            border-color: #1f8fff;
+            background: rgba(31, 143, 255, 0.2);
+        }
+        section {
+            margin-top: 2rem;
+            background-color: #131a2f;
+            padding: 1.5rem;
+            border-radius: 8px;
+            border: 1px solid #1f2a44;
+        }
+        h2 {
+            margin-top: 0;
+            font-size: 1.2rem;
+        }
+        form {
+            display: grid;
+            gap: 0.75rem;
+            max-width: 540px;
+        }
+        label {
+            display: flex;
+            flex-direction: column;
+            font-size: 0.9rem;
+            color: #c3d9ff;
+        }
+        input[type="text"],
+        textarea {
+            margin-top: 0.35rem;
+            padding: 0.5rem;
+            border-radius: 4px;
+            border: 1px solid #294065;
+            background-color: #0e1426;
+            color: #e5f4ff;
+        }
+        input[type="file"] {
+            margin-top: 0.35rem;
+            color: #c3d9ff;
+        }
+        button {
+            padding: 0.6rem 1.2rem;
+            border-radius: 4px;
+            border: none;
+            background-color: #1f8fff;
+            color: #fff;
+            cursor: pointer;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+        th, td {
+            border: 1px solid #1f2a44;
+            padding: 0.6rem;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+        tr:nth-child(even) {
+            background-color: #192342;
+        }
+        .metric-delta-positive {
+            color: #63ffc9;
+        }
+        .metric-delta-negative {
+            color: #ff8f7f;
+        }
+        .artifacts-list {
+            display: grid;
+            gap: 0.8rem;
+        }
+        .artifact {
+            padding: 0.9rem;
+            border-radius: 6px;
+            background-color: #0f172c;
+            border: 1px solid #1f2a44;
+        }
+        .artifact a {
+            color: #88f2ff;
+        }
+        .empty-state {
+            color: #8aa4cb;
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Agnitra Dashboard</h1>
+        <nav>
+            <a href="/?tab=overview" class="{{ 'active' if tab == 'overview' else '' }}">Overview</a>
+            <a href="/?tab=model-analyzer" class="{{ 'active' if tab == 'model-analyzer' else '' }}">🔍 Model Analyzer</a>
+            <a href="/?tab=kernel-generator" class="{{ 'active' if tab == 'kernel-generator' else '' }}">⚙ Kernel Generator</a>
+            <a href="/?tab=benchmarks" class="{{ 'active' if tab == 'benchmarks' else '' }}">📉 Benchmarks Comparison</a>
+            <a href="/?tab=export" class="{{ 'active' if tab == 'export' else '' }}">📦 Export SDK Pack</a>
+        </nav>
+    </header>
+    <main>
+        {% if tab == "overview" %}
+            <section>
+                <h2>Upload model, telemetry and hardware context</h2>
+                <form action="/upload" method="post" enctype="multipart/form-data">
+                    <label>
+                        Model name
+                        <input type="text" name="model_name" value="{{ model_name or '' }}" placeholder="e.g. TinyLlama 1.1B">
+                    </label>
+                    <label>
+                        Notes
+                        <textarea name="notes" rows="3" placeholder="Add context, scenario or profiling notes"></textarea>
+                    </label>
+                    <label>Model file<input type="file" name="model_file"></label>
+                    <label>Baseline telemetry JSON<input type="file" name="telemetry_before" accept=".json,application/json"></label>
+                    <label>Optimized telemetry JSON<input type="file" name="telemetry_after" accept=".json,application/json"></label>
+                    <label>Usage event JSON<input type="file" name="usage_event_file" accept=".json,application/json"></label>
+                    <label>Hardware inventory<input type="file" name="hardware_file"></label>
+                    <label>Runtime log<input type="file" name="log_file"></label>
+                    <label>Optimized IR<input type="file" name="optimized_ir"></label>
+                    <label>Kernel artifact<input type="file" name="kernel_file"></label>
+                    <button type="submit">Upload</button>
+                </form>
+            </section>
+            <section>
+                <h2>Performance snapshot</h2>
+                {% if summary.metrics %}
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Metric</th>
+                                <th>Baseline</th>
+                                <th>Optimized</th>
+                                <th>Delta</th>
+                                <th>Delta %</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for metric in summary.metrics %}
+                                <tr>
+                                    <td>{{ metric.label }}</td>
+                                    <td>{{ metric.baseline if metric.baseline is not none else "—" }}</td>
+                                    <td>{{ metric.optimized if metric.optimized is not none else "—" }}</td>
+                                    <td class="{% if metric.delta is not none and metric.delta < 0 %}metric-delta-positive{% elif metric.delta is not none and metric.delta > 0 %}metric-delta-negative{% endif %}">
+                                        {% if metric.delta is not none %}
+                                            {{ "%.3f"|format(metric.delta) }}
+                                        {% else %}
+                                            —
+                                        {% endif %}
+                                    </td>
+                                    <td class="{% if metric.delta_pct is not none and metric.delta_pct < 0 %}metric-delta-positive{% elif metric.delta_pct is not none and metric.delta_pct > 0 %}metric-delta-negative{% endif %}">
+                                        {% if metric.delta_pct is not none %}
+                                            {{ "%.2f"|format(metric.delta_pct) }}%
+                                        {% else %}
+                                            —
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <p class="empty-state">Upload baseline and optimized telemetry to populate this view.</p>
+                {% endif %}
+            </section>
+        {% elif tab == "model-analyzer" %}
+            <section>
+                <h2>Layer-wise statistics</h2>
+                {% if layer_stats %}
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Layer</th>
+                                <th>Baseline latency (ms)</th>
+                                <th>Optimized latency (ms)</th>
+                                <th>Metadata</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for layer in layer_stats %}
+                                <tr>
+                                    <td>{{ layer.name }}</td>
+                                    <td>{{ layer.baseline_latency_ms if layer.baseline_latency_ms is not none else "—" }}</td>
+                                    <td>{{ layer.optimized_latency_ms if layer.optimized_latency_ms is not none else "—" }}</td>
+                                    <td>
+                                        {% if layer.metadata %}
+                                            <pre style="margin: 0; font-size: 0.8rem; white-space: pre-wrap;">{{ layer.metadata | tojson(indent=2) }}</pre>
+                                        {% else %}
+                                            —
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <p class="empty-state">No layer telemetry detected. Upload telemetry JSON with an `events` array.</p>
+                {% endif %}
+            </section>
+        {% elif tab == "kernel-generator" %}
+            <section>
+                <h2>Kernel artifacts</h2>
+                {% if artifacts %}
+                    <div class="artifacts-list">
+                        {% for artifact in artifacts %}
+                            <div class="artifact">
+                                <strong>{{ artifact.name }}</strong><br>
+                                <span>{{ artifact.description or "Uploaded artifact" }}</span><br>
+                                <a href="{{ artifact.download_url }}">Download</a>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="empty-state">Upload optimized IR or generated kernels to stage downloads.</p>
+                {% endif %}
+            </section>
+        {% elif tab == "benchmarks" %}
+            <section>
+                <h2>Benchmarks comparison</h2>
+                {% if summary.metrics %}
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Metric</th>
+                                <th>Baseline</th>
+                                <th>Optimized</th>
+                                <th>Delta</th>
+                                <th>Delta %</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for metric in summary.metrics %}
+                                <tr>
+                                    <td>{{ metric.label }}</td>
+                                    <td>{{ metric.baseline if metric.baseline is not none else "—" }}</td>
+                                    <td>{{ metric.optimized if metric.optimized is not none else "—" }}</td>
+                                    <td class="{% if metric.delta is not none and metric.delta < 0 %}metric-delta-positive{% elif metric.delta is not none and metric.delta > 0 %}metric-delta-negative{% endif %}">
+                                        {% if metric.delta is not none %}
+                                            {{ "%.3f"|format(metric.delta) }}
+                                        {% else %}
+                                            —
+                                        {% endif %}
+                                    </td>
+                                    <td class="{% if metric.delta_pct is not none and metric.delta_pct < 0 %}metric-delta-positive{% elif metric.delta_pct is not none and metric.delta_pct > 0 %}metric-delta-negative{% endif %}">
+                                        {% if metric.delta_pct is not none %}
+                                            {{ "%.2f"|format(metric.delta_pct) }}%
+                                        {% else %}
+                                            —
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <p class="empty-state">Upload usage or benchmark data to compare performance.</p>
+                {% endif %}
+            </section>
+        {% elif tab == "export" %}
+            <section>
+                <h2>Export SDK pack</h2>
+                {% if summary.metrics %}
+                    <p>Generate a bundle containing telemetry, usage events, kernel artifacts and a performance summary.</p>
+                    <a href="/export/sdk-pack">
+                        <button type="button">Download SDK Pack</button>
+                    </a>
+                {% else %}
+                    <p class="empty-state">Provide telemetry to enable the export bundle.</p>
+                {% endif %}
+            </section>
+        {% endif %}
+    </main>
+</body>
+</html>

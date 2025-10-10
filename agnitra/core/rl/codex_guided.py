@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import json
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterable, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +21,61 @@ def _safe_json(text: str) -> Optional[Dict[str, Any]]:
         return json.loads(text)
     except Exception:
         return None
+
+
+def _iter_response_text(resp: Any) -> Iterable[str]:
+    """Yield textual chunks from Responses API payloads."""
+    if resp is None:
+        return []
+
+    output_text = getattr(resp, "output_text", None)
+    if output_text:
+        return [str(output_text)]
+
+    outputs = getattr(resp, "output", None)
+    if outputs is None and isinstance(resp, dict):
+        outputs = resp.get("output")
+    if outputs is None:
+        return []
+
+    if not isinstance(outputs, (list, tuple)):
+        outputs = [outputs]
+
+    collected: List[str] = []
+    for item in outputs:
+        if item is None:
+            continue
+        content = getattr(item, "content", None)
+        if content is None and isinstance(item, dict):
+            content = item.get("content")
+        if content is None:
+            continue
+        if not isinstance(content, (list, tuple)):
+            content = [content]
+        for entry in content:
+            if entry is None:
+                continue
+            text = getattr(entry, "text", None)
+            if text is None and isinstance(entry, dict):
+                text = entry.get("text")
+            if text:
+                collected.append(str(text))
+    return collected
+
+
+def _coerce_bool(value: Any, default: bool) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        normalised = value.strip().lower()
+        if normalised in {"true", "1", "yes", "on"}:
+            return True
+        if normalised in {"false", "0", "no", "off"}:
+            return False
+        return default
+    if isinstance(value, (int, float)):
+        return bool(value)
+    return default
 
 
 @dataclass
@@ -102,19 +157,13 @@ class CodexGuidedAgent:
             logger.info("Codex request failed: %s", exc)
             return None
 
-        text = ""
-        try:
-            for item in getattr(resp, "output", []) or []:
-                for entry in getattr(item, "content", []) or []:
-                    text += getattr(entry, "text", "") or ""
-        except Exception:
-            logger.info("Unexpected Codex response schema; skipping parse")
-            return None
-
-        candidate = _safe_json(text.strip()) or {}
-        allow_tf32 = bool(candidate.get("allow_tf32", True))
-        flash_sdp = bool(candidate.get("flash_sdp", True))
-        torch_compile = bool(candidate.get("torch_compile", False))
+        text = "".join(_iter_response_text(resp)).strip()
+        if not text:
+            logger.info("Codex response missing text payload; using defaults")
+        candidate = _safe_json(text) or {}
+        allow_tf32 = _coerce_bool(candidate.get("allow_tf32", True), True)
+        flash_sdp = _coerce_bool(candidate.get("flash_sdp", True), True)
+        torch_compile = _coerce_bool(candidate.get("torch_compile", False), False)
         kv_cache_dtype = str(candidate.get("kv_cache_dtype", "fp16")).lower()
         if kv_cache_dtype not in {"fp16", "bf16", "fp8"}:
             kv_cache_dtype = "fp16"
