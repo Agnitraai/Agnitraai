@@ -1,0 +1,277 @@
+{
+  "summary": {
+    "model_name": "TinyLlama",
+    "metrics": [
+      {
+        "label": "Latency (ms)",
+        "baseline": 83.2,
+        "optimized": 62.9,
+        "delta": -20.300000000000004,
+        "delta_pct": -24.39903846153847
+      },
+      {
+        "label": "Tokens / second",
+        "baseline": 3149.0,
+        "optimized": 4168.0,
+        "delta": 1019.0,
+        "delta_pct": 32.359479199745955
+      },
+      {
+        "label": "GPU utilisation",
+        "baseline": 0.71,
+        "optimized": 0.66,
+        "delta": -0.04999999999999993,
+        "delta_pct": -7.042253521126751
+      },
+      {
+        "label": "GPU hours",
+        "baseline": 0.0231,
+        "optimized": 0.0175,
+        "delta": -0.005599999999999997,
+        "delta_pct": -24.24242424242423
+      },
+      {
+        "label": "Cost (USD)",
+        "baseline": 0.0578,
+        "optimized": 0.0437,
+        "delta": -0.014099999999999994,
+        "delta_pct": -24.394463667820066
+      }
+    ]
+  },
+  "uploads": {
+    "model": {
+      "identifier": "asset_1",
+      "name": "model.pt",
+      "category": "model",
+      "description": "Uploaded model",
+      "download_url": "/assets/asset_1",
+      "size": "13 B",
+      "size_bytes": 13,
+      "media_type": "application/octet-stream"
+    },
+    "hardware": {
+      "identifier": "asset_2",
+      "name": "hardware.json",
+      "category": "hardware",
+      "description": "Hardware inventory",
+      "download_url": "/assets/asset_2",
+      "size": "119 B",
+      "size_bytes": 119,
+      "media_type": "application/json",
+      "preview": "{\n  \"cpu\": {\n    \"model\": \"AMD EPYC 7742\"\n  },\n  \"gpus\": [\n    {\n      \"count\": 2,\n      \"memory\": \"80GB\",\n      \"name\": \"NVIDIA A100\"\n    }\n  ],\n  \"memory\": \"512GB\"\n}",
+      "summary": {
+        "gpus": [
+          {
+            "name": "NVIDIA A100",
+            "memory": "80GB",
+            "count": 2
+          }
+        ],
+        "gpu_count": 1,
+        "cpu": "AMD EPYC 7742",
+        "memory": "512GB"
+      }
+    },
+    "telemetry": {
+      "baseline": {
+        "identifier": "asset_3",
+        "name": "baseline.json",
+        "category": "telemetry",
+        "description": "Baseline telemetry",
+        "download_url": "/assets/asset_3",
+        "size": "228 B",
+        "size_bytes": 228,
+        "media_type": "application/json",
+        "preview": "{\n  \"events\": [\n    {\n      \"latency_ms\": 20.0,\n      \"name\": \"decoder.layer1\",\n      \"shape\": [\n        1,\n        4096\n      ]\n    },\n    {\n      \"latency_ms\": 18.5,\n      \"name\": \"decoder.layer2\",\n      \"shape\": [\n        1,\n        4096\n      ]\n    }\n  ],\n  \"gpu\": {\n    \"gpu_utilisation\": 0.71\n  },\n  \"latency_ms\": 83.2,\n  \"tokens_per_sec\": 3149.0\n}",
+        "variant": "baseline",
+        "event_count": 2,
+        "metrics": [
+          {
+            "label": "Latency (ms)",
+            "value": 83.2
+          },
+          {
+            "label": "Tokens / second",
+            "value": 3149.0
+          },
+          {
+            "label": "GPU utilisation",
+            "value": 0.71
+          },
+          {
+            "label": "GPU hours",
+            "value": 0.0231
+          },
+          {
+            "label": "Cost (USD)",
+            "value": 0.0578
+          }
+        ]
+      },
+      "optimized": {
+        "identifier": "asset_4",
+        "name": "optimized.json",
+        "category": "telemetry",
+        "description": "Optimized telemetry",
+        "download_url": "/assets/asset_4",
+        "size": "228 B",
+        "size_bytes": 228,
+        "media_type": "application/json",
+        "preview": "{\n  \"events\": [\n    {\n      \"latency_ms\": 14.2,\n      \"name\": \"decoder.layer1\",\n      \"shape\": [\n        1,\n        4096\n      ]\n    },\n    {\n      \"latency_ms\": 15.1,\n      \"name\": \"decoder.layer2\",\n      \"shape\": [\n        1,\n        4096\n      ]\n    }\n  ],\n  \"gpu\": {\n    \"gpu_utilisation\": 0.66\n  },\n  \"latency_ms\": 62.9,\n  \"tokens_per_sec\": 4168.0\n}",
+        "variant": "optimized",
+        "event_count": 2,
+        "metrics": [
+          {
+            "label": "Latency (ms)",
+            "value": 62.9
+          },
+          {
+            "label": "Tokens / second",
+            "value": 4168.0
+          },
+          {
+            "label": "GPU utilisation",
+            "value": 0.66
+          },
+          {
+            "label": "GPU hours",
+            "value": 0.0175
+          },
+          {
+            "label": "Cost (USD)",
+            "value": 0.0437
+          }
+        ]
+      }
+    },
+    "usage": {
+      "identifier": "asset_5",
+      "name": "usage.json",
+      "category": "usage",
+      "description": "Usage event",
+      "download_url": "/assets/asset_5",
+      "size": "279 B",
+      "size_bytes": 279,
+      "media_type": "application/json",
+      "preview": "{\n  \"baseline_latency_ms\": 83.2,\n  \"baseline_tokens_per_sec\": 3149.0,\n  \"cost_after\": 0.0437,\n  \"cost_before\": 0.0578,\n  \"gpu_hours_after\": 0.0175,\n  \"gpu_hours_before\": 0.0231,\n  \"model_name\": \"TinyLlama\",\n  \"optimized_latency_ms\": 62.9,\n  \"optimized_tokens_per_sec\": 4168.0,\n  \"project_id\": \"demo\"\n}",
+      "highlights": [
+        {
+          "label": "Baseline latency (ms)",
+          "value": 83.2
+        },
+        {
+          "label": "Optimized latency (ms)",
+          "value": 62.9
+        },
+        {
+          "label": "Baseline tokens/s",
+          "value": 3149.0
+        },
+        {
+          "label": "Optimized tokens/s",
+          "value": 4168.0
+        }
+      ]
+    },
+    "logs": [
+      {
+        "identifier": "asset_6",
+        "name": "notes_snapshot.txt",
+        "category": "note",
+        "description": "Analyst note",
+        "download_url": "/assets/asset_6",
+        "size": "24 B",
+        "size_bytes": 24,
+        "media_type": "text/plain",
+        "preview": "Snapshot regression demo",
+        "is_note": true
+      },
+      {
+        "identifier": "asset_7",
+        "name": "run.log",
+        "category": "log",
+        "description": "Runtime log",
+        "download_url": "/assets/asset_7",
+        "size": "17 B",
+        "size_bytes": 17,
+        "media_type": "text/plain",
+        "preview": "INFO starting run",
+        "is_note": false
+      }
+    ]
+  },
+  "artifacts": {
+    "artifacts": [
+      {
+        "identifier": "asset_8",
+        "name": "optimized.mlir",
+        "description": "Optimized IR",
+        "download_url": "/assets/asset_8",
+        "media_type": "text/plain",
+        "size_bytes": 9
+      },
+      {
+        "identifier": "asset_9",
+        "name": "kernel.triton",
+        "description": "Kernel Artifact",
+        "download_url": "/assets/asset_9",
+        "media_type": "text/plain",
+        "size_bytes": 14
+      }
+    ]
+  },
+  "archive": {
+    "members": [
+      "artifacts/kernel.triton",
+      "artifacts/optimized.mlir",
+      "context/hardware.json",
+      "logs/notes_snapshot.txt",
+      "logs/run.log",
+      "summary.json",
+      "telemetry/baseline.json",
+      "telemetry/optimized.json",
+      "telemetry/usage_event.json"
+    ],
+    "summary": {
+      "model_name": "TinyLlama",
+      "metrics": [
+        {
+          "label": "Latency (ms)",
+          "baseline": 83.2,
+          "optimized": 62.9,
+          "delta": -20.300000000000004,
+          "delta_pct": -24.39903846153847
+        },
+        {
+          "label": "Tokens / second",
+          "baseline": 3149.0,
+          "optimized": 4168.0,
+          "delta": 1019.0,
+          "delta_pct": 32.359479199745955
+        },
+        {
+          "label": "GPU utilisation",
+          "baseline": 0.71,
+          "optimized": 0.66,
+          "delta": -0.04999999999999993,
+          "delta_pct": -7.042253521126751
+        },
+        {
+          "label": "GPU hours",
+          "baseline": 0.0231,
+          "optimized": 0.0175,
+          "delta": -0.005599999999999997,
+          "delta_pct": -24.24242424242423
+        },
+        {
+          "label": "Cost (USD)",
+          "baseline": 0.0578,
+          "optimized": 0.0437,
+          "delta": -0.014099999999999994,
+          "delta_pct": -24.394463667820066
+        }
+      ]
+    }
+  }
+}
