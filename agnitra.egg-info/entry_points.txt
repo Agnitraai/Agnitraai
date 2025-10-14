@@ -1,4 +1,5 @@
 [console_scripts]
 agnitra = agnitra.cli:main
+agnitra-api = agnitra.api.cli:run_api
 agnitra-dashboard = agnitra.dashboard.cli:run_dashboard
 agnitra-optimize = agnitra.cli:main

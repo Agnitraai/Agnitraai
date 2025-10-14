@@ -15,6 +15,10 @@ agnitra/_sdk/__init__.py
 agnitra/_sdk/deps.py
 agnitra/_sdk/model_loader.py
 agnitra/_sdk/optimizer.py
+agnitra/api/__init__.py
+agnitra/api/app.py
+agnitra/api/cli.py
+agnitra/api/service.py
 agnitra/benchmarks/__init__.py
 agnitra/benchmarks/runner.py
 agnitra/core/__init__.py
@@ -54,6 +58,7 @@ cli/__init__.py
 cli/main.py
 cli/optimize.py
 cli/profile.py
+tests/test_agentic_api.py
 tests/test_benchmarks_runner.py
 tests/test_cli_click.py
 tests/test_cli_main.py

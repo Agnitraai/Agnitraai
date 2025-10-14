@@ -35,6 +35,7 @@ nvml = [
 agnitra = "agnitra.cli:main"
 agnitra-optimize = "agnitra.cli:main"
 agnitra-dashboard = "agnitra.dashboard.cli:run_dashboard"
+agnitra-api = "agnitra.api.cli:run_api"
 
 [tool.setuptools.packages.find]
 where = ["."]
