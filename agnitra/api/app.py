@@ -1,9 +1,11 @@
-"""Starlette application exposing the Agentic Optimization API."""
+"""Starlette application exposing the Agentic Optimization and Marketplace APIs."""
 
 from __future__ import annotations
 
+import dataclasses
+import datetime as _dt
 import json
-from typing import Any, Mapping, Optional, Sequence
+from typing import Any, Iterable, Mapping, Optional, Sequence
 
 from starlette.applications import Starlette
 from starlette.datastructures import FormData, UploadFile
@@ -11,6 +13,14 @@ from starlette.exceptions import HTTPException
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.routing import Route
+
+from agnitra.api.marketplace import (
+    MarketplaceDispatcher,
+    create_default_dispatcher,
+    usage_event_to_record,
+)
+from agnitra.core.metering import UsageEvent, UsageMeter
+from agnitra.core.runtime import OptimizationSnapshot
 
 from .service import run_agentic_optimization
 
@@ -34,6 +44,7 @@ def create_app() -> Starlette:
     routes = [
         Route("/health", _healthcheck, methods=["GET"]),
         Route("/optimize", _optimize, methods=["POST"]),
+        Route("/usage", _usage, methods=["POST"]),
     ]
     return Starlette(debug=False, routes=routes)
 
@@ -123,3 +134,230 @@ async def _read_json_upload(upload: UploadFile, label: str) -> Any:
         return json.loads(raw.decode("utf-8"))
     except json.JSONDecodeError as exc:
         raise HTTPException(status_code=400, detail=f"{label} must contain valid JSON.") from exc
+
+
+_MARKETPLACE_DISPATCHER: MarketplaceDispatcher = create_default_dispatcher()
+
+
+async def _usage(request: Request) -> Response:
+    if not _is_json_request(request):
+        raise HTTPException(status_code=415, detail="Usage endpoint requires application/json.")
+
+    payload = await request.json()
+    if not isinstance(payload, Mapping):
+        raise HTTPException(status_code=400, detail="Usage request must be a JSON object.")
+
+    usage_event_payload = payload.get("usage_event")
+    if isinstance(usage_event_payload, Mapping):
+        usage_event = _usage_event_from_mapping(usage_event_payload)
+    else:
+        usage_event = _build_usage_event(payload)
+
+    meter_name = _coerce_meter_name(payload.get("meter_name"))
+    quantity_field = payload.get("quantity_field")
+    providers = _coerce_providers(payload.get("providers"))
+
+    record = usage_event_to_record(
+        usage_event,
+        meter_name=meter_name,
+        quantity_field=quantity_field if isinstance(quantity_field, str) else "gpu_hours_after",
+    )
+
+    dispatch_results = _MARKETPLACE_DISPATCHER.dispatch(record, providers=providers)
+
+    return JSONResponse(
+        {
+            "status": "accepted",
+            "usage_event": usage_event.to_dict(),
+            "dispatch": [
+                {
+                    "provider": result.provider,
+                    "status": result.status,
+                    "detail": result.detail,
+                    "payload": result.payload,
+                }
+                for result in dispatch_results
+            ],
+        },
+        status_code=202,
+    )
+
+
+def _coerce_meter_name(value: Any) -> str:
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    return "runtime_optimization_hours"
+
+
+def _coerce_providers(value: Any) -> Optional[Sequence[str]]:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, Iterable):
+        providers = []
+        for item in value:
+            if isinstance(item, (str, bytes)):
+                providers.append(item.decode("utf-8") if isinstance(item, bytes) else item)
+        return providers or None
+    return None
+
+
+def _usage_event_from_mapping(payload: Mapping[str, Any]) -> UsageEvent:
+    required_fields = {field.name for field in dataclasses.fields(UsageEvent)}
+    missing = [field for field in required_fields if field not in payload]
+    if missing:
+        raise HTTPException(status_code=400, detail=f"usage_event missing fields: {', '.join(missing)}")
+
+    normalised: dict[str, Any] = {}
+    for field in dataclasses.fields(UsageEvent):
+        name = field.name
+        value = payload[name]
+        if name == "timestamp":
+            value = _parse_timestamp(value)
+        elif name in {"gpu_util_before", "gpu_util_after"} and value is not None:
+            value = _safe_float(value)
+        elif name in _FLOAT_USAGE_FIELDS:
+            value = _safe_float(value)
+        elif name == "tokens_processed":
+            value = _safe_int(value)
+        elif name == "metadata":
+            if isinstance(value, Mapping):
+                value = dict(value)
+            else:
+                value = {}
+        elif name in {"project_id", "model_name", "currency"}:
+            if not isinstance(value, str) or not value.strip():
+                raise HTTPException(status_code=400, detail=f"{name} must be a non-empty string.")
+            value = value.strip()
+        normalised[name] = value
+
+    try:
+        return UsageEvent(**normalised)
+    except TypeError as exc:  # pragma: no cover - defensive
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+def _build_usage_event(payload: Mapping[str, Any]) -> UsageEvent:
+    project_id = _coerce_string(payload.get("project_id"))
+    if not project_id:
+        raise HTTPException(status_code=400, detail="project_id is required.")
+
+    model_name = _coerce_string(payload.get("model_name")) or "unknown_model"
+
+    baseline_payload = payload.get("baseline")
+    optimized_payload = payload.get("optimized")
+    if not isinstance(baseline_payload, Mapping) or not isinstance(optimized_payload, Mapping):
+        raise HTTPException(status_code=400, detail="baseline and optimized sections are required.")
+
+    baseline_snapshot = _snapshot_from_mapping(baseline_payload)
+    optimized_snapshot = _snapshot_from_mapping(optimized_payload)
+
+    meter = UsageMeter(
+        rate_per_gpu_hour=_safe_float(payload.get("rate_per_gpu_hour"), 2.5),
+        margin_pct=_safe_float(payload.get("success_margin_pct", payload.get("margin_pct")), 0.2),
+        currency=_coerce_string(payload.get("currency")) or "USD",
+    )
+
+    tokens_processed = payload.get("tokens_processed")
+    metadata = payload.get("metadata") if isinstance(payload.get("metadata"), Mapping) else {}
+
+    return meter.record_optimization(
+        project_id=project_id,
+        model_name=model_name,
+        baseline_snapshot=baseline_snapshot,
+        optimized_snapshot=optimized_snapshot,
+        tokens_processed=_safe_int(tokens_processed) if tokens_processed is not None else None,
+        metadata=dict(metadata),
+    )
+
+
+def _snapshot_from_mapping(payload: Mapping[str, Any]) -> OptimizationSnapshot:
+    latency = _safe_float(payload.get("latency_ms"))
+    tokens_per_sec = max(_safe_float(payload.get("tokens_per_sec"), default=0.0), 1e-6)
+    tokens_processed = _safe_int(payload.get("tokens_processed"), default=0)
+    gpu_util = payload.get("gpu_utilization")
+    if gpu_util is not None:
+        gpu_util = _safe_float(gpu_util)
+
+    telemetry = payload.get("telemetry")
+    if isinstance(telemetry, Mapping):
+        telemetry_data: dict[str, Any] = dict(telemetry)
+    else:
+        telemetry_data = {}
+
+    metadata = payload.get("metadata")
+    if isinstance(metadata, Mapping):
+        metadata_map: dict[str, Any] = dict(metadata)
+    else:
+        metadata_map = {}
+
+    return OptimizationSnapshot(
+        latency_ms=latency,
+        tokens_per_sec=tokens_per_sec,
+        tokens_processed=tokens_processed,
+        gpu_utilization=gpu_util,
+        telemetry=telemetry_data,
+        metadata=metadata_map,
+    )
+
+
+def _coerce_string(value: Any) -> str:
+    if isinstance(value, str):
+        return value.strip()
+    if isinstance(value, bytes):
+        return value.decode("utf-8", errors="ignore").strip()
+    return ""
+
+
+def _safe_float(value: Any, default: float = 0.0) -> float:
+    try:
+        return float(value)
+    except Exception:
+        return float(default)
+
+
+def _safe_int(value: Any, default: int = 0) -> int:
+    try:
+        return int(value)
+    except Exception:
+        return int(default)
+
+
+def _parse_timestamp(value: Any) -> _dt.datetime:
+    if isinstance(value, (int, float)):
+        return _dt.datetime.fromtimestamp(float(value), tz=_dt.timezone.utc)
+    if isinstance(value, str):
+        candidates = [value, value.replace("Z", "+00:00")]
+        for candidate in candidates:
+            try:
+                parsed = _dt.datetime.fromisoformat(candidate)
+            except ValueError:
+                continue
+            if parsed.tzinfo is None:
+                parsed = parsed.replace(tzinfo=_dt.timezone.utc)
+            return parsed
+        raise HTTPException(status_code=400, detail="timestamp must be an ISO 8601 string.")
+    if isinstance(value, _dt.datetime):
+        if value.tzinfo is None:
+            return value.replace(tzinfo=_dt.timezone.utc)
+        return value
+    raise HTTPException(status_code=400, detail="timestamp uses an unsupported type.")
+
+
+_FLOAT_USAGE_FIELDS = {
+    "baseline_latency_ms",
+    "optimized_latency_ms",
+    "baseline_tokens_per_sec",
+    "optimized_tokens_per_sec",
+    "gpu_hours_before",
+    "gpu_hours_after",
+    "gpu_hours_saved",
+    "performance_uplift_pct",
+    "cost_before",
+    "cost_after",
+    "cost_savings",
+    "usage_charge",
+    "success_fee",
+    "total_billable",
+}

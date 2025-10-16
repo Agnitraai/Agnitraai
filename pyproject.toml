@@ -30,6 +30,12 @@ rl = [
 nvml = [
     "pynvml>=11.0.0",
 ]
+marketplace = [
+    "boto3>=1.28.0",
+    "httpx>=0.24.0",
+    "google-auth>=2.23.0",
+    "requests>=2.31.0",
+]
 
 [project.scripts]
 agnitra = "agnitra.cli:main"

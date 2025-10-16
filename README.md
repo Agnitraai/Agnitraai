@@ -35,6 +35,7 @@ Optional extras:
 - `agnitra[openai]` → OpenAI Responses API client.
 - `agnitra[rl]` → PPO tuning via Stable Baselines3 + Gymnasium.
 - `agnitra[nvml]` → GPU telemetry using NVML.
+- `agnitra[marketplace]` → Cloud marketplace adapters (`boto3`, `httpx`, `google-auth`).
 
 ## Quick Start
 
@@ -64,6 +65,46 @@ Each segment emits a structured usage event. The CLI mirrors the SDK output, pri
 agnitra --help
 agnitra optimize --model tinyllama.pt --input-shape 1,16,64
 ```
+
+### 3.5 Agentic Optimization API
+
+1. Launch the Starlette service:
+   ```
+   agnitra-api --host 127.0.0.1 --port 8080
+   ```
+   (equivalent to `uvicorn agnitra.api.app:create_app`).
+2. Call the endpoint with graph + telemetry artifacts:
+   ```
+   curl -X POST http://127.0.0.1:8080/optimize \
+     -F model_graph=@graph_ir.json \
+     -F telemetry=@telemetry.json \
+     -F target=A100
+   ```
+   The JSON response includes an optimized IR graph, generated Triton kernel source, and FX patch instructions.
+3. For JSON payloads, send `{"target": "...", "model_graph": [...], "telemetry": {...}}` with `Content-Type: application/json`.
+
+### 4. Marketplace Usage Endpoint
+
+The API now exposes `POST /usage`, a marketplace-compatible billing hook that
+accepts baseline/optimized telemetry or a precomputed `UsageEvent`. The endpoint
+returns the normalised usage payload alongside dispatch results for AWS, GCP,
+and Azure marketplace adapters.
+
+```
+curl -X POST http://127.0.0.1:8080/usage \
+  -H "Content-Type: application/json" \
+  -d '{
+        "project_id": "demo-project",
+        "model_name": "tinyllama",
+        "baseline": {"latency_ms": 120, "tokens_per_sec": 90, "tokens_processed": 2048},
+        "optimized": {"latency_ms": 80, "tokens_per_sec": 140, "tokens_processed": 2048},
+        "tokens_processed": 2048,
+        "providers": ["aws", "gcp"]
+      }'
+```
+
+When marketplace credentials or SDKs are not present the adapters respond with
+`status: "skipped"` or `status: "deferred"` so that the control plane can retry.
 
 ### 4. SDK in your code
 
@@ -125,13 +166,29 @@ agnitra/
 4. Stripe metered billing rates GPU hours / tokens and issues invoices.
 5. Dashboard (future) visualises savings and lets teams approve optimisations before rollout.
 
+## Deployment & Marketplace Integration
+
+- **Docker** – Build a containerised runtime with `docker build -t agnitra-marketplace .`
+  and run it using `docker run -p 8080:8080 agnitra-marketplace`.
+- **Helm** – `deploy/helm/agnitra-marketplace` packages the API for Kubernetes,
+  exposing configuration for marketplace credentials, autoscaling, and ingress.
+- **Terraform** – Turn-key modules exist for AWS Fargate (`deploy/terraform/aws_marketplace`),
+  Google Cloud Run (`deploy/terraform/gcp_marketplace`), and Azure Container Apps
+  (`deploy/terraform/azure_marketplace`). Each module outputs a ready-to-register
+  `/usage` endpoint.
+- **CloudFormation** – `deploy/cloudformation/aws-marketplace.yaml` offers an AWS-native
+  template for rapid provisioning without Terraform.
+
+Register the emitted `/usage` URL with the respective marketplace listing so that
+usage events flow into the provider-managed billing pipeline.
+
 ## Profiling & Visualisation
 
 The classic profiling flow remains available:
 
 1. Profile a model: `python -m agnitra.cli profile tinyllama.pt --input-shape 1,16,64 --output telemetry.json`
 2. Load telemetry + extract an FX graph IR via `agnitra.core.ir.graph_extractor`.
-3. Explore results inside `agnitra_enhanced_demo.ipynb` (Colab badge included).
+3. Explore results inside `agnitra_enhanced_demo.ipynb` (Colab badge included). The notebook now includes an **Agentic Optimization API (v1.0)** section that exercises `run_agentic_optimization` end-to-end and previews the patch plan + Triton kernel produced by the server.
 
 ## Development
 
