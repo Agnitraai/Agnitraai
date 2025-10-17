@@ -72,12 +72,47 @@ def cli() -> None:
     is_flag=True,
     help="Disable PPO reinforcement learning stage.",
 )
+@click.option(
+    "target_label",
+    "--target",
+    default=None,
+    help="Target hardware label (e.g. A100, H100, CPU).",
+)
+@click.option(
+    "offline_mode",
+    "--offline",
+    is_flag=True,
+    help="Run without network calls (enterprise license with offline entitlement required).",
+)
+@click.option(
+    "require_license",
+    "--require-license",
+    is_flag=True,
+    help="Fail if a valid enterprise license is not present.",
+)
+@click.option(
+    "license_seat",
+    "--license-seat",
+    default=None,
+    help="Override seat identifier used for license enforcement.",
+)
+@click.option(
+    "license_org",
+    "--license-org",
+    default=None,
+    help="Override organisation identifier for per-GPU licensing.",
+)
 def optimize_command(
     model_path: Path,
     input_shape: Optional[Sequence[int]],
     output_path: Optional[Path],
     device_name: Optional[str],
     disable_rl: bool,
+    target_label: Optional[str],
+    offline_mode: bool,
+    require_license: bool,
+    license_seat: Optional[str],
+    license_org: Optional[str],
 ) -> None:
     """Optimize a Torch model and optionally persist the result."""
 
@@ -109,8 +144,13 @@ def optimize_command(
         "source": "cli.optimize",
         "device": device_name or "auto",
     }
+    if target_label:
+        metadata["target"] = target_label
     if hasattr(sample, "shape"):
         metadata["input_shape"] = tuple(int(dim) for dim in sample.shape)  # type: ignore[misc]
+
+    project_id = os.getenv("AGNITRA_PROJECT_ID", "default")
+    license_org_id = license_org or os.getenv("AGNITRA_LICENSE_ORG") or project_id
 
     try:
         result = optimize_with_metering(
@@ -119,9 +159,13 @@ def optimize_command(
             input_shape=None,
             device=device,
             enable_rl=not disable_rl,
-            project_id=os.getenv("AGNITRA_PROJECT_ID", "default"),
+            project_id=project_id,
             model_name=model_path.stem,
             metadata=metadata,
+            offline=offline_mode,
+            require_license=require_license,
+            license_seat=license_seat,
+            license_org_id=license_org_id,
         )
     except Exception as exc:
         raise click.ClickException(str(exc)) from exc
@@ -146,6 +190,20 @@ def optimize_command(
                 f"Billable: {usage_event.total_billable:.4f} {usage_event.currency}"
             )
         )
+
+    license_notes = result.notes.get("license") if isinstance(result.notes, dict) else None
+    if isinstance(license_notes, dict):
+        seat_id = license_notes.get("seat_id")
+        if seat_id:
+            click.echo(f"License seat checked out: {seat_id}")
+        gpu_usage = license_notes.get("gpu_usage")
+        if isinstance(gpu_usage, dict):
+            click.echo(
+                (
+                    f"Tracked GPUs: {gpu_usage.get('active_gpu_count', 0)} "
+                    f"| last run timestamp: {gpu_usage.get('timestamp')}"
+                )
+            )
 
 
 def _load_model(model_path: Path, torch_mod: ModuleType) -> "nn.Module":

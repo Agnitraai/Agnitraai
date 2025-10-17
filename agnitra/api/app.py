@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import asyncio
 import dataclasses
 import datetime as _dt
 import json
-from typing import Any, Iterable, Mapping, Optional, Sequence
+import os
+from typing import Any, Dict, Iterable, Mapping, Optional, Sequence
 
 from starlette.applications import Starlette
 from starlette.datastructures import FormData, UploadFile
@@ -19,10 +21,44 @@ from agnitra.api.marketplace import (
     create_default_dispatcher,
     usage_event_to_record,
 )
+from agnitra.api.auth import ApiKeyAuthenticator
+from agnitra.api.billing import StripeBillingClient
+from agnitra.api.queue import OptimizationQueue
 from agnitra.core.metering import UsageEvent, UsageMeter
 from agnitra.core.runtime import OptimizationSnapshot
 
 from .service import run_agentic_optimization
+
+AUTHENTICATOR = ApiKeyAuthenticator.from_env()
+USAGE_METER = UsageMeter()
+STRIPE_CLIENT = StripeBillingClient.from_env()
+
+
+async def _queue_worker(payload: Mapping[str, Any]) -> Dict[str, Any]:
+    def _run():
+        return run_agentic_optimization(
+            payload.get("model_graph"),
+            payload.get("telemetry"),
+            payload.get("target", ""),
+            project_id=payload.get("project_id", "default"),
+            model_name=payload.get("model_name"),
+            usage_meter=USAGE_METER,
+            tokens_processed=payload.get("tokens_processed"),
+            stripe_client=STRIPE_CLIENT,
+            customer_id=payload.get("customer_id"),
+            meter_metadata=payload.get("meter_metadata"),
+        )
+
+    if hasattr(asyncio, "to_thread"):
+        return await asyncio.to_thread(_run)
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(None, _run)
+
+
+ASYNC_QUEUE = OptimizationQueue(
+    _queue_worker,
+    concurrency=max(1, int(os.environ.get("AGNITRA_API_WORKERS", "2"))),
+)
 
 
 async def _healthcheck(_: Request) -> Response:
@@ -30,12 +66,13 @@ async def _healthcheck(_: Request) -> Response:
 
 
 async def _optimize(request: Request) -> Response:
+    _require_api_key(request)
     if _is_json_request(request):
         payload = await request.json()
-        return await _handle_json_payload(payload)
+        return await _handle_json_payload(payload, request)
 
     form = await request.form()
-    return await _handle_form_payload(form)
+    return await _handle_form_payload(form, request)
 
 
 def create_app() -> Starlette:
@@ -45,20 +82,49 @@ def create_app() -> Starlette:
         Route("/health", _healthcheck, methods=["GET"]),
         Route("/optimize", _optimize, methods=["POST"]),
         Route("/usage", _usage, methods=["POST"]),
+        Route("/jobs/{job_id}", _job_status, methods=["GET"]),
     ]
     return Starlette(debug=False, routes=routes)
 
 
-async def _handle_json_payload(payload: Any) -> Response:
+async def _handle_json_payload(payload: Any, request: Request) -> Response:
     if not isinstance(payload, dict):
         raise HTTPException(status_code=400, detail="JSON body must be an object.")
 
     target = _extract_target(payload)
     model_graph = payload.get("model_graph")
     telemetry = payload.get("telemetry")
+    project_id = _coerce_project_id(payload.get("project_id"))
+    model_name = _coerce_optional_str(payload.get("model_name"))
+    tokens_processed = _coerce_optional_int(payload.get("tokens_processed"))
+    metadata = payload.get("metadata") if isinstance(payload.get("metadata"), Mapping) else None
+    customer_id = _coerce_customer_id(request, payload)
+
+    if _requires_async(payload):
+        return await _submit_async_job(
+            model_graph=model_graph,
+            telemetry=telemetry,
+            target=target,
+            project_id=project_id,
+            model_name=model_name,
+            tokens_processed=tokens_processed,
+            customer_id=customer_id,
+            meter_metadata=metadata,
+        )
 
     try:
-        result = run_agentic_optimization(model_graph, telemetry, target)
+        result = run_agentic_optimization(
+            model_graph,
+            telemetry,
+            target,
+            project_id=project_id,
+            model_name=model_name,
+            usage_meter=USAGE_METER,
+            tokens_processed=tokens_processed,
+            stripe_client=STRIPE_CLIENT,
+            customer_id=customer_id,
+            meter_metadata=metadata,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:  # pragma: no cover - defensive
@@ -67,7 +133,7 @@ async def _handle_json_payload(payload: Any) -> Response:
     return JSONResponse(result)
 
 
-async def _handle_form_payload(form: FormData) -> Response:
+async def _handle_form_payload(form: FormData, request: Request) -> Response:
     target = _extract_target(form)
 
     model_upload = _first_upload(form, ("model_graph", "model_graph.json"))
@@ -79,8 +145,37 @@ async def _handle_form_payload(form: FormData) -> Response:
     model_graph = await _read_json_upload(model_upload, "model_graph")
     telemetry = await _read_json_upload(telemetry_upload, "telemetry") if telemetry_upload else {}
 
+    project_id = _coerce_project_id(form.get("project_id"))
+    model_name = _coerce_optional_str(form.get("model_name"))
+    tokens_processed = _coerce_optional_int(form.get("tokens_processed"))
+    customer_id = _coerce_customer_id(request, form)
+    metadata = _parse_metadata_field(form.get("metadata"))
+
+    if _requires_async(form):
+        return await _submit_async_job(
+            model_graph=model_graph,
+            telemetry=telemetry,
+            target=target,
+            project_id=project_id,
+            model_name=model_name,
+            tokens_processed=tokens_processed,
+            customer_id=customer_id,
+            meter_metadata=metadata,
+        )
+
     try:
-        result = run_agentic_optimization(model_graph, telemetry, target)
+        result = run_agentic_optimization(
+            model_graph,
+            telemetry,
+            target,
+            project_id=project_id,
+            model_name=model_name,
+            usage_meter=USAGE_METER,
+            tokens_processed=tokens_processed,
+            stripe_client=STRIPE_CLIENT,
+            customer_id=customer_id,
+            meter_metadata=metadata,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:  # pragma: no cover - defensive
@@ -93,6 +188,126 @@ def _is_json_request(request: Request) -> bool:
     content_type = request.headers.get("content-type", "")
     media_type = content_type.split(";", 1)[0].strip().lower()
     return media_type == "application/json"
+
+
+def _require_api_key(request: Request) -> None:
+    if not AUTHENTICATOR.accepted_digests:
+        return
+    api_key = _extract_api_key(request)
+    if not AUTHENTICATOR.is_valid(api_key):
+        raise HTTPException(status_code=401, detail="Invalid or missing API key.")
+
+
+def _extract_api_key(request: Request) -> Optional[str]:
+    header = request.headers.get("x-api-key")
+    if isinstance(header, str) and header.strip():
+        return header.strip()
+    auth_header = request.headers.get("authorization")
+    if isinstance(auth_header, str):
+        parts = auth_header.strip().split(" ", 1)
+        if len(parts) == 2 and parts[0].lower() == "bearer":
+            return parts[1].strip()
+    return None
+
+
+def _requires_async(source: Any) -> bool:
+    if isinstance(source, Mapping):
+        value = source.get("async") or source.get("queue") or source.get("background")
+        mode = source.get("mode")
+        if isinstance(value, (str, bytes)):
+            if str(value).strip().lower() in {"1", "true", "yes"}:
+                return True
+        if isinstance(value, bool) and value:
+            return True
+        if isinstance(mode, str) and mode.strip().lower() == "async":
+            return True
+    if isinstance(source, FormData):
+        value = source.get("async") or source.get("queue") or source.get("background")
+        if isinstance(value, str) and value.strip().lower() in {"1", "true", "yes"}:
+            return True
+    return False
+
+
+def _coerce_project_id(value: Any) -> str:
+    if isinstance(value, (str, bytes)):
+        text = value.decode("utf-8", errors="ignore") if isinstance(value, bytes) else value
+        text = text.strip()
+        if text:
+            return text
+    return "default"
+
+
+def _coerce_optional_str(value: Any) -> Optional[str]:
+    if isinstance(value, (str, bytes)):
+        text = value.decode("utf-8", errors="ignore") if isinstance(value, bytes) else value
+        text = text.strip()
+        if text:
+            return text
+    return None
+
+
+def _coerce_optional_int(value: Any) -> Optional[int]:
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except Exception:
+        return None
+
+
+def _parse_metadata_field(value: Any) -> Optional[Mapping[str, Any]]:
+    if isinstance(value, Mapping):
+        return value
+    if isinstance(value, (str, bytes)):
+        text = value.decode("utf-8", errors="ignore") if isinstance(value, bytes) else value
+        text = text.strip()
+        if not text:
+            return None
+        try:
+            parsed = json.loads(text)
+        except json.JSONDecodeError:
+            raise HTTPException(status_code=400, detail="metadata field must contain valid JSON object.")
+        if isinstance(parsed, Mapping):
+            return parsed
+        raise HTTPException(status_code=400, detail="metadata JSON must be an object.")
+    return None
+
+
+async def _submit_async_job(**payload: Any) -> Response:
+    if payload.get("model_graph") is None:
+        raise HTTPException(status_code=400, detail="model_graph is required.")
+    job = await ASYNC_QUEUE.enqueue(dict(payload))
+    return JSONResponse({"status": "queued", "job_id": job.identifier}, status_code=202)
+
+
+def _coerce_customer_id(request: Request, source: Any) -> Optional[str]:
+    header = request.headers.get("x-customer-id") or request.headers.get("agnitra-customer-id")
+    if isinstance(header, str) and header.strip():
+        return header.strip()
+    if isinstance(source, Mapping):
+        return _coerce_optional_str(source.get("customer_id"))
+    if isinstance(source, FormData):
+        return _coerce_optional_str(source.get("customer_id"))
+    return None
+
+
+async def _job_status(request: Request) -> Response:
+    _require_api_key(request)
+    job_id = request.path_params.get("job_id")
+    if not isinstance(job_id, str):
+        raise HTTPException(status_code=400, detail="Missing job identifier.")
+    job = ASYNC_QUEUE.get(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found.")
+    payload = {
+        "job_id": job.identifier,
+        "status": job.status,
+    }
+    if job.result is not None and job.status == "completed":
+        payload["result"] = job.result
+    if job.error:
+        payload["error"] = job.error
+    return JSONResponse(payload)
 
 
 def _extract_target(source: Any) -> str:
@@ -140,6 +355,7 @@ _MARKETPLACE_DISPATCHER: MarketplaceDispatcher = create_default_dispatcher()
 
 
 async def _usage(request: Request) -> Response:
+    _require_api_key(request)
     if not _is_json_request(request):
         raise HTTPException(status_code=415, detail="Usage endpoint requires application/json.")
 

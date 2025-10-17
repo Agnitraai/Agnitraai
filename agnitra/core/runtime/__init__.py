@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from .agent import OptimizationSnapshot, RuntimeOptimizationAgent, RuntimeOptimizationResult
+from .oem import EmbeddedTelemetry, suggest_kernel_config
 from .runtime_patcher import (
     FXNodePatch,
     ForwardHookPatch,
@@ -22,4 +23,6 @@ __all__ = [
     "RuntimePatchReport",
     "RuntimePatcher",
     "apply_tuning_preset",
+    "EmbeddedTelemetry",
+    "suggest_kernel_config",
 ]

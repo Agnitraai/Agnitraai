@@ -5,9 +5,21 @@ from __future__ import annotations
 import copy
 import math
 from pathlib import Path
+from dataclasses import dataclass
 from typing import Any, Dict, Iterable, List, Mapping, MutableMapping, Optional, Sequence
 
+from agnitra.api.billing import StripeBillingClient
+from agnitra.core.metering import UsageEvent, UsageMeter
+
 from agnitra.core.kernel import KernelGenerator
+
+
+@dataclass
+class _Snapshot:
+    latency_ms: float
+    tokens_per_sec: float
+    gpu_utilization: Optional[float] = None
+    tokens_processed: Optional[int] = None
 
 
 def run_agentic_optimization(
@@ -16,6 +28,13 @@ def run_agentic_optimization(
     target: str,
     *,
     kernel_generator: Optional[KernelGenerator] = None,
+    project_id: str = "default",
+    model_name: Optional[str] = None,
+    usage_meter: Optional[UsageMeter] = None,
+    tokens_processed: Optional[int] = None,
+    stripe_client: Optional[StripeBillingClient] = None,
+    customer_id: Optional[str] = None,
+    meter_metadata: Optional[Mapping[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Compute optimization recommendations for ``model_graph`` on ``target``.
 
@@ -64,7 +83,47 @@ def run_agentic_optimization(
 
     optimized_graph = _craft_optimized_graph(nodes, focus_node, patch_plan, target_normalised)
 
-    return {
+    baseline_latency = patch_plan["metrics"]["baseline_latency_ms"]
+    optimized_latency = patch_plan["metrics"]["expected_latency_ms"]
+    baseline_tokens_per_sec = 0.0
+    optimized_tokens_per_sec = 0.0
+    if baseline_latency > 0:
+        baseline_tokens_per_sec = 1000.0 / baseline_latency
+    if optimized_latency > 0:
+        optimized_tokens_per_sec = 1000.0 / optimized_latency
+
+    usage_event: Optional[UsageEvent] = None
+    if usage_meter is not None:
+        baseline_snapshot = _Snapshot(
+            latency_ms=baseline_latency,
+            tokens_per_sec=baseline_tokens_per_sec or 1e-6,
+            gpu_utilization=telemetry_summary.get("baseline_gpu_util"),
+            tokens_processed=tokens_processed,
+        )
+        optimized_snapshot = _Snapshot(
+            latency_ms=optimized_latency,
+            tokens_per_sec=optimized_tokens_per_sec or baseline_tokens_per_sec or 1e-6,
+            gpu_utilization=telemetry_summary.get("optimized_gpu_util"),
+            tokens_processed=tokens_processed,
+        )
+        usage_event = usage_meter.record_optimization(
+            project_id=project_id,
+            model_name=model_name or focus_node.get("name") or "unknown-model",
+            baseline_snapshot=baseline_snapshot,
+            optimized_snapshot=optimized_snapshot,
+            tokens_processed=tokens_processed,
+            metadata=dict(meter_metadata or {}),
+        )
+
+    billing_result: Optional[Dict[str, Any]] = None
+    if stripe_client is not None and customer_id and usage_event is not None:
+        billing_result = stripe_client.record_usage(
+            customer_id=customer_id,
+            quantity=max(usage_event.gpu_hours_after, 0.0),
+            metadata={"project_id": project_id, "model_name": usage_event.model_name},
+        )
+
+    response: Dict[str, Any] = {
         "target": target_normalised,
         "telemetry_summary": telemetry_summary,
         "bottleneck": {
@@ -86,6 +145,13 @@ def run_agentic_optimization(
         "kernel": kernel_payload,
         "patch_instructions": patch_plan["instructions"],
     }
+
+    if usage_event is not None:
+        response["usage"] = usage_event.to_dict()
+    if billing_result is not None:
+        response["billing"] = billing_result
+
+    return response
 
 
 def _normalize_graph(model_graph: Any) -> List[Dict[str, Any]]:
