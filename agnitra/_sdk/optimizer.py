@@ -90,16 +90,90 @@ def collect_telemetry(model: nn.Module, input_tensor: torch.Tensor) -> List[Dict
     return telemetry
 
 
+def _match_telemetry_entry(telemetry: List[Dict[str, Any]], *candidates: Optional[str]) -> Optional[Dict[str, Any]]:
+    """Best-effort match to align telemetry entries with IR nodes."""
+
+    lowered_candidates: List[str] = []
+    for candidate in candidates:
+        if not candidate:
+            continue
+        lowered_candidates.append(str(candidate).lower())
+    if not lowered_candidates:
+        return None
+
+    for entry in telemetry:
+        name = str(entry.get("name", "")).lower()
+        for candidate in lowered_candidates:
+            if candidate and candidate in name:
+                return entry
+    return None
+
+
+def _extract_ir_from_torchscript(script_module: nn.Module, telemetry: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Fallback IR extraction for TorchScript modules without FX support."""
+
+    graph = getattr(script_module, "inlined_graph", None) or getattr(script_module, "graph", None)
+    if graph is None:
+        return []
+
+    ir_nodes: List[Dict[str, Any]] = []
+    for node in graph.nodes():
+        try:
+            kind = node.kind()
+        except Exception:
+            continue
+        if kind.startswith("prim::"):
+            continue
+        scope = ""
+        try:
+            scope = node.scopeName()
+        except Exception:
+            scope = ""
+        target = f"{scope}::{kind}" if scope else kind
+        inputs = []
+        try:
+            inputs = [inp.debugName() if hasattr(inp, "debugName") else str(inp) for inp in node.inputs()]
+        except Exception:
+            inputs = []
+        telemetry_match = _match_telemetry_entry(
+            telemetry,
+            kind,
+            target.split("::")[-1],
+            scope.split("/")[-1] if scope else None,
+        )
+        ir_nodes.append(
+            {
+                "op": kind,
+                "target": target,
+                "args": str(inputs),
+                "kwargs": "{}",
+                "telemetry": telemetry_match,
+            }
+        )
+        if len(ir_nodes) >= 256:
+            break
+    return ir_nodes
+
+
 def extract_ir(model: nn.Module, telemetry: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """Extract a simple IR using torch.fx and attach telemetry."""
-    traced = symbolic_trace(model)
+    try:
+        traced = symbolic_trace(model)
+    except Exception as exc:
+        if hasattr(model, "inlined_graph") or hasattr(model, "graph"):
+            logger.debug("Falling back to TorchScript graph extraction: %s", exc)
+            return _extract_ir_from_torchscript(model, telemetry)
+        raise
+
     ir_nodes: List[Dict[str, Any]] = []
     for node in traced.graph.nodes:
-        matched = next((t for t in telemetry if node.target and node.target in str(t["name"])), None)
+        matched = None
+        target_text = str(node.target)
+        matched = _match_telemetry_entry(telemetry, target_text.split(".")[-1], target_text)
         ir_nodes.append(
             {
                 "op": node.op,
-                "target": str(node.target),
+                "target": target_text,
                 "args": str(node.args),
                 "kwargs": str(node.kwargs),
                 "telemetry": matched,

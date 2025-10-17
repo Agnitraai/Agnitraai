@@ -14,6 +14,7 @@ sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from agnitra._sdk.optimizer import (
     collect_telemetry,
+    extract_ir,
     optimize_log_with_open_evolve,
     optimize_model,
     request_kernel_suggestions,
@@ -25,6 +26,11 @@ from agnitra.core.optimizer import OpenEvolveRunner
 class ToyModel(nn.Module):
     def forward(self, x):
         return x * 2
+
+
+class ScriptableToy(nn.Module):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return torch.relu(x + 1)
 
 
 def test_telemetry_failure_returns_baseline(monkeypatch, caplog):
@@ -109,6 +115,15 @@ def test_request_kernel_suggestions_requires_openai(monkeypatch):
 
     monkeypatch.setattr("agnitra._sdk.optimizer.require_openai", boom)
     assert request_kernel_suggestions([], []) is None
+
+
+def test_extract_ir_handles_torchscript_module():
+    scripted = torch.jit.script(ScriptableToy())
+    telemetry = [{"name": "aten::relu"}]
+    ir_nodes = extract_ir(scripted, telemetry)
+    assert ir_nodes
+    # Ensure we keep some telemetry alignment when available.
+    assert any(entry.get("telemetry") for entry in ir_nodes)
 
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA device required")
