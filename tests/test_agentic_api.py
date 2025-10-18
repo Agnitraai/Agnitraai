@@ -8,6 +8,7 @@ from starlette.testclient import TestClient
 
 from agnitra.api import app as app_module
 from agnitra.api.app import create_app
+from agnitra.api.metrics_logger import MetricsLogger
 
 
 def _sample_graph():
@@ -35,7 +36,8 @@ def _sample_telemetry():
     }
 
 
-def test_optimize_endpoint_returns_expected_payload():
+def test_optimize_endpoint_returns_expected_payload(tmp_path, monkeypatch):
+    app_module.METRICS_LOGGER = MetricsLogger(path=tmp_path / "metrics.jsonl")
     app = create_app()
     client = TestClient(app)
 
@@ -63,7 +65,8 @@ def test_optimize_endpoint_returns_expected_payload():
     assert payload["bottleneck"]["name"] == "matmul_main"
 
 
-def test_optimize_endpoint_requires_target_field():
+def test_optimize_endpoint_requires_target_field(tmp_path, monkeypatch):
+    app_module.METRICS_LOGGER = MetricsLogger(path=tmp_path / "metrics.jsonl")
     app = create_app()
     client = TestClient(app)
 
@@ -76,7 +79,8 @@ def test_optimize_endpoint_requires_target_field():
     assert response.status_code == 400
 
 
-def test_optimize_accepts_json_body():
+def test_optimize_accepts_json_body(tmp_path, monkeypatch):
+    app_module.METRICS_LOGGER = MetricsLogger(path=tmp_path / "metrics.jsonl")
     app = create_app()
     client = TestClient(app)
 
@@ -91,6 +95,49 @@ def test_optimize_accepts_json_body():
     data = response.json()
     assert data["target"] == "H100"
     assert data["bottleneck"]["expected_speedup_pct"] >= 5.0
+
+
+def test_metrics_logging_and_webhook(tmp_path, monkeypatch, reload_app):
+    log_path = tmp_path / "metrics.jsonl"
+    monkeypatch.setenv("AGNITRA_METRICS_LOG", str(log_path))
+
+    def _reload():
+        module = reload_app()
+        module.METRICS_LOGGER = MetricsLogger(path=log_path)
+        notified = []
+
+        class _Notifier:
+            def notify(self, url, payload):
+                notified.append((url, payload))
+                return True
+
+        module.WEBHOOK_NOTIFIER = _Notifier()
+        return module, notified
+
+    module, notified = _reload()
+    client = TestClient(module.create_app())
+
+    payload = {
+        "target": "A100",
+        "project_id": "proj-metrics",
+        "model_name": "tiny",
+        "model_graph": _sample_graph(),
+        "telemetry": _sample_telemetry(),
+        "webhook_url": "https://example.com/webhook",
+    }
+
+    response = client.post("/optimize", json=payload)
+    assert response.status_code == 200
+
+    contents = log_path.read_text().strip().splitlines()
+    assert contents, "Expected metrics log entry"
+
+    last_entry = json.loads(contents[-1])
+    assert last_entry["project_id"] == "proj-metrics"
+    assert last_entry["target"] == "A100"
+    assert last_entry["expected_speedup_pct"] >= 5.0
+
+    assert notified and notified[0][0] == "https://example.com/webhook"
 
 
 def _reload_app_module():
@@ -127,9 +174,12 @@ def test_optimize_requires_api_key_when_configured(monkeypatch, reload_app):
     assert response.status_code == 200
 
 
-def test_async_optimize_queues_job(monkeypatch):
+def test_async_optimize_queues_job(tmp_path, monkeypatch):
     monkeypatch.delenv("AGNITRA_API_KEY", raising=False)
     importlib.reload(app_module)
+
+    app_module.METRICS_LOGGER = MetricsLogger(path=tmp_path / "metrics.jsonl")
+
     def _fake_run(model_graph, telemetry, target, **kwargs):
         return {
             "target": target,
@@ -141,6 +191,15 @@ def test_async_optimize_queues_job(monkeypatch):
         }
 
     monkeypatch.setattr(app_module, "run_agentic_optimization", _fake_run)
+    notified = []
+
+    class _Notifier:
+        def notify(self, url, payload):
+            notified.append((url, payload))
+            return True
+
+    app_module.WEBHOOK_NOTIFIER = _Notifier()
+
     app = app_module.create_app()
     client = TestClient(app)
 
@@ -151,6 +210,7 @@ def test_async_optimize_queues_job(monkeypatch):
         "async": True,
         "project_id": "proj-async",
         "model_name": "demo",
+        "webhook_url": "https://example.com/hook",
     }
 
     response = client.post("/optimize", json=payload)
@@ -176,6 +236,8 @@ def test_async_optimize_queues_job(monkeypatch):
     assert final["status"] == "completed"
     assert "result" in final
     assert final["result"]["target"] == "A100"
+
+    assert notified and notified[0][0] == "https://example.com/hook"
 
 
 def test_job_status_requires_valid_identifier():

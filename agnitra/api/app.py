@@ -6,6 +6,7 @@ import asyncio
 import dataclasses
 import datetime as _dt
 import json
+import logging
 import os
 from typing import Any, Dict, Iterable, Mapping, Optional, Sequence
 
@@ -23,6 +24,8 @@ from agnitra.api.marketplace import (
 )
 from agnitra.api.auth import ApiKeyAuthenticator
 from agnitra.api.billing import StripeBillingClient
+from agnitra.api.metrics_logger import MetricsLogger
+from agnitra.api.notifications import WebhookNotifier
 from agnitra.api.queue import OptimizationQueue
 from agnitra.core.metering import UsageEvent, UsageMeter
 from agnitra.core.runtime import OptimizationSnapshot
@@ -32,6 +35,8 @@ from .service import run_agentic_optimization
 AUTHENTICATOR = ApiKeyAuthenticator.from_env()
 USAGE_METER = UsageMeter()
 STRIPE_CLIENT = StripeBillingClient.from_env()
+METRICS_LOGGER = MetricsLogger()
+WEBHOOK_NOTIFIER = WebhookNotifier()
 
 
 async def _queue_worker(payload: Mapping[str, Any]) -> Dict[str, Any]:
@@ -50,9 +55,34 @@ async def _queue_worker(payload: Mapping[str, Any]) -> Dict[str, Any]:
         )
 
     if hasattr(asyncio, "to_thread"):
-        return await asyncio.to_thread(_run)
-    loop = asyncio.get_running_loop()
-    return await loop.run_in_executor(None, _run)
+        result = await asyncio.to_thread(_run)
+    else:
+        loop = asyncio.get_running_loop()
+        result = await loop.run_in_executor(None, _run)
+
+    _record_metrics(
+        result,
+        project_id=payload.get("project_id", "default"),
+        model_name=payload.get("model_name"),
+        target=payload.get("target", ""),
+        metadata=payload.get("meter_metadata"),
+    )
+
+    webhook_url = payload.get("webhook_url")
+    job_id = payload.get("_job_id")
+    if webhook_url:
+        WEBHOOK_NOTIFIER.notify(
+            webhook_url,
+            {
+                "status": "completed",
+                "job_id": job_id,
+                "project_id": payload.get("project_id"),
+                "model_name": payload.get("model_name"),
+                "result": result,
+            },
+        )
+
+    return result
 
 
 ASYNC_QUEUE = OptimizationQueue(
@@ -99,6 +129,7 @@ async def _handle_json_payload(payload: Any, request: Request) -> Response:
     tokens_processed = _coerce_optional_int(payload.get("tokens_processed"))
     metadata = payload.get("metadata") if isinstance(payload.get("metadata"), Mapping) else None
     customer_id = _coerce_customer_id(request, payload)
+    webhook_url = _coerce_webhook_url(request, payload)
 
     if _requires_async(payload):
         return await _submit_async_job(
@@ -110,6 +141,7 @@ async def _handle_json_payload(payload: Any, request: Request) -> Response:
             tokens_processed=tokens_processed,
             customer_id=customer_id,
             meter_metadata=metadata,
+            webhook_url=webhook_url,
         )
 
     try:
@@ -129,6 +161,25 @@ async def _handle_json_payload(payload: Any, request: Request) -> Response:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:  # pragma: no cover - defensive
         raise HTTPException(status_code=500, detail="Optimization failed") from exc
+
+    _record_metrics(
+        result,
+        project_id=project_id,
+        model_name=model_name,
+        target=target,
+        metadata=metadata,
+    )
+
+    if webhook_url:
+        WEBHOOK_NOTIFIER.notify(
+            webhook_url,
+            {
+                "status": "completed",
+                "project_id": project_id,
+                "model_name": model_name,
+                "result": result,
+            },
+        )
 
     return JSONResponse(result)
 
@@ -150,6 +201,7 @@ async def _handle_form_payload(form: FormData, request: Request) -> Response:
     tokens_processed = _coerce_optional_int(form.get("tokens_processed"))
     customer_id = _coerce_customer_id(request, form)
     metadata = _parse_metadata_field(form.get("metadata"))
+    webhook_url = _coerce_webhook_url(request, form)
 
     if _requires_async(form):
         return await _submit_async_job(
@@ -161,6 +213,7 @@ async def _handle_form_payload(form: FormData, request: Request) -> Response:
             tokens_processed=tokens_processed,
             customer_id=customer_id,
             meter_metadata=metadata,
+            webhook_url=webhook_url,
         )
 
     try:
@@ -180,6 +233,25 @@ async def _handle_form_payload(form: FormData, request: Request) -> Response:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:  # pragma: no cover - defensive
         raise HTTPException(status_code=500, detail="Optimization failed") from exc
+
+    _record_metrics(
+        result,
+        project_id=project_id,
+        model_name=model_name,
+        target=target,
+        metadata=metadata,
+    )
+
+    if webhook_url:
+        WEBHOOK_NOTIFIER.notify(
+            webhook_url,
+            {
+                "status": "completed",
+                "project_id": project_id,
+                "model_name": model_name,
+                "result": result,
+            },
+        )
 
     return JSONResponse(result)
 
@@ -273,6 +345,41 @@ def _parse_metadata_field(value: Any) -> Optional[Mapping[str, Any]]:
     return None
 
 
+def _record_metrics(
+    result: Mapping[str, Any],
+    *,
+    project_id: str,
+    model_name: Optional[str],
+    target: str,
+    metadata: Optional[Mapping[str, Any]],
+) -> None:
+    if not isinstance(result, Mapping):
+        return
+    telemetry_summary = result.get("telemetry_summary")
+    bottleneck = result.get("bottleneck")
+    if not isinstance(telemetry_summary, Mapping) or not isinstance(bottleneck, Mapping):
+        return
+
+    patch_metrics = {
+        "baseline_latency_ms": bottleneck.get("baseline_latency_ms"),
+        "expected_latency_ms": bottleneck.get("expected_latency_ms"),
+        "expected_speedup_pct": bottleneck.get("expected_speedup_pct"),
+    }
+
+    try:
+        METRICS_LOGGER.log(
+            project_id=project_id,
+            model_name=model_name,
+            target=target,
+            telemetry_summary=telemetry_summary,
+            patch_metrics=patch_metrics,
+            metadata=metadata,
+        )
+    except Exception:  # pragma: no cover - logging errors should not break API
+        logger = logging.getLogger(__name__)
+        logger.exception("Failed to log optimization metrics")
+
+
 async def _submit_async_job(**payload: Any) -> Response:
     if payload.get("model_graph") is None:
         raise HTTPException(status_code=400, detail="model_graph is required.")
@@ -288,6 +395,17 @@ def _coerce_customer_id(request: Request, source: Any) -> Optional[str]:
         return _coerce_optional_str(source.get("customer_id"))
     if isinstance(source, FormData):
         return _coerce_optional_str(source.get("customer_id"))
+    return None
+
+
+def _coerce_webhook_url(request: Request, source: Any) -> Optional[str]:
+    header = request.headers.get("x-webhook-url") or request.headers.get("agnitra-webhook-url")
+    if isinstance(header, str) and header.strip():
+        return header.strip()
+    if isinstance(source, Mapping):
+        return _coerce_optional_str(source.get("webhook_url"))
+    if isinstance(source, FormData):
+        return _coerce_optional_str(source.get("webhook_url"))
     return None
 
 

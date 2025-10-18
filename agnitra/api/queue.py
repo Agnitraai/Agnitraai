@@ -49,7 +49,9 @@ class OptimizationQueue:
 
     async def enqueue(self, payload: Dict[str, Any]) -> OptimizationJob:
         job_id = uuid.uuid4().hex
-        job = OptimizationJob(identifier=job_id, payload=payload)
+        payload_with_id = dict(payload)
+        payload_with_id.setdefault("_job_id", job_id)
+        job = OptimizationJob(identifier=job_id, payload=payload_with_id)
         self._jobs[job_id] = job
         self.start()
         assert self._queue is not None  # for type checkers
