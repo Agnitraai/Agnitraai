@@ -1,3 +1,8 @@
+---
+title: "SDK & CLI Guide"
+description: "Command reference and usage patterns for the Agnitra CLI and Python SDK."
+---
+
 # SDK & CLI Guide
 
 The Agnitra CLI mirrors the Python SDK so teams can trigger optimizations, collect telemetry, and emit usage events from any environment.

@@ -1,3 +1,8 @@
+---
+title: "Agnitra Documentation"
+description: "Overview of the Agnitra optimization platform and links to key guides."
+---
+
 # Agnitra Documentation
 
 Agnitra delivers an end-to-end optimization platform that pairs model tuning, telemetry, and usage-based billing in a single developer flow. Use the SDK or CLI to profile workloads, generate optimized TorchScript artifacts, and push structured usage records into your control plane or marketplace integrations.

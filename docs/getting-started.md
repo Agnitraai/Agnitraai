@@ -1,3 +1,8 @@
+---
+title: "Getting Started"
+description: "Install the Agnitra SDK, run the CLI, and generate optimization telemetry."
+---
+
 # Getting Started
 
 This quickstart walks through installing the SDK, running the CLI, and inspecting optimization telemetry.

@@ -1,3 +1,8 @@
+---
+title: "Documentation Deployment"
+description: "Configure and deploy the Agnitra documentation site with Mintlify."
+---
+
 # Documentation Deployment (Mintlify)
 
 The Agnitra docs are hosted on [Mintlify](https://www.mintlify.com/). This guide covers the project layout, how to preview changes, and how to trigger a production deploy.

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Agnitra flame icon">
+  <defs>
+    <linearGradient id="flame" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ff6b6b"/>
+      <stop offset="100%" stop-color="#ff2e63"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="12" ry="12" fill="#1f1f24"/>
+  <path d="M32 10c6 8 10 13 10 20 0 6-4 11-10 11s-10-5-10-11c0-4 1-7 6-14-1 8 5 8 6 2 1-4-2-6-2-8z" fill="url(#flame)"/>
+  <circle cx="32" cy="44" r="8" fill="#f7f7f8" opacity="0.15"/>
+</svg>
