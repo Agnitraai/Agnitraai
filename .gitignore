@@ -20,6 +20,7 @@ __pycache__/
 build/
 develop-eggs/
 dist/
+js/dist/
 downloads/
 eggs/
 .eggs/
@@ -71,6 +72,7 @@ htmlcov/
 *.log
 logs/
 log/
+agnitra_metrics.jsonl
 
 # Benchmark / optimization artifacts
 benchmarks/
@@ -103,6 +105,11 @@ usage_logs/
 *.tar
 *.tar.gz
 *.tgz
+
+# Node / JavaScript artifacts
+node_modules/
+js/node_modules/
+js/package-lock.json
 
 # Temporary files
 tmp/

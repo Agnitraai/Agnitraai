@@ -5,15 +5,47 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "agnitra"
 version = "0.1.0"
-description = "Agnitra project"
+description = "Optimization SDK, CLI, and API for Agnitra's pay-per-optimization platform."
 readme = "README.md"
 requires-python = ">=3.8"
+license = { file = "LICENSE" }
+authors = [
+    { name = "Agnitra Labs", email = "support@agnitra.ai" },
+]
+keywords = [
+    "machine-learning",
+    "mlops",
+    "optimization",
+    "gpu",
+    "telemetry",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
 dependencies = [
+    "click>=8.0",
     "starlette>=0.27.0",
     "uvicorn>=0.22.0",
     "jinja2>=3.1.0",
     "python-multipart>=0.0.6",
 ]
+
+[project.urls]
+Homepage = "https://github.com/agnitraai/agnitraai"
+Documentation = "https://github.com/agnitraai/agnitraai#readme"
+Repository = "https://github.com/agnitraai/agnitraai"
+Issues = "https://github.com/agnitraai/agnitraai/issues"
 
 [project.optional-dependencies]
 # OpenAI client for LLM-based suggestions
@@ -43,9 +75,13 @@ agnitra-optimize = "agnitra.cli:main"
 agnitra-dashboard = "agnitra.dashboard.cli:run_dashboard"
 agnitra-api = "agnitra.api.cli:run_api"
 
+[tool.setuptools]
+include-package-data = true
+
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["agnitra*", "cli*"]
 
 [tool.setuptools.package-data]
+"agnitra" = ["py.typed"]
 "agnitra.dashboard" = ["templates/*.html"]

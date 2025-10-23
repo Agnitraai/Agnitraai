@@ -1,0 +1,43 @@
+{
+  "name": "agnitra",
+  "version": "0.1.0",
+  "description": "JavaScript SDK for Agnitra's optimization and usage metering API.",
+  "license": "Apache-2.0",
+  "author": "Agnitra Labs <support@agnitra.ai>",
+  "homepage": "https://github.com/agnitraai/agnitraai",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/agnitraai/agnitraai.git",
+    "directory": "js"
+  },
+  "bugs": {
+    "url": "https://github.com/agnitraai/agnitraai/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "agnitra",
+    "optimization",
+    "gpu",
+    "sdk",
+    "telemetry"
+  ],
+  "scripts": {
+    "clean": "rm -rf dist",
+    "build": "npm run clean && tsc -p tsconfig.json",
+    "lint": "tsc --noEmit",
+    "prepare": "npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.17",
+    "typescript": "^5.4.5"
+  }
+}

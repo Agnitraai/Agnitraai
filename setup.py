@@ -27,6 +27,28 @@ optional_deps = project.get("optional-dependencies", {}) or {}
 
 long_description = README.read_text(encoding="utf-8") if README.exists() else ""
 
+authors = project.get("authors") or []
+author = None
+author_email = None
+if authors:
+    first = authors[0]
+    author = first.get("name")
+    author_email = first.get("email")
+
+license_field = project.get("license") or {}
+if isinstance(license_field, dict):
+    license_name = license_field.get("text") or license_field.get("file") or ""
+else:
+    license_name = str(license_field)
+
+keywords = project.get("keywords") or []
+if isinstance(keywords, (list, tuple)):
+    keywords_str = ", ".join(str(item) for item in keywords)
+else:
+    keywords_str = str(keywords)
+
+urls = project.get("urls") or {}
+
 setup(
     name=project.get("name", "agnitra"),
     version=project.get("version", "0.0.0"),
@@ -37,4 +59,12 @@ setup(
     packages=find_packages(include=("agnitra*", "cli*")),
     extras_require=optional_deps,
     entry_points=entry_points,
+    author=author,
+    author_email=author_email,
+    license=license_name,
+    keywords=keywords_str,
+    url=urls.get("Homepage") or urls.get("homepage"),
+    project_urls=urls,
+    classifiers=project.get("classifiers", []),
+    license_files=("LICENSE",),
 )
