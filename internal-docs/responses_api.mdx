@@ -1,11 +1,11 @@
 ---
 title: "Responses API Contract"
-description: "How Agnitra interacts with the OpenAI Responses API for optimization hints and telemetry enrichment."
+description: "How Agnitra integrates with the OpenAI Responses API for optimization hints and telemetry enrichment."
 ---
 
-# Responses API
+# Responses API (Internal)
 
-Agnitra integrates with the OpenAI Responses API to turn profiler telemetry into actionable optimisation hints. This document summarises the request/response schema, authentication model, and operational guidelines used by the platform.
+Agnitra integrates with the OpenAI Responses API to turn profiler telemetry into actionable optimisation hints. This internal document summarises the request/response schema, authentication model, and operational guidelines used by the platform.
 
 ## Base URL
 
@@ -123,5 +123,5 @@ Store API keys in a secrets manager or environment variable. Never expose them i
 
 ## Related Documents
 
-- [SDK & CLI Guide](cli-guide) — demonstrates how responses inform local optimisation.
-- [Documentation Deployment](docs-deployment) — process for updating this reference.
+- [SDK & CLI Guide](../docs/cli-guide.md) — demonstrates how responses inform local optimisation.
+- [Documentation Deployment](../docs/docs-deployment.md) — process for updating this reference.

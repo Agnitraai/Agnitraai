@@ -42,7 +42,8 @@ Resources:
   LogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub /aws/ecs/${ServiceName}
+      LogGroupName:
+        Fn::Sub: /aws/ecs/${ServiceName}
       RetentionInDays: 14
 
   ExecutionRole:
@@ -77,7 +78,8 @@ Resources:
   TaskDefinition:
     Type: AWS::ECS::TaskDefinition
     Properties:
-      Family: !Sub ${ServiceName}-task
+      Family:
+        Fn::Sub: "${ServiceName}-task"
       Cpu: !Ref Cpu
       Memory: !Ref Memory
       NetworkMode: awsvpc
@@ -138,7 +140,8 @@ Resources:
   LoadBalancer:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
-      Name: !Sub ${ServiceName}-alb
+      Name:
+        Fn::Sub: "${ServiceName}-alb"
       Scheme: internet-facing
       Subnets: !Ref Subnets
       SecurityGroups: [!Ref LoadBalancerSecurityGroup]
@@ -146,7 +149,8 @@ Resources:
   TargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
-      Name: !Sub ${ServiceName}-tg
+      Name:
+        Fn::Sub: "${ServiceName}-tg"
       Port: 8080
       Protocol: HTTP
       TargetType: ip
@@ -187,4 +191,5 @@ Outputs:
     Value: !GetAtt LoadBalancer.DNSName
   UsageEndpoint:
     Description: Fully qualified /usage endpoint.
-    Value: !Sub "http://${LoadBalancer.DNSName}/usage"
+    Value:
+      Fn::Sub: "http://${LoadBalancer.DNSName}/usage"

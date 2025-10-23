@@ -18,10 +18,6 @@
       "pages": ["cli-guide"]
     },
     {
-      "group": "Reference",
-      "pages": ["responses_api"]
-    },
-    {
       "group": "Maintainers",
       "pages": ["docs-deployment"]
     }

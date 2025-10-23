@@ -1,4 +1,4 @@
-sti---
+---
 title: "Getting Started"
 description: "Install the Agnitra SDK, run the CLI, and generate optimization telemetry."
 ---
@@ -8,6 +8,8 @@ description: "Install the Agnitra SDK, run the CLI, and generate optimization te
 This quickstart walks through installing the SDK, running the CLI, and inspecting optimization telemetry.
 
 ## 1. Install the SDK
+
+### Python (PyPI)
 
 Install from PyPI (recommended):
 
@@ -27,6 +29,35 @@ Optional extras:
 - `agnitra[rl]` – Stable Baselines3 + Gymnasium reinforcement learning add-ons.
 - `agnitra[nvml]` – GPU telemetry via NVIDIA NVML.
 - `agnitra[marketplace]` – Cloud marketplace adapters (`boto3`, `httpx`, `google-auth`).
+
+### JavaScript / TypeScript (npm)
+
+Install the JavaScript SDK:
+
+```bash
+npm install agnitra
+# or
+yarn add agnitra
+```
+
+Example usage:
+
+```ts
+import { AgnitraClient } from "agnitra";
+
+const client = new AgnitraClient({
+  apiKey: process.env.AGNITRA_API_KEY!,
+  baseUrl: process.env.AGNITRA_API_BASE_URL ?? "http://127.0.0.1:8080"
+});
+
+const result = await client.optimize({
+  target: "A100",
+  modelGraph,
+  telemetry
+});
+
+console.log(result.bottleneck.expected_speedup_pct);
+```
 
 ## 2. Optimize a Model
 
@@ -55,10 +86,10 @@ print(result.usage_event.total_billable)
 - POST graph + telemetry payloads to `/optimize` for automatic kernel suggestions.
 - Forward usage events to `/usage` to dispatch marketplace billing records.
 
-Refer to [responses_api.md](responses_api) for the JSON contract and webhook semantics.
+Refer to the internal Responses API contract (`internal-docs/responses_api.mdx`) for the JSON schema and webhook semantics.
 
 ## 4. Next Steps
 
-- Review [CLI and SDK guide](cli-guide) for advanced flags, licensing, and offline mode.
-- Follow the [Publishing Packages](publishing) checklist to ship PyPI and npm releases.
+- Review [CLI and SDK guide](./cli-guide.md) for advanced flags, licensing, and offline mode.
+- Follow the [Publishing Packages](./publishing.md) checklist to ship PyPI and npm releases.
 - Review internal monetization guidelines for the usage-to-billing pipeline.
