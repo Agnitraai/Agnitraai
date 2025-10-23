@@ -13,9 +13,17 @@
       "group": "Overview",
       "pages": ["getting-started", "publishing"]
     },
-    { "page": "cli-guide", "group": "Guides" },
-    { "page": "publishing", "group": "Guides" },
-    { "page": "responses_api", "group": "Reference" },
-    { "page": "docs-deployment", "group": "Maintainers" }
+    {
+      "group": "Guides",
+      "pages": ["cli-guide"]
+    },
+    {
+      "group": "Reference",
+      "pages": ["responses_api"]
+    },
+    {
+      "group": "Maintainers",
+      "pages": ["docs-deployment"]
+    }
   ]
 }
