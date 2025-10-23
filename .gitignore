@@ -105,6 +105,7 @@ usage_logs/
 *.tar
 *.tar.gz
 *.tgz
+docs/*.pdf
 
 # Node / JavaScript artifacts
 node_modules/

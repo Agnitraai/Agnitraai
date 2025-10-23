@@ -1,0 +1,37 @@
+{
+  "$schema": "https://mintlify.com/schema.json",
+  "name": "Agnitra Docs",
+  "github": "https://github.com/agnitraai/agnitraai",
+  "colors": {
+    "primary": "#ff4f5a",
+    "light": "#f7f7f8",
+    "dark": "#1f1f24"
+  },
+  "navigation": [
+    {
+      "group": "Overview",
+      "pages": [
+        "index",
+        { "title": "Getting Started", "page": "getting-started" },
+        { "title": "Platform Architecture", "page": "prd" }
+      ]
+    },
+    {
+      "group": "Using Agnitra",
+      "pages": [
+        { "title": "SDK & CLI Guide", "page": "cli-guide" },
+        { "title": "Publishing Packages", "page": "publishing" },
+        { "title": "Telemetry Responses API", "page": "responses_api" }
+      ]
+    },
+    {
+      "group": "Operations",
+      "pages": [
+        { "title": "Monetization Flows", "page": "monetization_flows" },
+        { "title": "Persistent Errors", "page": "persistent_errors" },
+        { "title": "Advanced Workflows", "page": "advanced" },
+        { "title": "Documentation Deployment", "page": "docs-deployment" }
+      ]
+    }
+  ]
+}
