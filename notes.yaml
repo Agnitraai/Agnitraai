@@ -3,7 +3,7 @@ entries:
     summary: "Add PRD documentation and notes tracking file."
     alignment_with_prd: "Establishes baseline PRD document and tracking for future development."
     done:
-      - "Added docs/prd.md with full PRD."
+      - "Added internal-docs/prd.md with full PRD."
       - "Created notes.yaml to track project alignment and progress."
     tested:
       - command: "pytest"

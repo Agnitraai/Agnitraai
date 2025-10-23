@@ -94,7 +94,7 @@
 - Telemetry JSON sample: `demo_artifacts/llm_optimizer_report.json`
 - CLI states reference: `cli/main.py`, `docs/non_interactive_codex_usage.txt`
 - Optimization logic: `agnitra/core/optimizer/llm_optimizer.py`, `agnitra/core/optimizer/rl_optimizer.py`
-- Roadmap & business context: `docs/prd.md`, `docs/advanced.md`
+- Roadmap & business context: `internal-docs/prd.md`, `internal-docs/advanced.md`
 - Benchmark results mock: `profile_result_tinyllama.json`
 
 ## 9. Open Questions for Design Sync

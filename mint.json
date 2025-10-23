@@ -11,15 +11,19 @@
   "navigation": [
     {
       "group": "Overview",
-      "pages": ["index", "getting-started", "prd"]
+      "pages": ["index", "getting-started"]
     },
     {
-      "group": "Using Agnitra",
-      "pages": ["cli-guide", "publishing", "responses_api"]
+      "group": "Guides",
+      "pages": ["cli-guide", "publishing"]
     },
     {
-      "group": "Operations",
-      "pages": ["monetization_flows", "persistent_errors", "advanced", "docs-deployment"]
+      "group": "Reference",
+      "pages": ["responses_api"]
+    },
+    {
+      "group": "Maintainers",
+      "pages": ["docs-deployment"]
     }
   ]
 }
