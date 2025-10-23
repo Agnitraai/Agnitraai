@@ -11,15 +11,11 @@
   "navigation": [
     {
       "group": "Overview",
-      "pages": ["index", "getting-started"]
+      "pages": ["getting-started", "publishing"]
     },
     {
       "group": "Guides",
-      "pages": ["cli-guide", "publishing"]
-    },
-    {
-      "group": "Reference",
-      "pages": ["responses_api"]
+      "pages": ["cli-guide", "responses_api"]
     },
     {
       "group": "Maintainers",
