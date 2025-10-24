@@ -5,6 +5,8 @@ description: "Install the Agnitra SDK, run the CLI, and generate optimization te
 
 # Getting Started
 
+Agnitra delivers an end-to-end optimization platform that pairs model tuning, telemetry, and usage-based billing in a single developer flow. Use the SDK or CLI to profile workloads, generate optimized TorchScript artifacts, and push structured usage records into your control plane or marketplace integrations.
+
 This quickstart walks through installing the SDK, running the CLI, and inspecting optimization telemetry.
 
 ## 1. Install the SDK

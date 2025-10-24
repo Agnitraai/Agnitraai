@@ -11,7 +11,7 @@
   "navigation": [
     {
       "group": "Overview",
-      "pages": ["getting-started", "publishing"]
+      "pages": ["docs", "publishing"]
     },
     {
       "group": "Guides",
