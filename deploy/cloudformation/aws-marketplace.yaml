@@ -73,22 +73,32 @@ Resources:
   Cluster:
     Type: AWS::ECS::Cluster
     Properties:
-      ClusterName: !Ref ServiceName
+      ClusterName:
+        Ref: ServiceName
 
   TaskDefinition:
     Type: AWS::ECS::TaskDefinition
     Properties:
       Family:
         Fn::Sub: "${ServiceName}-task"
-      Cpu: !Ref Cpu
-      Memory: !Ref Memory
+      Cpu:
+        Ref: Cpu
+      Memory:
+        Ref: Memory
       NetworkMode: awsvpc
       RequiresCompatibilities: [FARGATE]
-      ExecutionRoleArn: !GetAtt ExecutionRole.Arn
-      TaskRoleArn: !GetAtt TaskRole.Arn
+      ExecutionRoleArn:
+        Fn::GetAtt:
+          - ExecutionRole
+          - Arn
+      TaskRoleArn:
+        Fn::GetAtt:
+          - TaskRole
+          - Arn
       ContainerDefinitions:
         - Name: api
-          Image: !Ref ContainerImage
+          Image:
+            Ref: ContainerImage
           Essential: true
           PortMappings:
             - ContainerPort: 8080
@@ -96,16 +106,21 @@ Resources:
           LogConfiguration:
             LogDriver: awslogs
             Options:
-              awslogs-group: !Ref LogGroup
-              awslogs-region: !Ref AWS::Region
+              awslogs-group:
+                Ref: LogGroup
+              awslogs-region:
+                Ref: AWS::Region
               awslogs-stream-prefix: agnitra
           Environment:
             - Name: AWS_MARKETPLACE_PRODUCT_CODE
-              Value: !Ref MarketplaceProductCode
+              Value:
+                Ref: MarketplaceProductCode
             - Name: AWS_MARKETPLACE_USAGE_DIMENSION
-              Value: !Ref MarketplaceUsageDimension
+              Value:
+                Ref: MarketplaceUsageDimension
             - Name: AWS_REGION
-              Value: !Ref AWS::Region
+              Value:
+                Ref: AWS::Region
             - Name: AGNITRA_ENV
               Value: production
 
@@ -113,12 +128,14 @@ Resources:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: Enable HTTP access from the load balancer
-      VpcId: !Ref VpcId
+      VpcId:
+        Ref: VpcId
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 8080
           ToPort: 8080
-          SourceSecurityGroupId: !Ref LoadBalancerSecurityGroup
+          SourceSecurityGroupId:
+            Ref: LoadBalancerSecurityGroup
       SecurityGroupEgress:
         - IpProtocol: -1
           CidrIp: 0.0.0.0/0
@@ -127,7 +144,8 @@ Resources:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: Allow inbound HTTP
-      VpcId: !Ref VpcId
+      VpcId:
+        Ref: VpcId
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 80
@@ -143,8 +161,10 @@ Resources:
       Name:
         Fn::Sub: "${ServiceName}-alb"
       Scheme: internet-facing
-      Subnets: !Ref Subnets
-      SecurityGroups: [!Ref LoadBalancerSecurityGroup]
+      Subnets:
+        Ref: Subnets
+      SecurityGroups:
+        - Ref: LoadBalancerSecurityGroup
 
   TargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
@@ -154,41 +174,53 @@ Resources:
       Port: 8080
       Protocol: HTTP
       TargetType: ip
-      VpcId: !Ref VpcId
+      VpcId:
+        Ref: VpcId
       HealthCheckPath: /health
 
   Listener:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties:
-      LoadBalancerArn: !Ref LoadBalancer
+      LoadBalancerArn:
+        Ref: LoadBalancer
       Port: 80
       Protocol: HTTP
       DefaultActions:
         - Type: forward
-          TargetGroupArn: !Ref TargetGroup
+          TargetGroupArn:
+            Ref: TargetGroup
 
   Service:
     Type: AWS::ECS::Service
     DependsOn: Listener
     Properties:
-      Cluster: !Ref Cluster
+      Cluster:
+        Ref: Cluster
       LaunchType: FARGATE
-      DesiredCount: !Ref DesiredCount
-      TaskDefinition: !Ref TaskDefinition
+      DesiredCount:
+        Ref: DesiredCount
+      TaskDefinition:
+        Ref: TaskDefinition
       NetworkConfiguration:
         AwsvpcConfiguration:
           AssignPublicIp: ENABLED
-          SecurityGroups: [!Ref ServiceSecurityGroup]
-          Subnets: !Ref Subnets
+          SecurityGroups:
+            - Ref: ServiceSecurityGroup
+          Subnets:
+            Ref: Subnets
       LoadBalancers:
-        - TargetGroupArn: !Ref TargetGroup
+        - TargetGroupArn:
+            Ref: TargetGroup
           ContainerName: api
           ContainerPort: 8080
 
 Outputs:
   LoadBalancerDNS:
     Description: Public DNS name for the marketplace runtime.
-    Value: !GetAtt LoadBalancer.DNSName
+    Value:
+      Fn::GetAtt:
+        - LoadBalancer
+        - DNSName
   UsageEndpoint:
     Description: Fully qualified /usage endpoint.
     Value:

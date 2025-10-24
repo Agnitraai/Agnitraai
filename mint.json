@@ -21,5 +21,6 @@
       "group": "Maintainers",
       "pages": ["docs-deployment"]
     }
-  ]
+  ],
+  "ignore": ["deploy/**", "internal-docs/**"]
 }
