@@ -22,5 +22,17 @@
       "pages": ["docs-deployment"]
     }
   ],
+  "redirects": [
+    {
+      "source": "/",
+      "destination": "/docs",
+      "permanent": true
+    },
+    {
+      "source": "/getting-started",
+      "destination": "/docs/getting-started",
+      "permanent": true
+    }
+  ],
   "ignore": ["deploy/**", "internal-docs/**"]
 }
