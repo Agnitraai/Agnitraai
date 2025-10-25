@@ -11,23 +11,9 @@
   "navigation": {
     "groups": [
       {
-        "group": "Overview",
+        "group": "Documentation",
         "pages": [
-          "docs",
-          "getting-started",
-          "publishing"
-        ]
-      },
-      {
-        "group": "Guides",
-        "pages": [
-          "cli-guide"
-        ]
-      },
-      {
-        "group": "Maintainers",
-        "pages": [
-          "docs-deployment"
+          "docs"
         ]
       }
     ]

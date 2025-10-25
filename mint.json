@@ -10,27 +10,14 @@
   },
   "navigation": [
     {
-      "group": "Overview",
-      "pages": ["docs", "publishing"]
-    },
-    {
-      "group": "Guides",
-      "pages": ["cli-guide"]
-    },
-    {
-      "group": "Maintainers",
-      "pages": ["docs-deployment"]
+      "group": "Documentation",
+      "pages": ["docs"]
     }
   ],
   "redirects": [
     {
       "source": "/",
       "destination": "/docs",
-      "permanent": true
-    },
-    {
-      "source": "/getting-started",
-      "destination": "/docs/getting-started",
       "permanent": true
     }
   ],
