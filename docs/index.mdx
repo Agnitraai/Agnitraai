@@ -85,6 +85,70 @@ agnitra-dashboard --telemetry telemetry.json
 
 The dashboard highlights speedups, GPU hours saved, and license utilization so you can baseline performance before rolling to production.
 
+## JavaScript & TypeScript SDK
+
+Ship optimized inference inside browser extensions, React apps, or Node services using the JavaScript SDK.
+
+```bash
+npm install agnitra
+# or
+yarn add agnitra
+```
+
+Configure the client once at startup:
+
+```ts
+import { AgnitraClient } from "agnitra";
+
+const client = new AgnitraClient({
+  apiKey: process.env.AGNITRA_API_KEY!,
+  baseUrl: process.env.AGNITRA_API_BASE_URL ?? "https://api.agnitra.ai",
+  timeoutMs: 30_000,
+});
+
+export async function optimizeModel(modelGraph: unknown, telemetry: unknown) {
+  const response = await client.optimize({
+    target: "A10G",
+    modelGraph,
+    telemetry,
+    metadata: { source: "edge-worker" },
+  });
+
+  return {
+    artifactUrl: response.outputs.optimized_artifact_url,
+    projectedSpeedup: response.bottleneck.expected_speedup_pct,
+  };
+}
+```
+
+Best practices:
+
+- Store `AGNITRA_API_KEY` in your deployment platform’s secret manager; never check it into source control.
+- Use per-environment `baseUrl` values when running against staging or self-hosted control planes.
+- Wrap calls in circuit breakers for latency-sensitive frontends and retry idempotent requests (GET job polling) with exponential backoff.
+
+## Configuration Reference
+
+Environment variables accepted by the CLI and SDKs:
+
+| Variable | Description |
+| --- | --- |
+| `AGNITRA_API_KEY` | Required API credential issued per project or workspace. |
+| `AGNITRA_API_BASE_URL` | Control plane host; defaults to the managed endpoint. |
+| `AGNITRA_CONTROL_PLANE_URL` | Overrides internal service discovery when self-hosting `agnitra-api`. |
+| `AGNITRA_DASHBOARD_BASE_URL` | Upstream endpoint for telemetry dashboards in multi-tenant setups. |
+| `AGNITRA_TELEMETRY_EXPORT` | Comma-delimited list of exporters to enable (e.g. `s3,stripe`). |
+| `AGNITRA_LICENSE_ORG` / `AGNITRA_LICENSE_SEAT` | Explicit license metadata for offline validation. |
+
+When running inside containers, inject these through your orchestrator (Kubernetes `Secret`, ECS task definition, etc.) and audit them regularly to avoid stale or over-privileged keys.
+
+## Security & Access Control
+
+- Rotate API keys every 90 days and scope them per environment (dev/staging/prod).
+- Enable request signing on self-hosted control planes so only trusted clients can submit optimization jobs.
+- Use the license enforcement hooks (`--require-license`, `AGNITRA_LICENSE_*`) when operating in regulated industries to prevent untracked usage.
+- Log optimization job metadata (request IDs, operator, speedup) to your SIEM so you can trace changes that impact production.
+
 ## CLI Workflow
 
 Use the CLI for repeatable optimization jobs or pipeline automation.
