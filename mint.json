@@ -8,12 +8,85 @@
     "light": "#f7f7f8",
     "dark": "#1f1f24"
   },
-  "navigation": [
-    {
-      "group": "Documentation",
-      "pages": ["docs"]
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Guides",
+        "groups": [
+          {
+            "group": "Start Here",
+            "pages": [
+              "docs",
+              "intro/quickstart",
+              "intro/architecture"
+            ]
+          },
+          {
+            "group": "Workflows",
+            "pages": [
+              "guides/cli-and-sdk",
+              "guides/telemetry",
+              "guides/marketplace"
+            ]
+          },
+          {
+            "group": "Operations",
+            "pages": [
+              "operations/publishing",
+              "operations/docs-deployment"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Reference",
+        "groups": [
+          {
+            "group": "Platform",
+            "pages": [
+              "reference/configuration",
+              "reference/control-plane",
+              "reference/responses-api"
+            ]
+          }
+        ]
+      }
+    ],
+    "global": {
+      "anchors": [
+        {
+          "anchor": "Open Console",
+          "href": "https://console.agnitra.ai",
+          "icon": "rocket"
+        },
+        {
+          "anchor": "Slack Community",
+          "href": "https://join.slack.com/t/agnitra/shared_invite/abcdef",
+          "icon": "slack"
+        }
+      ]
     }
-  ],
+  },
+  "navbar": {
+    "links": [
+      {
+        "label": "CLI Reference",
+        "href": "https://github.com/agnitraai/agnitraai/tree/main/cli"
+      }
+    ],
+    "primary": {
+      "type": "button",
+      "label": "Get API Key",
+      "href": "https://console.agnitra.ai"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/agnitraai/agnitraai",
+      "x": "https://x.com/agnitraai",
+      "linkedin": "https://www.linkedin.com/company/agnitra-ai/"
+    }
+  },
   "redirects": [
     {
       "source": "/",

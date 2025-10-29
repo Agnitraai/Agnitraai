@@ -11,8 +11,8 @@ The Agnitra docs are hosted on [Mintlify](https://www.mintlify.com/). This guide
 
 - `mint.json` — navigation, branding, and site metadata.
 - `docs/` — Markdown pages referenced by the navigation config.
-- `docs/index.md` — landing page rendered at `/`.
-- Additional Markdown files are grouped in the sidebar using the `"navigation"` array inside `mint.json`.
+- `docs/index.mdx` — landing page rendered at `/docs`.
+- Additional Markdown/MDX files are grouped in the sidebar using the `"navigation.tabs"` configuration inside `mint.json`.
 
 ## Local Preview
 
@@ -35,7 +35,7 @@ The Agnitra docs are hosted on [Mintlify](https://www.mintlify.com/). This guide
 If the deployment fails:
 
 - Ensure `mint.json` exists at the repository root and validates against the schema (`https://mintlify.com/schema.json`).
-- Confirm each slug in `"navigation"` points to a Markdown/MDX file inside `docs/` (without the `.md` extension).
+- Confirm each slug in `"navigation.tabs"` points to a Markdown/MDX file inside `docs/` (paths omit the `.mdx` extension).
 - Check the activity log on the dashboard for stack traces.
 
 ## Tips

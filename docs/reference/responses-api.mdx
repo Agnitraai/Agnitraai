@@ -3,9 +3,9 @@ title: "Responses API Contract"
 description: "How Agnitra integrates with the OpenAI Responses API for optimization hints and telemetry enrichment."
 ---
 
-# Responses API (Internal)
+# Responses API Contract
 
-Agnitra integrates with the OpenAI Responses API to turn profiler telemetry into actionable optimisation hints. This internal document summarises the request/response schema, authentication model, and operational guidelines used by the platform.
+Agnitra uses the OpenAI Responses API to translate profiler telemetry into kernel tuning recommendations. This reference covers request schemas, tooling payloads, and operational guardrails.
 
 ## Base URL
 
@@ -21,7 +21,7 @@ All calls must be made over HTTPS.
 | --- | --- |
 | `Authorization` | `Bearer <OPENAI_API_KEY>` |
 | `OpenAI-Project` | Optional. Overrides the project context associated with the API key. |
-| `OpenAI-Organization` | Optional. Used when the key belongs to multiple organisations. |
+| `OpenAI-Organization` | Optional. Use when the key belongs to multiple organisations. |
 
 Store API keys in a secrets manager or environment variable. Never expose them in client-side code.
 
@@ -29,9 +29,9 @@ Store API keys in a secrets manager or environment variable. Never expose them i
 
 ```json
 {
-  "model": "gpt-5-mini",
+  "model": "gpt-5-codex",
   "input": [
-    { "role": "system", "content": "Provide kernel tuning recommendations..." },
+    { "role": "system", "content": "Provide kernel tuning recommendations for the supplied telemetry." },
     { "role": "user", "content": "Telemetry summary: {...}" }
   ],
   "tools": [
@@ -65,7 +65,7 @@ Store API keys in a secrets manager or environment variable. Never expose them i
 }
 ```
 
-- `model` must reference a Responses-capable deployment (`gpt-5-mini`, `gpt-5-latency`, etc.).
+- `model` must reference a Responses-capable deployment (e.g. `gpt-5-codex` or `gpt-5-mini`). Do not use deprecated parameters such as `temperature` or `max_output_tokens`.
 - `input` accepts text or image content. Agnitra sends JSON-formatted telemetry snippets.
 - `tools` unlock structured responses via function calling; strict schemas avoid invalid payloads.
 - `metadata` captures attribution for usage metering and billing.
@@ -121,7 +121,8 @@ Store API keys in a secrets manager or environment variable. Never expose them i
 - Sanitize telemetry content to avoid leaking customer identifiers.
 - Validate every tool-call payload against the defined JSON schema prior to execution.
 
-## Related Documents
+## Related Documentation
 
-- [SDK & CLI Guide](../docs/guides/cli-and-sdk.mdx) — demonstrates how responses inform local optimisation.
-- [Documentation Deployment](../docs/operations/docs-deployment.mdx) — process for updating this reference.
+- [Runtime Configuration](./configuration) — environment variables that toggle Responses API usage.
+- [SDK & CLI Guide](../guides/cli-and-sdk) — how responses inform local optimisation flows.
+- [Architecture Overview](../intro/architecture) — where Responses API fits in the optimization loop.

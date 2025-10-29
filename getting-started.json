@@ -13,20 +13,22 @@
       {
         "group": "Overview",
         "pages": [
-          "getting-started",
-          "publishing"
+          "docs",
+          "intro/quickstart"
         ]
       },
       {
         "group": "Guides",
         "pages": [
-          "cli-guide"
+          "guides/cli-and-sdk",
+          "guides/telemetry"
         ]
       },
       {
         "group": "Maintainers",
         "pages": [
-          "docs-deployment"
+          "operations/publishing",
+          "operations/docs-deployment"
         ]
       }
     ]

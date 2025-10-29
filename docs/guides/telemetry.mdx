@@ -1,0 +1,45 @@
+---
+title: "Telemetry Playbook"
+description: "Capture, export, and operationalize Agnitra telemetry and usage events."
+---
+
+# Telemetry Playbook
+
+Agnitra treats telemetry as a first-class artifact. Every optimization captures before/after metrics so engineering, infra, and finance teams agree on the impact of a rollout. This guide explains how telemetry is produced and how to route it to your observability stack.
+
+## What the CLI & SDK Emit
+
+| Artifact | File | Contents | Primary Consumers |
+| --- | --- | --- | --- |
+| Telemetry snapshot | `telemetry.json` (configurable via `--telemetry-out`) | Latency, throughput, GPU utilization, kernel-level hotspots, PPO scores. | Performance engineers, dashboards. |
+| Usage event | Printed to stdout and returned from SDK calls (`result.usage_event`) | GPU hours saved, cost deltas, currency, marketplace payloads, project metadata. | Billing, finance, marketplace exporters. |
+| Optimization artifact | `dist/<model>_optimized.pt` | TorchScript/ONNX artifact with patched kernels and metadata. | Serving teams, registries. |
+
+Both CLI and SDK expose the same data so you can automate pipelines or drive notebooks without format drift.
+
+## Routing Telemetry
+
+1. **File drops** — `agnitra optimize --telemetry-out telemetry.json` writes a structured JSON file. Persist it to S3, GCS, or your artifact store.
+2. **Programmatic export** — Use `agnitra.telemetry_collector` and `agnitra.telemetry.usage_meter` helpers to push directly to HTTP, Kafka, or Snowflake.
+3. **Marketplace dispatchers** — Extras like `agnitra[marketplace]` register AWS, GCP, and Stripe exporters (`StripeUsageDispatcher`, `AwsMarketplaceDispatcher`) that run asynchronously after each optimization.
+
+Telemetry payloads contain deterministic keys for `project_id`, `model_name`, and timestamps so you can join them in downstream jobs.
+
+## Dashboards & Alerting
+
+- `agnitra-dashboard` renders telemetry bundles locally, highlighting speedups, GPU hour savings, and license compliance.
+- Push aggregated snapshots into your metrics system (Prometheus, Datadog, Grafana) to track optimization coverage and ROI over time.
+- Alert when `expected_speedup_pct` drops below target or when `usage_event.status != "delivered"` to catch marketplace backoffs.
+
+## Best Practices
+
+- Store raw telemetry before aggregating so you can retroactively re-price or inspect kernels.
+- Sign usage events before dispatching to marketplaces to meet compliance requirements.
+- Attach `job_metadata` (CLI flag) or `metadata` (SDK argument) to correlate runs with CI pipelines, pull requests, or customer tenants.
+- Rotate `AGNITRA_API_KEY` and audit outbound webhook targets to avoid leaking telemetry to untrusted endpoints.
+
+## Related Reading
+
+- [SDK & CLI Guide](./cli-and-sdk) — command references and return types.
+- [Marketplace & Billing](./marketplace) — how telemetry powers pricing workflows.
+- [Runtime Configuration](../reference/configuration) — environment variables that toggle telemetry exporters.

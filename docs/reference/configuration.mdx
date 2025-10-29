@@ -1,0 +1,73 @@
+---
+title: "Runtime Configuration"
+description: "Environment variables and feature flags that control Agnitra SDK, CLI, and control-plane behaviour."
+---
+
+# Runtime Configuration
+
+Agnitra uses environment variables to keep the CLI, SDK, and control plane stateless. This reference lists the most important settings and when to apply them.
+
+## Core Credentials
+
+| Variable | Description |
+| --- | --- |
+| `AGNITRA_API_KEY` | Required credential for CLI, SDK, and API calls. Scope keys per environment and rotate every 90 days. |
+| `AGNITRA_API_BASE_URL` | Overrides the managed control plane hostname (e.g. `https://api.agnitra.ai`). Use it for staging or self-hosted deployments. |
+| `AGNITRA_CONTROL_PLANE_URL` | Internal service discovery override when deploying the Starlette control plane behind a load balancer. |
+
+## Telemetry & Usage
+
+| Variable | Description |
+| --- | --- |
+| `AGNITRA_TELEMETRY_EXPORT` | Comma-separated list of telemetry exporters (`s3,stripe,aws,internal`). |
+| `AGNITRA_DASHBOARD_BASE_URL` | Custom dashboard endpoint for multi-tenant deployments. |
+| `AGNITRA_USAGE_WEBHOOK` | Optional HTTP endpoint that receives every usage event for auditing or enrichment. |
+| `AGNITRA_USAGE_SIGNING_KEY` | Secret used to sign outbound usage events. Rotate regularly if you rely on downstream verification. |
+
+## Licensing & Compliance
+
+| Variable | Description |
+| --- | --- |
+| `AGNITRA_LICENSE_ORG` / `AGNITRA_LICENSE_SEAT` | Explicit license metadata for on-prem installs and offline validation. |
+| `AGNITRA_REQUIRE_LICENSE` | When set to `1`, optimization runs abort if license validation fails. |
+| `AGNITRA_OFFLINE_MODE` | Forces the CLI/SDK to skip control-plane calls (also available via `--offline`). |
+
+## Optimization Behaviour
+
+| Variable | Description |
+| --- | --- |
+| `AGNITRA_ENABLE_LLM_RL` | Enable reinforcement-learning passes after Responses API suggestions. |
+| `AGNITRA_ONLY_LLM` | Skip PPO and apply only LLM-suggested kernels (useful for fast iteration). |
+| `AGNITRA_LLM_MODEL` | Override the default Responses API deployment (e.g. `gpt-5-codex`). |
+| `AGNITRA_MAX_BATCH_SIZE` | Upper bound used by the runtime patcher when auto-tuning Triton kernels. |
+
+## Logging & Diagnostics
+
+| Variable | Description |
+| --- | --- |
+| `AGNITRA_LOG_LEVEL` | Controls SDK/CLI verbosity (`INFO`, `DEBUG`, `TRACE`). |
+| `AGNITRA_PROFILER_SAMPLES` | Number of warmup iterations the telemetry collector performs before capturing metrics. |
+| `AGNITRA_BENCHMARK_REPEATS` | Overrides default repeats for `agnitra benchmark` runs. |
+
+## Marketplace Credentials
+
+| Provider | Environment Variables |
+| --- | --- |
+| Stripe | `STRIPE_API_KEY`, `STRIPE_PRODUCT_ID`, `STRIPE_METER_ID` |
+| AWS Marketplace | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `AGNITRA_AWS_PRODUCT_CODE` |
+| GCP Marketplace | `GOOGLE_APPLICATION_CREDENTIALS`, `AGNITRA_GCP_PRODUCT_ID` |
+
+Unset provider credentials cause marketplace dispatchers to mark events as `skipped` or `deferred`. Use this to rehearse workflows before enabling billing.
+
+## Feature Flags in Tests
+
+PyTest suites monkeypatch the CLI to inject lightweight profilers and bypass heavy dependencies. Respect the following hooks when adding new commands:
+
+- `cli.main.profile_model` — override profiler behaviour in tests.
+- `AGNITRA_TEST_MODE` — signal to the SDK that fixture telemetry should be generated instead of real runs.
+
+## Further Reading
+
+- [SDK & CLI Guide](../guides/cli-and-sdk) for command-line equivalents of many flags.
+- [Telemetry Playbook](../guides/telemetry) to see how configuration changes affect exports.
+- [`pyproject.toml`](../../pyproject.toml) lists optional extras (`openai`, `rl`, `nvml`, `marketplace`) that unlock additional features documented here.

@@ -9,11 +9,46 @@
   },
   "favicon": "/favicon.svg",
   "navigation": {
-    "groups": [
+    "tabs": [
       {
-        "group": "Documentation",
-        "pages": [
-          "docs"
+        "tab": "Guides",
+        "groups": [
+          {
+            "group": "Start Here",
+            "pages": [
+              "docs",
+              "intro/quickstart",
+              "intro/architecture"
+            ]
+          },
+          {
+            "group": "Workflows",
+            "pages": [
+              "guides/cli-and-sdk",
+              "guides/telemetry",
+              "guides/marketplace"
+            ]
+          },
+          {
+            "group": "Operations",
+            "pages": [
+              "operations/publishing",
+              "operations/docs-deployment"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Reference",
+        "groups": [
+          {
+            "group": "Platform",
+            "pages": [
+              "reference/configuration",
+              "reference/control-plane",
+              "reference/responses-api"
+            ]
+          }
         ]
       }
     ]

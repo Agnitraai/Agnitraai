@@ -1,0 +1,64 @@
+---
+title: "Marketplace & Billing"
+description: "Map Agnitra optimization runs to usage-based billing across Stripe and cloud marketplaces."
+---
+
+# Marketplace & Billing
+
+Agnitra converts optimization telemetry into billable usage so monetization teams can charge on measurable outcomes (speedups, GPU hours saved) rather than seat licenses. This guide shows how billing artifacts are produced and dispatched.
+
+## Usage Event Model
+
+Every optimization returns a `UsageEvent` that includes:
+
+- `project_id`, `model_name`, `region`, and optional `metadata` for attribution.
+- `baseline` and `optimized` metrics (latency, tokens/sec, GPU hours).
+- `gpu_hours_saved`, `cost_savings`, and `total_billable` amounts in the configured currency.
+- `providers` — list of marketplace targets that should receive the event.
+- Delivery receipts per provider (`status`, `message`, `dispatched_at`).
+
+The CLI prints a human-readable summary while the SDK returns a structured object (`result.usage_event`) for programmatic pipelines.
+
+## Dispatch Flow
+
+1. Enable marketplace adapters with extras:
+   ```bash
+   pip install agnitra[marketplace]
+   ```
+2. Configure credentials via environment variables (for example `AWS_ACCESS_KEY_ID`, `STRIPE_API_KEY`, or custom secrets).
+3. Call `agnitra optimize` (CLI) or `agnitra.optimize` (SDK). The usage meter queues dispatch tasks after telemetry is persisted.
+4. Inspect the `dispatch_results` in the usage event to confirm delivery. Failed dispatches include retry hints or `status: "deferred"` when credentials are absent.
+
+Marketplace exports are idempotent; events carry a deterministic `usage_id` so retries do not double-bill customers.
+
+## Stripe Metered Billing
+
+- Adapter: `StripeUsageDispatcher`.
+- Expects `stripe_product_id` and `stripe_meter_id` configured per project.
+- Sends usage shaped for Stripe’s metered billing API with timestamps derived from the optimization run.
+- Retries on `429`/`5xx` with exponential backoff and surfaces final status in the usage event.
+
+## AWS Marketplace
+
+- Adapter: `AwsMarketplaceDispatcher`.
+- Requires IAM credentials scoped to the relevant product listing.
+- Converts usage events into `BatchMeterUsage` payloads grouped by `dimension` (often `project_id` + hardware tier).
+- Emits `skipped` status when credentials are missing so you can reconcile in post-processing jobs.
+
+## Custom Integrations
+
+- Implement the `UsageDispatcher` protocol to route events to internal billing, analytics, or support systems.
+- Reference implementation: `agnitra/core/metering/dispatchers.py`.
+- Register custom dispatchers via `AGNITRA_TELEMETRY_EXPORT=internal,billing` to enable multi-target fan-out.
+
+## Auditing & Compliance
+
+- Store raw usage events alongside telemetry for at least 13 months (typical cloud marketplace requirement).
+- Sign payloads before transmitting to third parties when operating in regulated industries.
+- Log `dispatch_results` to your SIEM to trace who was billed, when, and which kernel changes drove the charges.
+
+## Related Reading
+
+- [Telemetry Playbook](./telemetry) — how telemetry bundles feed usage events.
+- [Runtime Configuration](../reference/configuration) — environment variables controlling providers and credentials.
+- [Control Plane Reference](../reference/control-plane) — REST endpoints for submitting usage events directly.
