@@ -16,7 +16,7 @@
           {
             "group": "Start Here",
             "pages": [
-              "docs",
+              "index",
               "intro/quickstart",
               "intro/architecture"
             ]
@@ -87,12 +87,6 @@
       "linkedin": "https://www.linkedin.com/company/agnitra-ai/"
     }
   },
-  "redirects": [
-    {
-      "source": "/",
-      "destination": "/docs",
-      "permanent": true
-    }
-  ],
+  "redirects": [],
   "ignore": ["deploy/**", "internal-docs/**"]
 }

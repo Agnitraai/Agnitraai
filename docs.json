@@ -16,7 +16,7 @@
           {
             "group": "Start Here",
             "pages": [
-              "docs",
+              "index",
               "intro/quickstart",
               "intro/architecture"
             ]
