@@ -1,0 +1,90 @@
+---
+title: "Quickstart"
+description: "Install the Agnitra toolchain, optimize your first model, and review telemetry in minutes."
+---
+
+# Quickstart
+
+Welcome aboard! This guide walks you through installing the Agnitra SDKs, running your first optimization, and validating the telemetry and usage outputs that power production workflows.
+
+> **Estimated time:** 15 minutes  
+> **Prerequisites:** Python 3.8+, PyTorch 2.0+, optional CUDA/cuDNN when targeting GPUs.
+
+## 1. Prepare your environment
+
+1. Create and activate a virtual environment.
+2. Install the Agnitra package with extras that match your workflow:
+
+```bash
+pip install agnitra[nvml,marketplace]
+# or for local development
+pip install -e .[openai,rl,nvml,marketplace]
+```
+
+3. Export the control-plane credentials:
+
+```bash
+export AGNITRA_API_KEY="sk-live-..."
+export AGNITRA_API_BASE_URL="https://api.agnitra.ai"  # use your staging URL when self-hosting
+```
+
+## 2. Optimize a model from the CLI
+
+```bash
+agnitra optimize \
+  --model tinyllama.pt \
+  --input-shape 1,16,64 \
+  --target A100 \
+  --output dist/tinyllama_optimized.pt \
+  --telemetry-out telemetry.json
+```
+
+The run prints kernel-level hotspots, expected speedup, and a usage summary (GPU hours saved, estimated cost). The optimized artifact lands in `dist/` and telemetry is captured in `telemetry.json`.
+
+### Verify the outputs
+
+- **Artifact:** Load `dist/tinyllama_optimized.pt` in a Python shell and confirm inference works on representative inputs.
+- **Telemetry:** Inspect `telemetry.json` to confirm it includes latency metrics, GPU utilization, and usage metadata.
+- **Usage event:** Forward the summary to your billing pipeline using `agnitra.telemetry.usage_meter` or export it manually with `jq`.
+
+## 3. Mirror the workflow in Python
+
+```python
+import torch
+from agnitra import optimize
+
+model = torch.jit.load("tinyllama.pt")
+sample = torch.randn(1, 16, 64)
+
+result = optimize(
+    model,
+    input_tensor=sample,
+    project_id="demo",
+    metadata={"source": "quickstart"}
+)
+
+print(f"Optimized speedup: {result.bottleneck.expected_speedup_pct}%")
+result.telemetry.write_json("telemetry.json")
+```
+
+The `RuntimeOptimizationResult` bundles the optimized model, telemetry, and usage event so you can persist or forward them downstream.
+
+## 4. Review telemetry in the dashboard
+
+```bash
+agnitra-dashboard --telemetry telemetry.json --host 127.0.0.1 --port 3000
+```
+
+Open the printed URL to explore bottleneck heatmaps, GPU hour savings, and license seat utilization. This mirrors the managed dashboard experience for quick audits.
+
+## 5. Next steps
+
+| Goal | Where to go next |
+| --- | --- |
+| Automate more complex jobs | [CLI Automation](./cli) |
+| Embed in notebooks and services | [Python SDK](./python-sdk) |
+| Integrate with Node.js or browser runtimes | [JavaScript SDK](./javascript-sdk) |
+| Push telemetry and usage events to downstream systems | [Telemetry & Billing](./telemetry) |
+| Productionizing the control plane | [Operations](./operations) |
+
+Need help? Email `support@agnitra.ai` or ping the team in the private Slack—include the telemetry hash for faster troubleshooting.

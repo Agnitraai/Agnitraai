@@ -1,0 +1,42 @@
+---
+title: "Agnitra Overview"
+description: "Get a tour of the Agnitra optimization platform and pick the right guide for your workflow."
+---
+
+# Welcome to Agnitra
+
+Agnitra is the optimization control plane for large language models. It compiles TorchScript and ONNX graphs, benchmarks GPU kernels with reinforcement learning, captures telemetry, and emits marketplace-ready usage events so finance, ops, and product teams stay in sync.
+
+## Why teams choose Agnitra
+
+- **Optimization automation** – Ship tuned artifacts for A100, A10G, and CPU targets without manual kernel surgery.
+- **End-to-end telemetry** – Collect latency, throughput, and GPU utilization data that feeds dashboards or billing exports.
+- **Usage-based monetization** – Generate structured events compatible with Stripe, AWS Marketplace, and internal ledgers.
+- **Enterprise-ready operations** – Offline execution, license enforcement, and auditable metadata baked into every run.
+
+## Pick your workflow
+
+- [Quickstart](./quickstart) – Complete setup, run your first optimization, and inspect telemetry in under 15 minutes.
+- [Python SDK](./python-sdk) – Embed Agnitra in notebooks, services, or agents with rich telemetry routing.
+- [JavaScript SDK](./javascript-sdk) – Add optimization and usage reporting to Node.js or browser-based apps.
+- [CLI Automation](./cli) – Power CI/CD pipelines and one-off investigations from any shell.
+- [Telemetry & Billing](./telemetry) – Wire Agnitra outputs into dashboards, data warehouses, and marketplaces.
+- [Operations](./operations) – Deploy the control plane, secure access, and scale observability in production.
+
+## Platform capabilities
+
+| Capability | What it delivers | Where to learn |
+| --- | --- | --- |
+| Model optimization | Reinforcement-learning tuned kernels with deterministic fallbacks. | [Quickstart](./quickstart), [CLI](./cli) |
+| Telemetry capture | JSON bundles summarizing speedup, GPU hours saved, and bottleneck traces. | [Telemetry & Billing](./telemetry) |
+| Usage metering | Contract-grade usage events for per-call billing or licensing. | [Telemetry & Billing](./telemetry) |
+| Deployment controls | Offline execution, license seats, and multi-environment secrets management. | [Operations](./operations) |
+
+## Next steps
+
+1. Start with the [Quickstart](./quickstart) to validate the workflow locally.
+2. Integrate optimizations into your preferred runtime using the [Python](./python-sdk) or [JavaScript](./javascript-sdk) guides.
+3. Automate builds and telemetry exports via the [CLI](./cli) and [Telemetry](./telemetry) playbooks.
+4. Roll out to production following the [Operations](./operations) checklist and keep finance teams informed with real-time usage data.
+
+Need help along the way? Email `support@agnitra.ai` or reach out in the private Slack for architecture reviews, onboarding, and roadmap previews.

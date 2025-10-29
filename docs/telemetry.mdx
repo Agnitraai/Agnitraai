@@ -1,0 +1,87 @@
+---
+title: "Telemetry & Billing"
+description: "Understand Agnitra telemetry bundles, usage events, and how to wire them into analytics and billing systems."
+---
+
+# Telemetry & Billing
+
+Every optimization produces telemetry and usage events that make performance, finance, and compliance teams happy. This guide shows you how to persist, transform, and export the data.
+
+## What gets emitted
+
+- **Telemetry bundle** – JSON containing latency percentiles, GPU utilization, kernel bottlenecks, and configuration metadata.
+- **Usage event** – Structured record mapping to billable units (GPU hours saved, optimization duration, license seat).
+
+```jsonc
+{
+  "run_id": "opt_01hf2x...",
+  "project_id": "demo",
+  "hardware_target": "A100",
+  "speedup_pct": 38.6,
+  "gpu_hours_saved": 2.14,
+  "bottleneck": {
+    "name": "attention_kernel_fused",
+    "expected_speedup_pct": 52.1
+  }
+}
+```
+
+## Persisting telemetry
+
+```python
+result = optimize(model, input_tensor=batch)
+result.telemetry.write_json("telemetry.json")
+
+# store in S3
+result.telemetry.export_to_s3(
+    bucket="agnitra-telemetry",
+    key="prod/2024-09-18/opt_01hf2x.json",
+)
+```
+
+CLI users can pass `--telemetry-out telemetry.json` and upload the file manually or via CI.
+
+## Export pipelines
+
+| Destination | Helper | Notes |
+| --- | --- | --- |
+| HTTP ingestion | `export_to_http` | Retry on 5XX responses; supports auth headers. |
+| S3-compatible storage | `export_to_s3` | Works with AWS S3, MinIO, and GCS via interoperability keys. |
+| Kafka / Redpanda | `export_to_kafka` | Create separate topics for telemetry vs. usage for downstream consumers. |
+| Stripe | `export_usage_to_stripe` | Maps usage events to metered billing items. |
+| AWS Marketplace | `AwsMarketplaceDispatcher` | Configure product codes and plan SKUs in code or environment variables. |
+
+Example Stripe export:
+
+```python
+from agnitra.telemetry.marketplaces import export_usage_to_stripe
+
+result = optimize(model, input_tensor=batch)
+
+export_usage_to_stripe(
+    usage_event=result.usage_event,
+    stripe_api_key=os.environ["STRIPE_API_KEY"],
+    meter_id=os.environ["STRIPE_METER_ID"],
+)
+```
+
+## Governance checklist
+
+- **Version control** – store telemetry hashes alongside the optimized artifact version so you can reconstruct historical performance.
+- **Alerting** – trigger alerts when speedup percentage dips below thresholds or when usage events exceed budget targets.
+- **Auditing** – log control plane response IDs and attach them to internal change tickets or JIRA issues.
+- **Data retention** – apply lifecycle policies to archives (e.g., S3 Glacier after 180 days) while keeping hot data accessible for analytics.
+
+## Visualizing performance
+
+- Launch `agnitra-dashboard --telemetry path/to/bundle.json` for quick reviews.
+- Feed telemetry into tools like Grafana, Looker, or Power BI via your data warehouse.
+- Use the bottleneck metadata to prioritize kernel-level engineering work.
+
+## Integrating with finance
+
+1. Forward usage events to your billing system of record (Stripe, Chargebee, or internal).
+2. Reconcile invoice totals by matching telemetry hashes with exported usage events.
+3. Provide finance with dashboards highlighting GPU hours saved and optimization ROI per customer.
+
+Need a custom exporter or marketplace integration? Contact `support@agnitra.ai`; we ship templates for Stripe, AWS Marketplace, Azure Marketplace, and bespoke licensing platforms.

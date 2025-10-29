@@ -1,0 +1,63 @@
+---
+title: "Operations"
+description: "Deploy the Agnitra control plane, manage secrets, and keep production environments healthy."
+---
+
+# Operations
+
+Use this guide to plan, deploy, and operate Agnitra in production environments—from managed SaaS to air-gapped installations.
+
+## Deployment models
+
+| Model | When to choose it | Notes |
+| --- | --- | --- |
+| Managed SaaS | You want zero infrastructure overhead. | Point SDKs and CLI at `https://api.agnitra.ai`; telemetry is stored in the managed dashboard. |
+| Self-hosted | Compliance or network residency requirements. | Run `agnitra-api` behind your ingress, manage storage, and forward telemetry where you need it. |
+| Offline / air-gapped | Regulated or defense workloads. | Use the enterprise build, pass `--offline`, and synchronize license audits periodically. |
+
+## Control plane checklist
+
+1. Provision a Postgres-compatible database for job metadata.
+2. Configure object storage for optimized artifacts and telemetry bundles.
+3. Deploy `agnitra-api` behind a load balancer with TLS termination.
+4. Configure health probes (`/healthz`, `/readiness`) for orchestrators like Kubernetes.
+5. Rotate `AGNITRA_API_KEY` secrets with your standard secret manager.
+
+## Environment variables
+
+| Variable | Purpose |
+| --- | --- |
+| `AGNITRA_API_KEY` | Required for every CLI and SDK call. Scope keys per environment. |
+| `AGNITRA_API_BASE_URL` | Base URL used by clients to reach the control plane. |
+| `AGNITRA_CONTROL_PLANE_URL` | Internal address used by `agnitra-api` when proxying requests. |
+| `AGNITRA_TELEMETRY_EXPORT` | Comma-separated exporters to enable by default (`s3,stripe,http`). |
+| `AGNITRA_LICENSE_ORG` / `AGNITRA_LICENSE_SEAT` | Tag offline runs with an auditable identity. |
+| `AGNITRA_DASHBOARD_BASE_URL` | Location of the dashboard service when self-hosting. |
+
+## Security hardening
+
+- Enforce HTTPS everywhere; terminate TLS at your ingress or service mesh.
+- Scope API keys to individual teams or services and rotate them every 90 days.
+- Enable request signing on self-hosted control planes to prevent replay attacks.
+- Store telemetry snapshots and usage events in encrypted buckets (SSE-KMS, CMEK).
+- Log all optimization requests with request IDs and user identity for auditing.
+
+## Observability
+
+- Export metrics (p95 latency, queue depth, job errors) to Prometheus or your preferred time-series database.
+- Ship logs to your SIEM with structured fields: `run_id`, `project_id`, `target`, `speedup_pct`.
+- Alert on drops in speedup percentage, spikes in optimization failures, or missing usage exports.
+
+## Disaster recovery
+
+- Take automated backups of the metadata database and object storage.
+- Store license seats and entitlement proofs in a secure vault.
+- Practice restore drills: replay telemetry from backups and ensure optimized artifacts still load.
+
+## Change management
+
+- Track optimization recipe changes (model graphs, kernel overrides) in version control.
+- Gate releases with CI jobs that run `agnitra optimize` on representative workloads.
+- Require telemetry delta sign-off for high-value models before pushing to production.
+
+Questions about bespoke deployments or compliance reviews? Email `support@agnitra.ai` and include your infrastructure diagram for faster guidance.

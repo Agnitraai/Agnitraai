@@ -11,10 +11,16 @@
   "navigation": {
     "groups": [
       {
-        "group": "Documentation",
-        "pages": [
-          "docs"
-        ]
+        "group": "Overview",
+        "pages": ["docs", "quickstart"]
+      },
+      {
+        "group": "Build",
+        "pages": ["python-sdk", "javascript-sdk", "cli"]
+      },
+      {
+        "group": "Operate",
+        "pages": ["telemetry", "operations"]
       }
     ]
   }
