@@ -15,9 +15,9 @@ Agnitra gives your team an opinionated workflow for profiling, optimizing, and s
 
 ## Start Building Fast
 
-- Install the SDKs and run your first optimization in the [Quickstart](./intro/quickstart).
-- Explore CLI and Python entry points in the [SDK & CLI Guide](./guides/cli-and-sdk).
-- Review expected speedups, telemetry artifacts, and billing events in the [Telemetry Playbook](./guides/telemetry).
+- Install the SDK from PyPI and ship your first optimized artifact via the [Quickstart](./intro/quickstart).
+- Explore repeatable automations and code samples in the [SDK & CLI Guide](./guides/cli-and-sdk).
+- Understand what telemetry and usage events look like in practice with the [Telemetry Playbook](./guides/telemetry).
 
 ## Architecture Overview
 
@@ -25,9 +25,9 @@ The MVP couples a telemetry collector, FX graph extractor, AI optimizer, kernel 
 
 ## Key Workflows
 
-- Automate production releases with the [Publishing Packages checklist](./operations/publishing) and align docs deploys using the [Mintlify workflow](./operations/docs-deployment).
-- Connect marketplace and finance tooling with the [Marketplace & Billing guide](./guides/marketplace).
-- Operate the control plane via `agnitra-api` endpoints documented in the [Control Plane Reference](./reference/control-plane).
+- Monitor production uplift and route usage events using the [Telemetry Playbook](./guides/telemetry).
+- Connect finance tooling and marketplaces through the [Marketplace & Billing guide](./guides/marketplace).
+- Bring the control plane into your infrastructure with the [`agnitra-api` reference](./reference/control-plane).
 
 ## Reference Materials
 
@@ -37,4 +37,4 @@ The MVP couples a telemetry collector, FX graph extractor, AI optimizer, kernel 
 
 ## What's Next?
 
-Run `pip install -e .[openai,rl,nvml,marketplace]`, set `AGNITRA_API_KEY`, and launch `agnitra optimize` against the TinyLlama fixture to validate your workstation. From there, follow the linked guides to embed Agnitra into pipelines, dashboards, and billing loops.
+Run `pip install agnitra`, export `AGNITRA_API_KEY`, and launch `agnitra optimize` against the TinyLlama fixture to validate your workstation. From there, follow the linked guides to embed Agnitra into pipelines, dashboards, and billing loops.

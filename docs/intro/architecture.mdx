@@ -5,48 +5,33 @@ description: "Understand how the Agnitra optimization stack links telemetry, AI 
 
 # Architecture Overview
 
-Agnitra orchestrates a telemetry-driven optimization loop so teams can ship faster models without rewriting kernels by hand. The MVP scope combines collectors, AI planning, runtime patching, and billing into a single pipeline. This page distills the product requirement document into concrete components you can extend.
+Agnitra combines profiling, AI-assisted kernel tuning, and usage-based billing so you can prove performance gains before pushing new models to production. This overview explains how the pieces fit together from a user’s point of view.
 
-## High-Level Flow
+## Optimization Loop at a Glance
 
-1. **Telemetry collector** instruments TorchScript execution with `torch.profiler` and optional NVML hooks. It emits latency, tokens/sec, memory, and GPU hours saved as JSON snapshots.
-2. **Graph extractor** traces the workload with `torch.fx`, aligning profiler events to graph nodes so the optimizer knows which kernels to target.
-3. **AI optimizer** blends OpenAI Responses API hints with reinforcement learning (PPO) refinements to propose tuned kernel parameters.
-4. **Kernel generator** assembles Triton or CUDA templates using the selected parameters and validates functional equivalence against baseline outputs.
-5. **Runtime patcher** swaps optimized kernels into the live graph, preserving module APIs while recording telemetry deltas for auditing.
-6. **Usage metering** converts before/after telemetry into billable usage events that flow to Stripe, AWS Marketplace, or internal ledgers.
+1. **Profile & capture telemetry** – The CLI or SDK traces your TorchScript/ONNX model, capturing latency, throughput, memory, and GPU utilization.
+2. **Plan optimizations** – Telemetry is fed to the Agnitra optimizer, which pairs OpenAI Responses API hints with reinforcement learning to propose kernel tweaks.
+3. **Patch & validate** – Agnitra generates Triton/CUDA kernels, validates correctness against your baseline, and swaps them into the runtime.
+4. **Report uplift** – Before/after telemetry becomes a structured usage event you can forward to finance systems, marketplaces, or dashboards.
 
-The CLI and Python SDK orchestrate each stage and persist artifacts so teams can trace every optimization decision.
+Every stage emits artifacts (telemetry JSON, optimized models, usage events) so you can audit changes or roll back quickly.
 
-## Core Modules
+## Core Surfaces You’ll Use
 
-| Module | Location | Responsibilities |
-| --- | --- | --- |
-| Telemetry Collector | `agnitra/telemetry_collector.py`, `agnitra/core/telemetry/` | Capture profiler data, correlate with NVML metrics, serialize telemetry bundles. |
-| IR Graph Extractor | `agnitra/core/graph/` | Build FX graphs with node-level telemetry annotations. |
-| AI Optimizer | `agnitra/core/optimizer/` | Call the Responses API, run PPO fine-tuning loops, and aggregate kernel suggestions. |
-| Kernel Generator | `agnitra/core/kernel/` | Render Triton/CUDA templates, validate outputs, and score expected speedups. |
-| Runtime Patcher | `agnitra/core/runtime/` | Inject optimized kernels, manage fallbacks, and surface telemetry deltas. |
-| Usage Meter | `agnitra/core/metering/usage_meter.py` | Compute GPU hours saved, totals, and marketplace payloads. |
-| CLI & SDK | `cli/`, `agnitra/sdk.py`, `agnitra/cli.py` | Provide developer entry points, lazy-load heavy deps, guarantee exit codes. |
-| Benchmarking | `agnitra/benchmarks/`, `benchmark_runner.py` | Compare baseline vs optimized latency, throughput, and cost. |
+- **CLI & Python SDK** – Run `agnitra optimize` locally or embed `agnitra.optimize()` inside services to automate tuning.
+- **Agentic Optimization API (`agnitra-api`)** – Offload work to a remote control plane, queue jobs, and replay usage events via REST.
+- **Telemetry exporters** – Push JSON snapshots to S3, HTTP endpoints, Kafka, or your observability stack for long-term analysis.
+- **Marketplace dispatchers** – Enable adapters (Stripe, AWS Marketplace, GCP Marketplace) to translate usage events into billable records.
 
-## Control Plane & Surface Area
+## Deployment Options
 
-- **CLI (`agnitra`)** — Subcommands for profiling, benchmarking, and optimization with reusable flags across on-prem and hosted workflows.
-- **Agentic Optimization API (`agnitra-api`)** — Starlette/FastAPI service that accepts graph + telemetry artifacts, queues optimization jobs, and exposes `/usage` for billing.
-- **Dashboard (`agnitra-dashboard`)** — Lightweight telemetry viewer that highlights speedups, GPU savings, and license compliance.
-- **JavaScript SDK (`js/`)** — Bridges control-plane APIs into browser or Node environments with typed helpers and async queues.
+- **Managed** – Point the CLI/SDK at the hosted control plane (`https://api.agnitra.ai`) and use preconfigured telemetry dashboards.
+- **Self-hosted** – Run `agnitra-api` in your environment, connect it to GPU workers, and plug telemetry into your data stores.
+- **Offline / regulated** – Enable offline mode with enterprise licenses to generate optimizations without external network access; usage events sync once connectivity returns.
 
-## Deployment & Operations
+## Performance Goals
 
-- Minimum Python 3.8 and PyTorch 2.0 with CUDA/cuDNN when targeting GPUs.
-- Optional extras enable NVML telemetry, marketplace adapters, and RL toolchains (`pip install agnitra[nvml,marketplace,rl]`).
-- Production deployments rotate API keys every 90 days, enforce request signing, and log optimization metadata to your SIEM for traceability.
-
-## Success Metrics (MVP Targets)
-
-| Metric | Goal |
+| Metric | Target |
 | --- | --- |
 | Tokens per second uplift | ≥ 20% |
 | Latency reduction | ≥ 15% |
@@ -54,6 +39,8 @@ The CLI and Python SDK orchestrate each stage and persist artifacts so teams can
 | Integration time | < 10 minutes |
 | Output correctness | ≥ 99.9% parity with baseline |
 
-## Roadmap Highlights
+## Continue Exploring
 
-Post-MVP, Agnitra expands with telemetry dashboards, broader hardware coverage (ROCm, Tenstorrent), and automated agent fine-tuning from production inference logs. See the PRD for the full roadmap and personas that guide prioritization.
+- Follow the [Quickstart](./quickstart) to install the SDK and run your first optimization.
+- Deep dive into automation patterns in the [SDK & CLI Guide](../guides/cli-and-sdk).
+- Wire telemetry to billing systems using the [Marketplace & Billing guide](../guides/marketplace).

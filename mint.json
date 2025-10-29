@@ -22,18 +22,11 @@
             ]
           },
           {
-            "group": "Workflows",
+            "group": "Product Guides",
             "pages": [
               "guides/cli-and-sdk",
               "guides/telemetry",
               "guides/marketplace"
-            ]
-          },
-          {
-            "group": "Operations",
-            "pages": [
-              "operations/publishing",
-              "operations/docs-deployment"
             ]
           }
         ]

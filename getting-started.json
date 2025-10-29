@@ -21,14 +21,16 @@
         "group": "Guides",
         "pages": [
           "guides/cli-and-sdk",
-          "guides/telemetry"
+          "guides/telemetry",
+          "guides/marketplace"
         ]
       },
       {
-        "group": "Maintainers",
+        "group": "Reference",
         "pages": [
-          "operations/publishing",
-          "operations/docs-deployment"
+          "reference/configuration",
+          "reference/control-plane",
+          "reference/responses-api"
         ]
       }
     ]
