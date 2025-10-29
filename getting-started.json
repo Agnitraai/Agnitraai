@@ -13,24 +13,24 @@
       {
         "group": "Overview",
         "pages": [
-          "index",
-          "intro/quickstart"
+          "docs/index",
+          "docs/intro/quickstart"
         ]
       },
       {
         "group": "Guides",
         "pages": [
-          "guides/cli-and-sdk",
-          "guides/telemetry",
-          "guides/marketplace"
+          "docs/guides/cli-and-sdk",
+          "docs/guides/telemetry",
+          "docs/guides/marketplace"
         ]
       },
       {
         "group": "Reference",
         "pages": [
-          "reference/configuration",
-          "reference/control-plane",
-          "reference/responses-api"
+          "docs/reference/configuration",
+          "docs/reference/control-plane",
+          "docs/reference/responses-api"
         ]
       }
     ]

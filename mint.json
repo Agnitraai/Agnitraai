@@ -16,17 +16,17 @@
           {
             "group": "Start Here",
             "pages": [
-              "index",
-              "intro/quickstart",
-              "intro/architecture"
+              "docs/index",
+              "docs/intro/quickstart",
+              "docs/intro/architecture"
             ]
           },
           {
             "group": "Product Guides",
             "pages": [
-              "guides/cli-and-sdk",
-              "guides/telemetry",
-              "guides/marketplace"
+              "docs/guides/cli-and-sdk",
+              "docs/guides/telemetry",
+              "docs/guides/marketplace"
             ]
           }
         ]
@@ -37,9 +37,9 @@
           {
             "group": "Platform",
             "pages": [
-              "reference/configuration",
-              "reference/control-plane",
-              "reference/responses-api"
+              "docs/reference/configuration",
+              "docs/reference/control-plane",
+              "docs/reference/responses-api"
             ]
           }
         ]
@@ -80,6 +80,12 @@
       "linkedin": "https://www.linkedin.com/company/agnitra-ai/"
     }
   },
-  "redirects": [],
+  "redirects": [
+    {
+      "source": "/",
+      "destination": "/docs/index",
+      "permanent": false
+    }
+  ],
   "ignore": ["deploy/**", "internal-docs/**"]
 }
