@@ -1,0 +1,226 @@
+---
+title: "Agnitra Platform"
+description: "Production-ready documentation for installing, optimizing, and operating Agnitra."
+---
+
+# Agnitra Platform
+
+Agnitra gives your team an opinionated workflow for profiling, optimizing, and shipping large language models with built-in telemetry and billing. The SDK and CLI handle model compilation, surface runtime hotspots, and emit marketplace-ready usage events so you can move from prototype to production without standing up separate infrastructure.
+
+## What You Can Do with Agnitra
+
+- Automate TorchScript and ONNX model optimization across GPU tiers with reinforcement-learning tuned kernels.
+- Capture latency, throughput, and GPU utilization in structured telemetry streams that feed dashboards or marketplaces.
+- Standardize pricing with usage events that map directly to Stripe, AWS Marketplace, or custom billing pipelines.
+- Operate in regulated environments with offline mode, license validation, and auditable optimization metadata.
+
+## Quickstart
+
+Follow these steps to get your first optimized artifact and usage report.
+
+### 1. Meet the Requirements
+
+- Python 3.8+
+- PyTorch 2.0 or newer with CUDA/cuDNN available when targeting GPUs
+- (Optional) Node.js 18+ for documentation previews with Mintlify
+
+### 2. Install the SDK and CLI
+
+```bash
+pip install agnitra
+```
+
+For local development, install with extras that match your workflow:
+
+```bash
+pip install -e .[openai,rl,nvml,marketplace]
+```
+
+Set your API key so the CLI and SDK can authenticate against the control plane:
+
+```bash
+export AGNITRA_API_KEY="sk-live-..."
+export AGNITRA_API_BASE_URL="https://api.agnitra.ai"  # override for self-hosted control planes
+```
+
+### 3. Optimize Your First Model
+
+```bash
+agnitra optimize \
+  --model tinyllama.pt \
+  --input-shape 1,16,64 \
+  --target A100 \
+  --output dist/tinyllama_optimized.pt
+```
+
+The CLI prints kernel-level hotspots, expected speedup, and a usage summary you can forward to billing integrations.
+
+Prefer Python? The SDK mirrors the CLI flags:
+
+```python
+import torch
+from agnitra import optimize
+
+model = torch.jit.load("tinyllama.pt")
+sample = torch.randn(1, 16, 64)
+
+result = optimize(
+    model,
+    input_tensor=sample,
+    project_id="demo",
+    metadata={"source": "notebook"}
+)
+
+print(result.usage_event.total_billable)
+```
+
+### 4. Review Telemetry
+
+Each optimization emits a JSON telemetry bundle. Store it locally, push to S3, or publish to the Agnitra dashboard:
+
+```bash
+agnitra optimize ... --telemetry-out telemetry.json
+agnitra-dashboard --telemetry telemetry.json
+```
+
+The dashboard highlights speedups, GPU hours saved, and license utilization so you can baseline performance before rolling to production.
+
+## JavaScript & TypeScript SDK
+
+Ship optimized inference inside browser extensions, React apps, or Node services using the JavaScript SDK.
+
+```bash
+npm install agnitra
+# or
+yarn add agnitra
+```
+
+Configure the client once at startup:
+
+```ts
+import { AgnitraClient } from "agnitra";
+
+const client = new AgnitraClient({
+  apiKey: process.env.AGNITRA_API_KEY!,
+  baseUrl: process.env.AGNITRA_API_BASE_URL ?? "https://api.agnitra.ai",
+  timeoutMs: 30_000,
+});
+
+export async function optimizeModel(modelGraph: unknown, telemetry: unknown) {
+  const response = await client.optimize({
+    target: "A10G",
+    modelGraph,
+    telemetry,
+    metadata: { source: "edge-worker" },
+  });
+
+  return {
+    artifactUrl: response.outputs.optimized_artifact_url,
+    projectedSpeedup: response.bottleneck.expected_speedup_pct,
+  };
+}
+```
+
+Best practices:
+
+- Store `AGNITRA_API_KEY` in your deployment platform’s secret manager; never check it into source control.
+- Use per-environment `baseUrl` values when running against staging or self-hosted control planes.
+- Wrap calls in circuit breakers for latency-sensitive frontends and retry idempotent requests (GET job polling) with exponential backoff.
+
+## Configuration Reference
+
+Environment variables accepted by the CLI and SDKs:
+
+| Variable | Description |
+| --- | --- |
+| `AGNITRA_API_KEY` | Required API credential issued per project or workspace. |
+| `AGNITRA_API_BASE_URL` | Control plane host; defaults to the managed endpoint. |
+| `AGNITRA_CONTROL_PLANE_URL` | Overrides internal service discovery when self-hosting `agnitra-api`. |
+| `AGNITRA_DASHBOARD_BASE_URL` | Upstream endpoint for telemetry dashboards in multi-tenant setups. |
+| `AGNITRA_TELEMETRY_EXPORT` | Comma-delimited list of exporters to enable (e.g. `s3,stripe`). |
+| `AGNITRA_LICENSE_ORG` / `AGNITRA_LICENSE_SEAT` | Explicit license metadata for offline validation. |
+
+When running inside containers, inject these through your orchestrator (Kubernetes `Secret`, ECS task definition, etc.) and audit them regularly to avoid stale or over-privileged keys.
+
+## Security & Access Control
+
+- Rotate API keys every 90 days and scope them per environment (dev/staging/prod).
+- Enable request signing on self-hosted control planes so only trusted clients can submit optimization jobs.
+- Use the license enforcement hooks (`--require-license`, `AGNITRA_LICENSE_*`) when operating in regulated industries to prevent untracked usage.
+- Log optimization job metadata (request IDs, operator, speedup) to your SIEM so you can trace changes that impact production.
+
+## CLI Workflow
+
+Use the CLI for repeatable optimization jobs or pipeline automation.
+
+- `agnitra optimize` — compile models, compare kernels, and export artifacts.
+- `agnitra-api` — launch the Starlette service for remote optimization jobs.
+- `agnitra-dashboard` — review telemetry over time with built-in charts.
+
+Common flags:
+
+| Flag | Description |
+| --- | --- |
+| `--device` | Force models onto `cpu`, `cuda:0`, etc. |
+| `--disable-rl` | Skip reinforcement learning passes when fast iteration matters. |
+| `--offline` | Bypass control plane calls; requires enterprise license. |
+| `--telemetry-out` | Write raw telemetry so you can ingest it later. |
+| `--job-metadata` | Attach custom metadata (JSON) for downstream tracking. |
+
+Integrate the CLI with CI/CD by wiring it into GitHub Actions or self-hosted runners. Emit artifacts and telemetry into your artifact storage so release candidates always include optimization data.
+
+## Python SDK Highlights
+
+The Python SDK exports ergonomic helpers for notebooks, services, and agent runtimes.
+
+- `agnitra.optimize` returns a `RuntimeOptimizationResult` containing the optimized model, telemetry, and usage event.
+- `agnitra.sdk.resolve_input_tensor` synthesizes tensors from shape hints to keep pipelines declarative.
+- `agnitra.telemetry.export` streams usage events to Kafka, S3, or HTTP endpoints without blocking the hot path.
+
+Example with structured telemetry routing:
+
+```python
+from agnitra import optimize
+from agnitra.telemetry import export_to_http
+
+result = optimize(model, input_tensor=batch)
+export_to_http(result.telemetry, url="https://usage.mycompany.dev/agnitra")
+```
+
+## Integrating Telemetry and Billing
+
+Optimization runs generate two artifacts:
+
+- **Telemetry snapshots** capture latency, throughput, memory, and GPU hours saved. They are JSON documents shaped for `pandas` ingestion.
+- **Usage events** represent billable units. Send them to Stripe, AWS Marketplace, or internal ledgers using the `agnitra.telemetry.usage_meter` helpers.
+
+Recommended flow:
+
+1. Store telemetry in your data warehouse for trend analysis.
+2. Automate marketplace reporting with the provided exporters (`StripeUsageDispatcher`, `AwsMarketplaceDispatcher`).
+3. Feed high-signal metrics (speedup %, GPU utilization) into release gates to block regressions.
+
+## Deploying Agnitra in Production
+
+You can run the optimization API in fully-managed mode or self-host it.
+
+- **Managed control plane** — Point the CLI/SDK at `https://api.agnitra.ai` and manage everything through the dashboard.
+- **Self-hosted** — Use `agnitra-api` behind your ingress; configure `AGNITRA_CONTROL_PLANE_URL`, license validation, and storage paths for telemetry.
+- **Offline / air-gapped** — Install the enterprise build, pass `--offline`, and ensure license audits are synced when connectivity returns.
+
+For containerized environments, bake the CLI + SDK into your base image and mount model artifacts through object storage or git-lfs. The dashboard can run behind your internal auth provider by extending the middleware in `agnitra/dashboard/app.py` or placing it behind an authenticated reverse proxy.
+
+## Operations Best Practices
+
+- Run `pytest -q` before publishing new optimization recipes.
+- Version every optimized artifact and associate it with the telemetry hash to reproduce results.
+- Schedule nightly `agnitra optimize` runs on representative workloads to track drift.
+- Capture control plane responses in CI logs so billing pipelines remain auditable.
+
+## Support & Next Steps
+
+- Join the private Slack for implementation help and early feature access.
+- Email `support@agnitra.ai` for billing or enterprise licensing questions.
+- Subscribe to release notes in the GitHub repository to stay on top of SDK, CLI, and dashboard updates.
+
+With these workflows in place, your team can benchmark, optimize, and monetize models confidently across research, staging, and production environments.
