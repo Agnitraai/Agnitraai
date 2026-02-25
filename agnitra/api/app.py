@@ -15,7 +15,8 @@ from starlette.datastructures import FormData, UploadFile
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
-from starlette.routing import Route
+from starlette.routing import Route, WebSocketRoute
+from starlette.websockets import WebSocket
 
 from agnitra.api.marketplace import (
     MarketplaceDispatcher,
@@ -105,6 +106,66 @@ async def _optimize(request: Request) -> Response:
     return await _handle_form_payload(form, request)
 
 
+async def _ws_job_status(websocket: WebSocket) -> None:
+    """WebSocket endpoint that streams real-time job status updates.
+
+    Connect to ``ws://<host>/ws/jobs/<job_id>`` and receive JSON push events::
+
+        {"status": "pending",   "job_id": "<id>"}
+        {"status": "running",   "job_id": "<id>"}
+        {"status": "completed", "job_id": "<id>", "result": {...}}
+        {"status": "failed",    "job_id": "<id>", "error": "..."}
+
+    The connection is closed by the server once the job reaches a terminal
+    state (``completed`` or ``failed``), or after a configurable timeout.
+    """
+    await websocket.accept()
+
+    job_id = websocket.path_params.get("job_id", "")
+    if not job_id:
+        await websocket.send_json({"error": "Missing job_id."})
+        await websocket.close(code=1008)
+        return
+
+    poll_interval = 0.5
+    timeout = float(os.environ.get("AGNITRA_WS_JOB_TIMEOUT", "300"))
+    elapsed = 0.0
+    last_status: Optional[str] = None
+
+    try:
+        while elapsed < timeout:
+            job = ASYNC_QUEUE.get(job_id)
+            if job is None:
+                await websocket.send_json({"error": "Job not found.", "job_id": job_id})
+                await websocket.close(code=1008)
+                return
+
+            current_status = job.status
+            if current_status != last_status:
+                payload: Dict[str, Any] = {"status": current_status, "job_id": job_id}
+                if current_status == "completed" and job.result is not None:
+                    payload["result"] = job.result
+                if current_status == "failed" and job.error:
+                    payload["error"] = job.error
+                await websocket.send_json(payload)
+                last_status = current_status
+
+            if current_status in ("completed", "failed"):
+                break
+
+            await asyncio.sleep(poll_interval)
+            elapsed += poll_interval
+        else:
+            await websocket.send_json({"error": "Timed out waiting for job.", "job_id": job_id})
+    except Exception:
+        logging.getLogger(__name__).debug("WS job status connection closed.", exc_info=True)
+    finally:
+        try:
+            await websocket.close()
+        except Exception:
+            pass
+
+
 def create_app() -> Starlette:
     """Return a configured Starlette application."""
 
@@ -113,6 +174,7 @@ def create_app() -> Starlette:
         Route("/optimize", _optimize, methods=["POST"]),
         Route("/usage", _usage, methods=["POST"]),
         Route("/jobs/{job_id}", _job_status, methods=["GET"]),
+        WebSocketRoute("/ws/jobs/{job_id}", _ws_job_status),
     ]
     return Starlette(debug=False, routes=routes)
 

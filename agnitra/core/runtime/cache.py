@@ -86,6 +86,16 @@ class OptimizationCache:
             self._persist()
         return profile
 
+    def invalidate(self, signature: str) -> bool:
+        """Remove a cached profile by signature. Returns True if it existed."""
+        with self._lock:
+            self._ensure_loaded()
+            removed = self._data.pop(signature, None)
+            if removed is not None:
+                self._persist()
+                return True
+        return False
+
     def clear_expired(self) -> None:
         with self._lock:
             self._ensure_loaded()

@@ -31,6 +31,7 @@ from agnitra._sdk import (
 from agnitra._sdk.optimizer import optimize_model as _optimize_model
 from agnitra.core.licensing import LicenseManager, LicenseValidationError
 from agnitra.core.metering import UsageEvent, UsageMeter
+from agnitra.core.notifications import WebhookNotifier
 from agnitra.core.runtime import (
     OptimizationSnapshot,
     RuntimeOptimizationAgent,
@@ -62,6 +63,7 @@ __all__ = [
     "UsageEvent",
     "UsageMeter",
     "apply_tuning_preset",
+    "WebhookNotifier",
 ]
 
 LOGGER = logging.getLogger(__name__)
@@ -196,6 +198,7 @@ def optimize(
     require_license: bool = False,
     license_seat: Optional[str] = None,
     license_org_id: Optional[str] = None,
+    notify_webhook: Optional[WebhookNotifier] = None,
 ) -> RuntimeOptimizationResult:
     """Optimize ``model`` and return a metered runtime optimization report.
 
@@ -214,6 +217,11 @@ def optimize(
         signature.
     license_org_id:
         Overrides the organisation identifier recorded for per-GPU licensing.
+    notify_webhook:
+        Optional :class:`~agnitra.core.notifications.WebhookNotifier` instance.
+        When provided (or when ``AGNITRA_NOTIFY_WEBHOOK_URL`` is set in the
+        environment), a summary of the result is POSTed to Slack, Discord,
+        Telegram, or a generic webhook URL after optimization completes.
     """
 
     torch_mod = _require_torch()
@@ -381,6 +389,12 @@ def optimize(
 
         if telemetry_client is None and telemetry_client_instance is not None:
             telemetry_client_instance.close()
+
+        _notifier = notify_webhook or (
+            WebhookNotifier.from_env() if os.environ.get("AGNITRA_NOTIFY_WEBHOOK_URL") else None
+        )
+        if _notifier is not None and _notifier.is_configured():
+            _notifier.notify(result)
 
         return result
     finally:

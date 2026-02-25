@@ -534,13 +534,14 @@ class RuntimeOptimizationAgent:
         torch_mod: "torch",
         policy_payload: Mapping[str, Any],
     ) -> None:
+        """Record an auto-retrain job and delegate scheduling to OptimizationHeartbeat."""
+
         def _runner() -> None:
             try:
                 interval = policy_payload.get("auto_retrain_interval")
-                delay = float(interval) if interval else 0.1
-                time.sleep(max(delay, 0.1))
                 job = {
                     "created_at": time.time(),
+                    "auto_retrain_interval": float(interval) if interval else None,
                     "policy_id": policy_payload.get("policy_id"),
                     "project_id": policy_payload.get("project_id"),
                     "model_name": policy_payload.get("model_name"),
@@ -555,12 +556,13 @@ class RuntimeOptimizationAgent:
                 with jobs_path.open("a", encoding="utf-8") as fh:
                     fh.write(json.dumps(job, sort_keys=True) + "\n")
                 LOGGER.info(
-                    "Auto-retrain job recorded for policy %s (project %s)",
+                    "Auto-retrain job recorded for policy %s (project %s). "
+                    "Run `agnitra heartbeat` to process.",
                     job.get("policy_id"),
                     job.get("project_id"),
                 )
             except Exception:
-                LOGGER.debug("Auto-retrain job failed", exc_info=True)
+                LOGGER.debug("Auto-retrain job recording failed", exc_info=True)
 
         thread = threading.Thread(target=_runner, daemon=True)
         thread.start()

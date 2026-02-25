@@ -58,6 +58,13 @@ class LLMOptimizerConfig:
         default_factory=lambda: os.getenv("AGNITRA_CODEX_PATH", "codex")
     )
     codex_cli_args: Sequence[str] = field(default_factory=lambda: ())
+    # Ollama local model settings (used when backend="ollama")
+    ollama_base_url: str = field(
+        default_factory=lambda: os.getenv("AGNITRA_OLLAMA_URL", "http://localhost:11434")
+    )
+    ollama_model: str = field(
+        default_factory=lambda: os.getenv("AGNITRA_OLLAMA_MODEL", "llama3")
+    )
 
 
 @dataclass
@@ -132,6 +139,13 @@ class LLMOptimizer:
                 self._auto_selected_backend = True
                 LOGGER.info(
                     "LLM optimizer auto-selected Codex CLI backend because no client was provided."
+                )
+            elif self._probe_ollama(self._config.ollama_base_url):
+                self._backend = "ollama"
+                self._auto_selected_backend = True
+                LOGGER.info(
+                    "LLM optimizer auto-selected Ollama backend (local model detected at %s).",
+                    self._config.ollama_base_url,
                 )
             else:
                 self._backend = "responses"
@@ -274,6 +288,19 @@ class LLMOptimizer:
                     )
                 )
             return evaluated
+        if self._backend == "ollama" and not self._probe_ollama(self._config.ollama_base_url):
+            message = f"Ollama not reachable at {self._config.ollama_base_url}; skipping"
+            LOGGER.warning(message)
+            self._emit_checkpoint(message)
+            for model_name in model_list:
+                evaluated.append(
+                    ModelSuggestionResult(
+                        model=model_name,
+                        status="skipped",
+                        error="ollama not reachable",
+                    )
+                )
+            return evaluated
         if self._backend == "codex_cli" and not self._codex_cli_available:
             message = "Codex CLI backend requested but executable not found"
             LOGGER.warning(message)
@@ -331,6 +358,8 @@ class LLMOptimizer:
     ) -> str:
         if self._backend == "codex_cli":
             return self._invoke_codex_cli(messages, model_name)
+        if self._backend == "ollama":
+            return self._invoke_ollama(messages)
         return self._invoke_responses_api(messages, model_name)
 
     def _invoke_responses_api(
@@ -405,6 +434,41 @@ class LLMOptimizer:
         if stderr:
             LOGGER.debug("codex exec stderr: %s", stderr)
         return stdout
+
+    def _invoke_ollama(self, messages: Sequence[Dict[str, Any]]) -> str:
+        """Send a chat completion request to a local Ollama server."""
+        try:
+            import httpx  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise RuntimeError(
+                "httpx is required for the Ollama backend: pip install httpx"
+            ) from exc
+
+        prompt = self._render_cli_prompt(messages)
+        base_url = self._config.ollama_base_url.rstrip("/")
+        model = self._config.ollama_model
+        payload = {"model": model, "prompt": prompt, "stream": False}
+        try:
+            response = httpx.post(
+                f"{base_url}/api/generate",
+                json=payload,
+                timeout=60.0,
+            )
+            response.raise_for_status()
+            data = response.json()
+            return data.get("response", "")
+        except Exception as exc:
+            raise RuntimeError(f"Ollama request failed: {exc}") from exc
+
+    @staticmethod
+    def _probe_ollama(base_url: str) -> bool:
+        """Return True when an Ollama server is reachable at *base_url*."""
+        try:
+            import httpx  # type: ignore[import-not-found]
+            response = httpx.get(f"{base_url.rstrip('/')}/api/tags", timeout=2.0)
+            return response.status_code == 200
+        except Exception:
+            return False
 
     def _render_cli_prompt(self, messages: Sequence[Dict[str, Any]]) -> str:
         segments: List[str] = []

@@ -278,6 +278,159 @@ def _require_torch() -> tuple[ModuleType, ModuleType]:
     return torch_mod, nn_mod
 
 
+@cli.command("doctor")
+@click.option(
+    "--check-api",
+    is_flag=True,
+    help="Also verify the local API server is reachable.",
+)
+@click.option(
+    "--api-url",
+    default="http://127.0.0.1:8080",
+    show_default=True,
+    help="Base URL for the API server health check.",
+)
+def doctor_command(check_api: bool, api_url: str) -> None:
+    """Check runtime dependencies and configuration."""
+
+    import importlib
+    import os
+    import sys
+
+    checks: list[tuple[str, bool, str]] = []
+
+    def _check(label: str, ok: bool, detail: str = "") -> None:
+        checks.append((label, ok, detail))
+        icon = click.style("OK", fg="green") if ok else click.style("FAIL", fg="red")
+        line = f"  [{icon}] {label}"
+        if detail:
+            line += f" — {detail}"
+        click.echo(line)
+
+    click.echo("Agnitra Doctor")
+    click.echo("=" * 40)
+
+    # PyTorch
+    try:
+        torch = importlib.import_module("torch")
+        version = getattr(torch, "__version__", "unknown")
+        _check("PyTorch installed", True, f"v{version}")
+    except ImportError:
+        _check("PyTorch installed", False, "run: pip install torch")
+        torch = None  # type: ignore[assignment]
+
+    # CUDA
+    if torch is not None:
+        try:
+            cuda_ok = torch.cuda.is_available()
+            device_count = torch.cuda.device_count() if cuda_ok else 0
+            _check("CUDA available", cuda_ok, f"{device_count} device(s)" if cuda_ok else "CPU only")
+        except Exception as exc:
+            _check("CUDA available", False, str(exc))
+
+    # NVML / pynvml
+    try:
+        importlib.import_module("pynvml")
+        _check("pynvml (GPU telemetry)", True)
+    except ImportError:
+        _check("pynvml (GPU telemetry)", False, "optional — pip install pynvml")
+
+    # OpenAI API key
+    api_key = os.environ.get("OPENAI_API_KEY", "")
+    if api_key:
+        _check("OPENAI_API_KEY", True, f"set (length {len(api_key)})")
+    else:
+        _check("OPENAI_API_KEY", False, "not set — export OPENAI_API_KEY=sk-...")
+
+    # Ollama
+    try:
+        import httpx  # type: ignore[import-not-found]
+        ollama_url = os.environ.get("AGNITRA_OLLAMA_URL", "http://localhost:11434")
+        resp = httpx.get(f"{ollama_url}/api/tags", timeout=2.0)
+        if resp.status_code == 200:
+            models = [m.get("name", "") for m in resp.json().get("models", [])]
+            _check("Ollama (local LLM)", True, f"{len(models)} model(s): {', '.join(models[:3]) or 'none'}")
+        else:
+            _check("Ollama (local LLM)", False, f"reachable but returned {resp.status_code}")
+    except ImportError:
+        _check("Ollama (local LLM)", False, "optional — pip install httpx")
+    except Exception:
+        _check("Ollama (local LLM)", False, "not running — install from https://ollama.ai")
+
+    # License file
+    license_path = os.environ.get("AGNITRA_LICENSE_PATH", "")
+    if license_path:
+        from pathlib import Path
+        lp = Path(license_path)
+        if lp.exists() and lp.is_file():
+            _check("License file", True, str(lp))
+        else:
+            _check("License file", False, f"AGNITRA_LICENSE_PATH set but file not found: {license_path}")
+    else:
+        _check("License file", None, "AGNITRA_LICENSE_PATH not set (community mode)")  # type: ignore[arg-type]
+
+    # Webhook notifier env
+    notify_url = os.environ.get("AGNITRA_NOTIFY_WEBHOOK_URL", "")
+    if notify_url:
+        _check("Notification webhook", True, f"{os.environ.get('AGNITRA_NOTIFY_CHANNEL', 'slack')} → {notify_url[:40]}...")
+    else:
+        _check("Notification webhook", None, "AGNITRA_NOTIFY_WEBHOOK_URL not set (notifications disabled)")  # type: ignore[arg-type]
+
+    # API server
+    if check_api:
+        try:
+            import httpx  # type: ignore[import-not-found]
+            resp = httpx.get(f"{api_url.rstrip('/')}/health", timeout=3.0)
+            _check("API server", resp.status_code == 200, f"GET {api_url}/health → {resp.status_code}")
+        except ImportError:
+            _check("API server", False, "httpx not available for health check")
+        except Exception as exc:
+            _check("API server", False, f"not reachable at {api_url} — {exc}")
+
+    click.echo("=" * 40)
+    failed = [label for label, ok, _ in checks if ok is False]
+    if failed:
+        click.echo(click.style(f"{len(failed)} check(s) failed.", fg="red"))
+        sys.exit(1)
+    else:
+        click.echo(click.style("All checks passed.", fg="green"))
+
+
+@cli.command("heartbeat")
+@click.option(
+    "--interval",
+    default=30,
+    show_default=True,
+    type=int,
+    help="Minutes between re-optimization cycles.",
+)
+@click.option(
+    "--once",
+    is_flag=True,
+    help="Run one cycle then exit (instead of looping).",
+)
+def heartbeat_command(interval: int, once: bool) -> None:
+    """Run the background re-optimization heartbeat."""
+
+    from agnitra.core.runtime.heartbeat import OptimizationHeartbeat
+
+    hb = OptimizationHeartbeat(interval_seconds=interval * 60)
+    if once:
+        click.echo(f"Running one heartbeat cycle...")
+        hb.run_once()
+        click.echo("Heartbeat cycle complete.")
+    else:
+        click.echo(f"Starting heartbeat every {interval} minute(s). Press Ctrl+C to stop.")
+        hb.start()
+        try:
+            import time
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            hb.stop()
+            click.echo("Heartbeat stopped.")
+
+
 def main() -> None:
     """Console script entry point."""
 
