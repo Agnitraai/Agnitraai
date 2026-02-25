@@ -232,8 +232,15 @@ def request_kernel_suggestions(
     return optimized_text.strip() if optimized_text else None
 
 
-def run_rl_tuning(telemetry: List[Dict[str, Any]], ir_nodes: List[Dict[str, Any]]) -> None:
-    """Run the PPO-based RL optimizer (simulated environment)."""
+def run_rl_tuning(
+    telemetry: List[Dict[str, Any]],
+    ir_nodes: List[Dict[str, Any]],
+) -> Optional[Dict[str, Any]]:
+    """Run the PPO-based RL optimizer (simulated environment).
+
+    Returns a tuning preset dict that can be passed to :func:`apply_tuning_preset`,
+    or ``None`` when RL dependencies are missing or training fails.
+    """
 
     summary = summarize_kernel_telemetry(telemetry)
     config = PPOKernelOptimizerConfig(telemetry_summary=summary)
@@ -269,7 +276,7 @@ def run_rl_tuning(telemetry: List[Dict[str, Any]], ir_nodes: List[Dict[str, Any]
         result = optimizer.train()
     except RuntimeError as exc:  # pragma: no cover - optional deps missing
         logger.info("RL optimizer unavailable: %s", exc)
-        return
+        return None
 
     strategy = result.metadata.get("strategy", "ppo")
     logger.info(
@@ -282,6 +289,13 @@ def run_rl_tuning(telemetry: List[Dict[str, Any]], ir_nodes: List[Dict[str, Any]
         result.latency_ms,
         result.improvement_ratio * 100.0,
     )
+
+    # Derive a concrete tuning preset from the RL search result.
+    rl_preset: Dict[str, Any] = {"allow_tf32": True, "flash_sdp": True}
+    if result.tile_size >= 64:
+        rl_preset["torch_compile"] = True
+    logger.info("RL-derived tuning preset: %s", rl_preset)
+    return rl_preset
 
 
 def run_llm_guided_rl(
@@ -334,6 +348,38 @@ def optimize_log_with_open_evolve(
         return None
 
 
+def _llm_suggestion_to_preset(parsed: Dict[str, Any]) -> Dict[str, Any]:
+    """Derive an :func:`apply_tuning_preset` dict from a structured LLM suggestion.
+
+    Maps ``block_size``, ``tile_shape``, and ``unroll_factor`` from the LLM
+    response to the hardware-level knobs that :func:`apply_tuning_preset`
+    understands.  Any structured suggestion at all enables TF32 + FlashSDP
+    since those are safe no-ops on hardware that does not support them.
+    """
+    result: Dict[str, Any] = {}
+    block_size = parsed.get("block_size")
+    unroll_factor = parsed.get("unroll_factor")
+    tile_shape = parsed.get("tile_shape")
+
+    if block_size is not None or unroll_factor is not None or tile_shape is not None:
+        result["allow_tf32"] = True
+        result["flash_sdp"] = True
+
+    if isinstance(block_size, (int, float)) and block_size >= 256:
+        result["torch_compile"] = True
+    elif isinstance(unroll_factor, (int, float)) and unroll_factor >= 4:
+        result["torch_compile"] = True
+
+    if isinstance(tile_shape, (list, tuple)) and len(tile_shape) == 2:
+        try:
+            if int(tile_shape[0]) * int(tile_shape[1]) >= 4096:
+                result["torch_compile"] = True
+        except (TypeError, ValueError):
+            pass
+
+    return result
+
+
 def optimize_model(
     model: nn.Module,
     input_tensor: torch.Tensor,
@@ -356,6 +402,8 @@ def optimize_model(
 
     applied_preset: Optional[Dict[str, Any]] = None
     applied_pass_presets: List[Dict[str, Any]] = []
+
+    # --- Stage 0: explicit preset override (highest priority) ---
     if preset:
         try:
             model = apply_tuning_preset(model, dict(preset))
@@ -364,6 +412,7 @@ def optimize_model(
         except Exception:
             logger.exception("Failed to apply preset override")
 
+    # --- Stage 0b: policy-supplied pass presets (control plane) ---
     policy_pass_presets = None
     if policy:
         policy_pass_presets = policy.get("pass_presets") or policy.get("passes")
@@ -373,14 +422,28 @@ def optimize_model(
             if not isinstance(pass_cfg, Mapping):
                 continue
             try:
-                preset_result = apply_tuning_preset(model, dict(pass_cfg))
-                model = preset_result
+                model = apply_tuning_preset(model, dict(pass_cfg))
                 applied_pass_presets.append(dict(pass_cfg))
             except Exception:
                 logger.exception("Failed to apply policy pass preset #%s", idx)
     if applied_pass_presets:
         context_map["applied_pass_presets"] = applied_pass_presets
 
+    # --- Stage 1: always-on safe defaults (TF32 + FlashSDP) ---
+    # These are no-ops on hardware that does not support them and safe to
+    # apply unconditionally. They produce real speedups on Ampere+ GPUs
+    # with attention-heavy models (10-50% depending on the workload).
+    if not applied_preset and not applied_pass_presets:
+        safe_defaults: Dict[str, Any] = {"allow_tf32": True, "flash_sdp": True}
+        try:
+            model = apply_tuning_preset(model, safe_defaults)
+            applied_preset = safe_defaults
+            context_map["applied_preset_source"] = "safe_defaults"
+            logger.info("Applied safe defaults preset: TF32 + FlashSDP")
+        except Exception:
+            logger.debug("Safe defaults preset failed", exc_info=True)
+
+    # --- Stage 2: telemetry collection ---
     try:
         telemetry = collect_telemetry(model, input_tensor)
     except Exception:  # pragma: no cover - exercised via tests
@@ -388,6 +451,7 @@ def optimize_model(
         return model
     context_map["telemetry_event_count"] = len(telemetry)
 
+    # --- Stage 3: IR extraction ---
     try:
         ir_nodes = extract_ir(model, telemetry)
     except Exception:  # pragma: no cover - exercised via tests
@@ -395,42 +459,69 @@ def optimize_model(
         return model
     context_map["ir_node_count"] = len(ir_nodes)
 
+    # --- Stage 4: LLM kernel suggestions → parse → apply as preset ---
     try:
         llm_model_name = None
         if policy:
             llm_model_name = policy.get("llm_model")
-        suggestion = request_kernel_suggestions(telemetry, ir_nodes, client=client, model_name=llm_model_name or "gpt-5-codex")
+        suggestion = request_kernel_suggestions(
+            telemetry,
+            ir_nodes,
+            client=client,
+            model_name=llm_model_name or "gpt-5-codex",
+        )
         if suggestion:
-            logger.info("LLM suggestion: %s", suggestion)
+            logger.info("LLM suggestion received: %s", suggestion[:200])
             context_map["llm_suggestion_raw"] = suggestion
             try:
-                context_map["llm_suggestion"] = json.loads(suggestion)
+                parsed_suggestion = json.loads(suggestion)
+                context_map["llm_suggestion"] = parsed_suggestion
+                llm_preset = _llm_suggestion_to_preset(parsed_suggestion)
+                if llm_preset:
+                    model = apply_tuning_preset(model, llm_preset)
+                    applied_preset = {**(applied_preset or {}), **llm_preset}
+                    context_map["applied_preset_source"] = (
+                        context_map.get("applied_preset_source", "") + "+llm"
+                    ).lstrip("+")
+                    logger.info("Applied LLM-derived tuning preset: %s", llm_preset)
             except Exception:
-                pass
+                logger.debug("Could not parse LLM suggestion into preset", exc_info=True)
     except Exception:  # pragma: no cover - exercised via tests
         logger.exception("LLM call failed")
-        return model
 
+    # --- Stage 5: RL tuning → return preset → apply ---
     if enable_rl:
-        # Optional: feature-flag the Codex-guided RL so tests and
-        # environments without network/deps are not affected by default.
         if os.getenv("AGNITRA_ENABLE_LLM_RL") == "1":
             try:
                 preset_candidate = run_llm_guided_rl(telemetry, ir_nodes, client=client)
                 if preset_candidate:
-                    applied_preset = dict(preset_candidate)
                     model = apply_tuning_preset(model, preset_candidate)
+                    applied_preset = {**(applied_preset or {}), **preset_candidate}
+                    context_map["applied_preset_source"] = (
+                        context_map.get("applied_preset_source", "") + "+llm_rl"
+                    ).lstrip("+")
+                    logger.info("Applied LLM-guided RL preset: %s", preset_candidate)
             except Exception:  # pragma: no cover - best effort
                 logger.exception("LLM-guided RL failed")
-            # Optionally skip PPO-based RL entirely when using LLM
             if os.getenv("AGNITRA_ONLY_LLM") == "1":
                 context_map["applied_preset"] = applied_preset
+                setattr(model, "_agnitra_last_optimization", context_map)
                 return model
+
         try:
-            run_rl_tuning(telemetry, ir_nodes)
+            rl_preset = run_rl_tuning(telemetry, ir_nodes)
+            if rl_preset:
+                # Only apply RL preset if it adds something not already set
+                incremental = {k: v for k, v in rl_preset.items() if k not in (applied_preset or {})}
+                if incremental:
+                    model = apply_tuning_preset(model, incremental)
+                    applied_preset = {**(applied_preset or {}), **incremental}
+                    context_map["applied_preset_source"] = (
+                        context_map.get("applied_preset_source", "") + "+rl"
+                    ).lstrip("+")
+                    logger.info("Applied RL-derived incremental preset: %s", incremental)
         except Exception:  # pragma: no cover - exercised via tests
             logger.exception("RL tuning failed")
-            return model
 
     context_map["applied_preset"] = applied_preset
     setattr(model, "_agnitra_last_optimization", context_map)

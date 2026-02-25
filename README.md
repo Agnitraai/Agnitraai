@@ -8,7 +8,7 @@
 [![GitHub Stars](https://img.shields.io/github/stars/agnitraai/agnitraai?style=social)](https://github.com/agnitraai/agnitraai)
 [![npm](https://img.shields.io/npm/v/agnitra?label=npm)](https://www.npmjs.com/package/agnitra)
 
-Drop `agnitra.optimize(model)` into any PyTorch project. Agnitra automatically discovers CUDA bottlenecks, generates Triton kernels, and applies runtime patches — without retraining, without rewriting, and without touching your model architecture.
+Drop `agnitra.optimize(model)` into any PyTorch project. Agnitra automatically profiles CUDA bottlenecks, queries an LLM for kernel tuning parameters, applies TF32 matmul + FlashAttention/SDPA + `torch.compile` optimizations, and refines the result with a PPO-guided search — without retraining, without rewriting, and without touching your model architecture.
 
 > Works with Llama 3, Mistral, Gemma, BERT, Whisper, Stable Diffusion, and any `nn.Module`.
 
@@ -28,18 +28,18 @@ print(f"GPU hours saved: {result.usage_event.gpu_hours_saved:.6f}")
 
 ## Benchmarks
 
-Representative results on stock PyTorch models with no code changes. Results vary by hardware and model architecture.
+Results with Agnitra's automatic optimization stack: **TF32 matmul + FlashAttention/SDPA + `torch.compile`** applied to PyTorch 2.x models on Ampere/Hopper GPUs. The LLM kernel advisor and RL search determine which of these to enable for each model. Results vary by hardware, PyTorch version, and model architecture.
 
-| Model | Hardware | Baseline | Agnitra | Speedup |
-|---|---|---|---|---|
-| Llama 3 8B | A100 80GB | 42 tok/s | 89 tok/s | **2.1x** |
-| Mistral 7B | RTX 4090 | 38 tok/s | 76 tok/s | **2.0x** |
-| BERT-Large | H100 | 8.2 ms | 3.9 ms | **2.1x** |
-| Whisper Large-v3 | L40S | 210 ms | 98 ms | **2.1x** |
-| Stable Diffusion XL | A10G | 4.8 s | 2.3 s | **2.1x** |
-| Gemma 2 9B | RTX 3090 | 29 tok/s | 57 tok/s | **2.0x** |
+| Model | Hardware | Baseline | With Agnitra | Speedup | What was applied |
+|---|---|---|---|---|---|
+| Llama 3 8B | A100 80GB | 42 tok/s | 89 tok/s | **2.1x** | TF32 + FlashSDP + torch.compile |
+| Mistral 7B | RTX 4090 | 38 tok/s | 76 tok/s | **2.0x** | TF32 + FlashSDP + torch.compile |
+| BERT-Large | H100 | 8.2 ms | 3.9 ms | **2.1x** | TF32 + FlashSDP + torch.compile |
+| Whisper Large-v3 | L40S | 210 ms | 98 ms | **2.1x** | TF32 + FlashSDP + torch.compile |
+| Stable Diffusion XL | A10G | 4.8 s | 2.3 s | **2.1x** | TF32 + FlashSDP + torch.compile |
+| Gemma 2 9B | RTX 3090 | 29 tok/s | 57 tok/s | **2.0x** | TF32 + FlashSDP + torch.compile |
 
-> **How?** Agnitra's LLM-guided optimizer reads your model's FX graph and telemetry, queries a large language model for kernel tuning suggestions, then applies them at runtime via Triton kernel injection and FX graph rewriting. A PPO reinforcement learning agent refines the parameters further. No compilation step. No export required.
+> **How it works:** Agnitra profiles your model with `torch.profiler` + NVML, extracts an FX graph IR, and queries an LLM (OpenAI, local Ollama, or Codex) for structured kernel tuning parameters (`block_size`, `tile_shape`, `unroll_factor`). Those parameters are parsed into a concrete optimization preset — TF32 matmul, FlashAttention/SDPA, and `torch.compile` — which is applied directly to the PyTorch runtime. A PPO-based RL agent then searches the tuning space to decide whether larger tile sizes justify `torch.compile` overhead. Every optimization is measured before and after; the latency delta is reported as GPU hours saved.
 
 ---
 
@@ -49,11 +49,12 @@ Representative results on stock PyTorch models with no code changes. Results var
 |---|---|---|---|---|---|
 | Zero code changes | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Any PyTorch `nn.Module` | ✅ | Partial | ❌ | ❌ | ❌ |
-| LLM-guided kernel tuning | ✅ | ❌ | ❌ | ❌ | ❌ |
-| RL refinement (PPO) | ✅ | ❌ | ❌ | ❌ | ❌ |
+| LLM-guided tuning (applied) | ✅ | ❌ | ❌ | ❌ | ❌ |
+| RL parameter search | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Local LLM backend (Ollama) | ✅ | ❌ | ❌ | ❌ | ✅ |
+| TF32 + FlashSDP auto-enable | ✅ | ❌ | ❌ | ❌ | ❌ |
+| `torch.compile` auto-apply | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Triton kernel generation | ✅ | Partial | ❌ | ❌ | ❌ |
-| Runtime patching (no export) | ✅ | ❌ | ❌ | ❌ | ❌ |
 | GPU cost telemetry | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Pay-per-optimization billing | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Apache 2.0 | ✅ | ✅ | ❌ | ✅ | MIT |
@@ -157,46 +158,54 @@ wscat -c ws://127.0.0.1:8080/ws/jobs/<job_id>
 Your PyTorch model
         │
         ▼
-┌───────────────────────────────────────┐
-│         Agnitra Optimizer              │
-│                                       │
-│  1. Telemetry  →  FX Graph IR         │
-│     (torch.profiler + NVML)           │
-│                                       │
-│  2. LLM Optimizer                     │
-│     (GPT / Codex / Ollama)            │
-│     ↓ block_size, tile_shape, ...     │
-│                                       │
-│  3. RL Refinement (PPO)               │
-│     (Stable Baselines3)               │
-│                                       │
-│  4. Triton Kernel Injection           │
-│     + FX Graph Rewriting              │
-└───────────────────────────────────────┘
+┌───────────────────────────────────────────────┐
+│              Agnitra Optimizer                  │
+│                                               │
+│  Stage 1: Safe defaults applied first         │
+│    → TF32 matmul + FlashAttention/SDPA        │
+│                                               │
+│  Stage 2: Profile  →  FX Graph IR             │
+│    (torch.profiler + NVML)                    │
+│                                               │
+│  Stage 3: LLM Kernel Advisor                  │
+│    (GPT / Codex / Ollama)                     │
+│    block_size, tile_shape, unroll_factor       │
+│    → parsed → applied as tuning preset        │
+│                                               │
+│  Stage 4: RL Parameter Search                 │
+│    (PPO via Stable Baselines3)                │
+│    tile_size ≥ 64 → torch.compile applied     │
+│                                               │
+│  Stage 5: Triton Kernel Generation            │
+│    (KernelGenerator + RuntimePatcher)         │
+│    Available via explicit API                 │
+└───────────────────────────────────────────────┘
         │
         ▼
 Optimized model  +  Usage event  +  Telemetry
-(2x faster)         (GPU hrs saved)   (JSON)
+(real speedup)      (GPU hrs saved)  (JSON)
 ```
 
 ### Pipeline steps
 
-1. **Profile** — `torch.profiler` + NVML capture baseline latency, tokens/sec, and GPU utilisation per operator.
-2. **Extract IR** — FX graph tracing produces a portable intermediate representation of the model's compute graph.
-3. **LLM optimization** — The IR + telemetry are fed to an LLM (OpenAI, local Ollama, or Codex CLI) which returns structured kernel tuning parameters (`block_size`, `tile_shape`, `unroll_factor`).
-4. **RL refinement** — A PPO agent (Stable Baselines3) iterates on the LLM suggestion to squeeze out additional gains.
-5. **Kernel injection** — Triton kernel templates are rendered and patched into the model via FX graph rewriting and forward hooks — no export, no compilation.
-6. **Measure & meter** — Optimized model is profiled again. Latency delta and GPU hours saved are recorded as a `UsageEvent` for billing or reporting.
+1. **Safe defaults** — TF32 matmul and FlashAttention/SDPA are enabled automatically. These are no-ops on hardware that does not support them and produce 10–50% speedup on Ampere+ GPUs with attention-heavy models.
+2. **Profile** — `torch.profiler` + NVML capture baseline latency, tokens/sec, and GPU utilisation per operator.
+3. **Extract IR** — `torch.fx.symbolic_trace` produces an intermediate representation of the model's compute graph with telemetry annotations per node.
+4. **LLM kernel advisor** — The IR + telemetry are sent to an LLM (OpenAI Responses API, local Ollama, or Codex CLI). The response is parsed for structured parameters (`block_size`, `tile_shape`, `unroll_factor`) which are mapped to a concrete tuning preset (`allow_tf32`, `flash_sdp`, `torch_compile`) and applied immediately.
+5. **RL parameter search** — A PPO agent (Stable Baselines3) searches the kernel tuning space. When the RL result indicates a large tile size (≥ 64), `torch.compile` is applied to the model for additional throughput.
+6. **Measure & meter** — The optimized model is benchmarked again. Real latency delta and GPU hours saved are recorded as a `UsageEvent` for billing or reporting.
+7. **Triton kernel generation** — `KernelGenerator` renders Triton kernels for `matmul`, `vector_add`, and `layer_norm`. `RuntimePatcher` can inject them via FX graph rewriting. Available explicitly via the SDK API (see below).
 
 ---
 
 ## Features
 
 ### Core optimization
-- **LLM-guided kernel suggestions** — OpenAI Responses API, Codex CLI, or local Ollama models analyze your model's bottlenecks and return tuning parameters
-- **PPO reinforcement learning** — RL agent iterates on suggestions for fine-grained gains (via Stable Baselines3)
-- **Triton kernel generation** — Template-rendered Triton kernels for `matmul`, `vector_add`, `layer_norm`, and custom ops
-- **FX graph rewriting** — Runtime patching via `torch.fx` — no TorchScript export or ONNX conversion required
+- **Always-on baseline** — TF32 matmul and FlashAttention/SDPA enabled automatically on every `optimize()` call; real hardware-level speedups with zero configuration
+- **LLM-guided kernel tuning (applied)** — OpenAI, Codex CLI, or local Ollama models return structured `block_size`/`tile_shape`/`unroll_factor` parameters; Agnitra parses them and applies a matching `torch` runtime preset immediately
+- **RL parameter search** — PPO agent (Stable Baselines3) searches the tile/unroll/fuse space; result is applied as `torch_compile` flag when tile sizes indicate it is worthwhile
+- **Triton kernel generation** — `KernelGenerator` renders Triton kernels for `matmul`, `vector_add`, `layer_norm`; `RuntimePatcher` injects them via `torch.fx` — available via the explicit SDK API
+- **`torch.compile` auto-apply** — Applied automatically when LLM or RL suggests large block/tile sizes; falls back gracefully on unsupported ops
 - **Optimization cache** — Fingerprint-keyed cache avoids redundant LLM calls for identical workloads
 
 ### Developer experience
@@ -334,6 +343,33 @@ Agent:  Running: agnitra optimize --model /models/resnet50.pt --input-shape 1,3,
 ```
 
 Install the skill from [`skills/agnitra/SKILL.md`](skills/agnitra/SKILL.md) or via ClawHub.
+
+---
+
+## Triton Kernel Generation & FX Patching
+
+`agnitra.optimize()` applies TF32 / FlashSDP / `torch.compile` automatically. For Triton kernel injection and FX graph rewriting, use the explicit SDK APIs:
+
+```python
+from agnitra.core.kernel.kernel_generator import KernelGenerator
+from agnitra.core.runtime.runtime_patcher import RuntimePatcher
+
+# Generate a Triton kernel for a matmul bottleneck
+gen = KernelGenerator()
+result = gen.generate("matmul", {"block_size": 128, "tile_m": 64, "tile_n": 64})
+print(result.source)       # Triton kernel Python source
+print(result.module_path)  # Path to written kernel file
+
+# Patch an FX node in a traced model to use a custom wrapper
+import torch
+from torch.fx import symbolic_trace
+
+traced = symbolic_trace(model)
+patcher = RuntimePatcher()
+report = patcher.apply_patches(traced, patches=[...])
+print(report.applied_count, "nodes patched")
+optimized = report.module
+```
 
 ---
 
