@@ -1,0 +1,98 @@
+name: Benchmark (H100)
+
+# Runs the public llama3_h100 benchmark on a self-hosted GPU runner.
+# Triggered automatically on release tags and manually via workflow_dispatch.
+#
+# Requirements on the self-hosted runner:
+#   * Single H100 80GB SXM5
+#   * NVIDIA driver compatible with CUDA 12.1
+#   * Docker with the nvidia container runtime configured
+#   * Repository secret HF_TOKEN with access to meta-llama/Meta-Llama-3-8B-Instruct
+#
+# Regression gate: throughput at batch=1 must not drop more than 5% vs. the
+# previous published RESULTS.md on `main`. Override with workflow input
+# `allow_regression: true` for intentional baseline updates.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      allow_regression:
+        description: "Skip the >5% throughput regression gate"
+        required: false
+        default: "false"
+
+concurrency:
+  group: benchmark-h100
+  cancel-in-progress: false
+
+jobs:
+  benchmark:
+    name: llama3_h100
+    # Self-hosted label set should include `h100`; configure on the runner.
+    runs-on: [self-hosted, gpu, h100]
+    timeout-minutes: 90
+    env:
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Sanity check GPU
+        run: nvidia-smi
+
+      - name: Build benchmark image
+        run: |
+          docker build \
+            -t agnitra-bench:llama3-h100-${{ github.sha }} \
+            -f benchmarks/llama3_h100/Dockerfile .
+
+      - name: Run benchmark
+        run: |
+          mkdir -p benchmarks/llama3_h100/raw
+          docker run --rm --gpus all \
+            -e HF_TOKEN \
+            -v "$PWD/benchmarks/llama3_h100/raw:/work/benchmarks/llama3_h100/raw" \
+            agnitra-bench:llama3-h100-${{ github.sha }} ./run.sh
+
+      - name: Regenerate RESULTS.md
+        run: |
+          python3 benchmarks/llama3_h100/compare.py \
+            --raw benchmarks/llama3_h100/raw \
+            --out benchmarks/llama3_h100/RESULTS.md
+
+      - name: Regression gate (>5% throughput drop fails)
+        if: ${{ github.event.inputs.allow_regression != 'true' }}
+        run: |
+          python3 .github/scripts/check_benchmark_regression.py \
+            --raw benchmarks/llama3_h100/raw \
+            --baseline-ref origin/main \
+            --threshold 0.05
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: llama3_h100-${{ github.sha }}
+          path: |
+            benchmarks/llama3_h100/RESULTS.md
+            benchmarks/llama3_h100/raw/*.json
+            benchmarks/llama3_h100/raw/env.txt
+
+      - name: Commit RESULTS.md back to main on tag push
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          git config user.name "agnitra-bench-bot"
+          git config user.email "bench@agnitra.ai"
+          git checkout main
+          cp -r benchmarks/llama3_h100/raw /tmp/raw-tag
+          git pull --rebase origin main
+          cp /tmp/raw-tag/*.json benchmarks/llama3_h100/raw/
+          python3 benchmarks/llama3_h100/compare.py \
+            --raw benchmarks/llama3_h100/raw \
+            --out benchmarks/llama3_h100/RESULTS.md
+          git add benchmarks/llama3_h100/RESULTS.md benchmarks/llama3_h100/raw/
+          git commit -m "bench: refresh llama3_h100 results for ${GITHUB_REF_NAME}" || true
+          git push origin main

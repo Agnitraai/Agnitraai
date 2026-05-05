@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: pytest (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: |
+            pyproject.toml
+            setup.py
+
+      - name: Install package and test deps
+        run: |
+          python -m pip install --upgrade pip
+          # CPU-only torch is enough for the unit tests; GPU paths are
+          # exercised by the benchmark workflow.
+          pip install --index-url https://download.pytorch.org/whl/cpu torch
+          pip install -e ".[openai,nvml,marketplace]"
+          pip install pytest pytest-cov
+
+      - name: Run tests
+        run: pytest -q --maxfail=5 tests/
+
+  lint:
+    name: ruff (informational)
+    runs-on: ubuntu-latest
+    # Informational-only: lint failures do not block CI yet. Tighten
+    # once the codebase is clean by removing `continue-on-error`.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install ruff==0.6.9
+      - run: ruff check agnitra cli tests benchmarks
+
+  typecheck:
+    name: mypy (informational)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: |
+          python -m pip install --upgrade pip
+          pip install --index-url https://download.pytorch.org/whl/cpu torch
+          pip install -e ".[openai,nvml,marketplace]"
+          pip install mypy==1.11.2
+      - run: mypy --ignore-missing-imports agnitra
