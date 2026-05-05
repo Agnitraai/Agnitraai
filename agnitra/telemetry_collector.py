@@ -8,11 +8,18 @@ written to a JSON file for further analysis.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import reduce
 import json
 import logging
+import operator
 import time
 import threading
 from typing import Any, Dict, List, Optional
+
+
+def _shape_volume(shape: List[int]) -> int:
+    """Return the product of ``shape`` as an int (1 for empty shapes)."""
+    return int(reduce(operator.mul, shape, 1))
 
 try:  # pragma: no cover - optional dependency
     import torch
@@ -873,8 +880,8 @@ def profile_model(
         act_layers: List[Dict[str, Any]] = []
         for lyr in model_info.get("layers", []):
             dtb = _dtype_nbytes(lyr.get("output_dtype"))
-            inc = sum(int(__import__('functools').reduce(lambda a,b: a*b, shp, 1)) * dtb for shp in lyr.get("input_shapes", []) if isinstance(shp, list))
-            outc = sum(int(__import__('functools').reduce(lambda a,b: a*b, shp, 1)) * dtb for shp in lyr.get("output_shapes", []) if isinstance(shp, list))
+            inc = sum(_shape_volume(shp) * dtb for shp in lyr.get("input_shapes", []) if isinstance(shp, list))
+            outc = sum(_shape_volume(shp) * dtb for shp in lyr.get("output_shapes", []) if isinstance(shp, list))
             layer_bytes = int(inc + outc)
             if layer_bytes > 0:
                 act_layers.append({"name": lyr.get("name"), "bytes": layer_bytes})

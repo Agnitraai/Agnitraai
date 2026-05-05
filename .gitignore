@@ -74,9 +74,15 @@ logs/
 log/
 agnitra_metrics.jsonl
 
-# Benchmark / optimization artifacts
-benchmarks/
-!benchmarks/.keep
+# Benchmark / optimization artifacts.
+#
+# The reproducible benchmark suites under benchmarks/ ARE tracked. We
+# only ignore the legacy top-level dump directories that older runs
+# dropped here, plus per-run scratch files.
+benchmarks/.keep
+benchmarks/*.json
+benchmarks/*.csv
+benchmarks/*.png
 
 # Generated telemetry and context outputs
 agnitraai/context/
