@@ -11,7 +11,11 @@ import time
 from contextlib import contextmanager
 from typing import Iterator, List, Tuple
 
-from .schema import Latency
+# Absolute import — runners add this directory to sys.path before
+# importing common, so a relative import (`from .schema import ...`)
+# would fail with "attempted relative import with no known parent
+# package". Stick to an absolute import here.
+from schema import Latency
 
 
 def utc_timestamp() -> str:

@@ -26,27 +26,89 @@ fair-fight benchmarks as adversarial review, not marketing.
 
 ## Reproduce
 
+### Prerequisites for every option
+
+- An NVIDIA H100 (other GPUs run but the directory's name is a lie —
+  see "What about other GPUs?" below).
+- NVIDIA driver compatible with **CUDA 12.1** (driver ≥ 525.85.12).
+- Roughly **80 GB free disk** (model weights + vLLM cache + optional
+  TRT-LLM engine + Python deps).
+- A HuggingFace token with access to
+  [`meta-llama/Meta-Llama-3-8B-Instruct`](https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct)
+  (the model is gated; request access first).
+
 ### Option A — Docker (recommended)
 
+The Dockerfile expects the build context at the **repo root** because it
+installs Agnitra from source. Run the build from the repo root:
+
 ```bash
-# from this directory
-docker build -t agnitra-bench:llama3-h100 .
+# from the repo root, NOT this directory
+docker build -t agnitra-bench:llama3-h100 \
+  -f benchmarks/llama3_h100/Dockerfile .
+
+# then run, mounting raw/ so JSON outputs survive container removal
 docker run --rm --gpus all \
-  -v "$PWD/raw:/work/raw" \
   -e HF_TOKEN="$HF_TOKEN" \
-  agnitra-bench:llama3-h100 ./run.sh
+  -v "$PWD/benchmarks/llama3_h100/raw:/work/benchmarks/llama3_h100/raw" \
+  agnitra-bench:llama3-h100
 ```
 
 ### Option B — host machine
 
 ```bash
+# from this directory
 python3.11 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
+pip install -e ../..      # install Agnitra from the repo root
 HF_TOKEN=hf_xxx ./run.sh
 ```
 
-`HF_TOKEN` is required because Llama-3 is gated. Request access at
-https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct.
+### Option C — Modal (serverless H100, no infra to manage)
+
+If you don't want to provision a box, the included Modal wrapper rents
+an H100 by the second:
+
+```bash
+pip install modal && modal token new
+HF_TOKEN=hf_xxx modal run benchmarks/llama3_h100/modal_runner.py
+```
+
+The Modal job streams logs to your terminal and downloads `raw/` and
+`RESULTS.md` back to your machine when done. See the file's docstring
+for cost details.
+
+### Option D — Lambda Labs / RunPod (raw SSH H100)
+
+Many cloud providers ship Ubuntu images with a working CUDA driver but
+no Python venv. Run the bootstrap helper, then `run.sh`:
+
+```bash
+ssh ubuntu@<your-h100-host>
+git clone https://github.com/Agnitraai/Agnitraai.git
+cd Agnitraai/benchmarks/llama3_h100
+./bootstrap.sh             # installs Python 3.11 + deps + Agnitra
+HF_TOKEN=hf_xxx ./run.sh
+```
+
+### Option E — GitHub Actions self-hosted runner
+
+The `.github/workflows/benchmark.yml` workflow already exists. The
+runner needs:
+
+- A label set including `[self-hosted, gpu, h100]`
+- Docker with the NVIDIA container runtime configured
+- The repository secret `HF_TOKEN`
+
+Trigger with `gh workflow run benchmark.yml` (or push a `v*` tag).
+
+### What about other GPUs?
+
+The directory's name is `llama3_h100` because that's the published
+target. The runner code doesn't check the GPU SKU, so it will execute
+on A100 / L40S / 4090 if one is present — but the resulting numbers
+should not be compared to the published H100 baseline. `run.sh` prints
+a loud warning when the detected GPU isn't an H100.
 
 ### What `run.sh` does
 
