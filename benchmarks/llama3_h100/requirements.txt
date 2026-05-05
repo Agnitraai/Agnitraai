@@ -1,0 +1,20 @@
+# Pinned environment for the Llama-3-8B / H100 benchmark.
+# Bump intentionally; numbers in RESULTS.md are tied to these versions.
+torch==2.4.0
+transformers==4.44.2
+accelerate==0.33.0
+sentencepiece==0.2.0
+protobuf==5.27.2
+numpy==1.26.4
+huggingface-hub==0.24.6
+
+# vLLM 0.5.4 is built against torch 2.4.
+vllm==0.5.4
+
+# TensorRT-LLM is intentionally NOT pinned here — it requires a separate
+# install path (NGC container or PyPI nightly with matching CUDA). The
+# tensorrt_llm runner imports it lazily and skips cleanly if missing.
+# See runners/tensorrt_llm.py for setup notes.
+
+# Agnitra itself is installed from the repo root by run.sh:
+#   pip install -e ../..
