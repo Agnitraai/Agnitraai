@@ -1,8 +1,8 @@
-"""Optimization pass plugin registry — ClawHub-style skill discovery for Agnitra.
+"""Optimization pass plugin registry.
 
 Developers publish custom optimization passes as Python packages and register
 them via the ``agnitra.passes`` entry point group. The registry discovers them
-at runtime, exactly like OpenClaw discovers skills from ``~/.openclaw/workspace/skills/``.
+at runtime via Python's standard ``importlib.metadata.entry_points`` machinery.
 
 Publishing a custom pass
 ------------------------

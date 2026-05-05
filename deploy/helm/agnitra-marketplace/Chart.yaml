@@ -1,6 +1,0 @@
-apiVersion: v2
-name: agnitra-marketplace
-description: Helm chart for the Agnitra Marketplace API runtime
-type: application
-version: 0.1.0
-appVersion: "0.1.0"
