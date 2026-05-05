@@ -21,8 +21,7 @@
         "group": "Guides",
         "pages": [
           "docs/guides/cli-and-sdk",
-          "docs/guides/telemetry",
-          "docs/guides/marketplace"
+          "docs/guides/telemetry"
         ]
       },
       {

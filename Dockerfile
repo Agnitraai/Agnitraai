@@ -19,7 +19,7 @@ COPY cli ./cli
 COPY docs ./docs
 
 RUN pip install --upgrade pip \
-    && pip install .[marketplace]
+    && pip install .
 
 EXPOSE 8080
 
