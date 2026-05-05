@@ -52,6 +52,47 @@ fast = result.optimized_model
 
 A complete runnable script lives at [`examples/quickstart.py`](examples/quickstart.py).
 
+## Integrations
+
+### HuggingFace `transformers`
+
+Replace `AutoModelForCausalLM` with `AgnitraModel`. Everything else stays identical:
+
+```python
+from agnitra.integrations.huggingface import AgnitraModel
+
+model = AgnitraModel.from_pretrained(
+    "meta-llama/Meta-Llama-3-8B-Instruct",
+    torch_dtype=torch.float16,
+    agnitra_kwargs={"input_shape": (1, 512)},
+).cuda()
+# Use `model` like a normal transformers model — tokenizer, .generate(), logits.
+```
+
+Pass any `transformers.AutoModelFor...` class via `model_class=` for non-CausalLM workloads. See [`examples/quickstart_hf.py`](examples/quickstart_hf.py).
+
+For an existing `transformers.pipeline()`:
+
+```python
+from agnitra.integrations.huggingface import optimize_pipeline
+
+pipe = transformers.pipeline("text-generation", model="meta-llama/Meta-Llama-3-8B-Instruct")
+optimize_pipeline(pipe, agnitra_kwargs={"input_shape": (1, 512)})
+```
+
+### `accelerate`
+
+For users who go through `accelerate.Accelerator`, run Agnitra after `prepare()`:
+
+```python
+from accelerate import Accelerator
+from agnitra.integrations.accelerate_helpers import optimize_after_prepare
+
+accelerator = Accelerator()
+model, optimizer, dataloader = accelerator.prepare(model, optimizer, dataloader)
+model = optimize_after_prepare(model, input_shape=(1, 512))
+```
+
 ## What Agnitra does
 
 1. **Profiles** the model on real input shapes via `torch.profiler` + NVML telemetry.
