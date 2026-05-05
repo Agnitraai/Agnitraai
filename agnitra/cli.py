@@ -286,9 +286,9 @@ def _require_torch() -> tuple[ModuleType, ModuleType]:
 )
 @click.option(
     "--api-url",
-    default="http://127.0.0.1:8080",
-    show_default=True,
-    help="Base URL for the API server health check.",
+    default=lambda: os.environ.get("AGNITRA_API_URL", "http://127.0.0.1:8080"),
+    show_default="$AGNITRA_API_URL or http://127.0.0.1:8080",
+    help="Base URL for the API server health check. Reads AGNITRA_API_URL when unset.",
 )
 def doctor_command(check_api: bool, api_url: str) -> None:
     """Check runtime dependencies and configuration."""
