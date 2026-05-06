@@ -590,6 +590,84 @@ def optimize_dir_command(
     click.echo(f"  unique architectures   : {len(seen_signatures)}")
 
 
+@cli.command("package")
+@click.option(
+    "model_dir",
+    "--model-dir",
+    type=click.Path(exists=True, file_okay=False, path_type=Path),
+    required=True,
+    help="HuggingFace model directory (must contain config.json + weights).",
+)
+@click.option(
+    "output_dir",
+    "--output",
+    type=click.Path(file_okay=False, path_type=Path),
+    required=True,
+    help="Where to write the NIM-compatible container layout.",
+)
+@click.option(
+    "as_format",
+    "--as",
+    type=click.Choice(["nim"]),
+    default="nim",
+    show_default=True,
+    help="Packaging format. Currently only NVIDIA NIM is supported.",
+)
+@click.option(
+    "target_arch",
+    "--target",
+    default="h100",
+    show_default=True,
+    help="Target GPU architecture (h100, a100, l40s, etc.).",
+)
+@click.option(
+    "quantize",
+    "--quantize",
+    type=click.Choice(["none", "int8_weight"]),
+    default="int8_weight",
+    show_default=True,
+    help="Quantization mode baked into the container.",
+)
+def package_command(
+    model_dir: Path,
+    output_dir: Path,
+    as_format: str,
+    target_arch: str,
+    quantize: str,
+) -> None:
+    """Package an Agnitra-optimized model as a deployable container.
+
+    Currently supports NVIDIA NIM (NVIDIA Inference Microservices)
+    layout — a Triton Inference Server model repository plus a
+    Dockerfile based on ``nvcr.io/nvidia/tritonserver``. The Python
+    backend inside the container loads the model and applies Agnitra
+    on first request.
+
+    Build the container:
+
+        agnitra package --model-dir /models/llama3 --output dist/llama3-nim
+        cd dist/llama3-nim && docker build -t my-org/llama3-nim .
+        docker run --rm --gpus all -p 8000:8000 my-org/llama3-nim
+    """
+    if as_format != "nim":  # pragma: no cover - click choice prevents others
+        raise click.ClickException(f"Unknown format: {as_format}")
+
+    from agnitra.integrations.tensorrt_llm import package_as_nim
+
+    quant_arg = None if quantize == "none" else quantize
+    out = package_as_nim(
+        model_dir=model_dir,
+        output_dir=output_dir,
+        target_arch=target_arch,
+        quantize=quant_arg,
+    )
+    click.echo(click.style(f"Wrote NIM-compatible package to {out}", fg="green"))
+    click.echo("\nNext steps:")
+    click.echo(f"  cd {out}")
+    click.echo("  docker build -t my-org/agnitra-nim:latest .")
+    click.echo("  docker run --rm --gpus all -p 8000:8000 my-org/agnitra-nim:latest")
+
+
 def _require_torch_and_transformers():
     """Lazy imports so ``agnitra --help`` doesn't require torch/transformers."""
     try:

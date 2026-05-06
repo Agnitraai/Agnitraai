@@ -25,7 +25,8 @@
             "group": "Product Guides",
             "pages": [
               "docs/guides/cli-and-sdk",
-              "docs/guides/telemetry"
+              "docs/guides/telemetry",
+              "docs/guides/nvidia"
             ]
           }
         ]
