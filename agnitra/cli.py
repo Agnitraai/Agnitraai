@@ -431,6 +431,184 @@ def heartbeat_command(interval: int, once: bool) -> None:
             click.echo("Heartbeat stopped.")
 
 
+@cli.command("optimize-dir")
+@click.option(
+    "models_dir",
+    "--models-dir",
+    type=click.Path(exists=True, file_okay=False, path_type=Path),
+    required=True,
+    help="Directory containing one HuggingFace model per subdirectory (each must have a config.json).",
+)
+@click.option(
+    "input_shape",
+    "--input-shape",
+    callback=_parse_shape,
+    default="1,512",
+    show_default=True,
+    help="Comma separated input shape used for profiling each model.",
+)
+@click.option(
+    "quantize",
+    "--quantize",
+    type=click.Choice(["none", "int8_weight"]),
+    default="int8_weight",
+    show_default=True,
+    help="Quantization mode applied to every model in the directory.",
+)
+@click.option(
+    "skip_validation",
+    "--skip-validation",
+    is_flag=True,
+    help="Skip post-optimization output drift check (faster, less safe).",
+)
+def optimize_dir_command(
+    models_dir: Path,
+    input_shape: Optional[Sequence[int]],
+    quantize: str,
+    skip_validation: bool,
+) -> None:
+    """Optimize every HuggingFace model in a directory.
+
+    Use case: production fleets running 50+ fine-tuned variants of the
+    same base model. Agnitra's architecture-fingerprint cache means the
+    SECOND model with the same config (e.g. a fine-tune of the first)
+    inherits its optimization decisions instantly. Optimizing 50
+    Llama-3-8B fine-tunes takes nearly the same wall time as
+    optimizing one.
+
+    The directory layout is the standard HuggingFace shape::
+
+        /path/to/models/
+            customer-a-llama3/
+                config.json
+                model-00001-of-00004.safetensors
+                ...
+            customer-b-llama3/
+                config.json
+                ...
+
+    Each subdirectory whose top level contains ``config.json`` is
+    treated as a model. Anything else is ignored.
+    """
+    torch_mod, transformers_mod = _require_torch_and_transformers()
+
+    quant_arg = None if quantize == "none" else quantize
+    candidates = [
+        p for p in sorted(models_dir.iterdir())
+        if p.is_dir() and (p / "config.json").exists()
+    ]
+    if not candidates:
+        click.echo(click.style(
+            f"No HF models found under {models_dir} (looked for subdirs containing config.json).",
+            fg="yellow",
+        ))
+        return
+
+    click.echo(f"Found {len(candidates)} model(s) under {models_dir}.")
+
+    seen_signatures: dict[str, str] = {}
+    summary: list[tuple[str, str, str]] = []  # (name, status, detail)
+
+    from agnitra.core.runtime.fingerprint import (
+        architecture_fingerprint,
+        architecture_signature,
+    )
+    from agnitra.optimizers import detect_architecture, is_supported
+
+    for model_dir in candidates:
+        name = model_dir.name
+        click.echo(f"\n[{name}]")
+        try:
+            model = transformers_mod.AutoModelForCausalLM.from_pretrained(
+                str(model_dir),
+                torch_dtype=torch_mod.float16 if torch_mod.cuda.is_available() else torch_mod.float32,
+            )
+        except Exception as exc:
+            click.echo(click.style(f"  load failed: {exc}", fg="red"))
+            summary.append((name, "load_failed", str(exc)[:80]))
+            continue
+
+        arch = detect_architecture(model)
+        if not is_supported(arch):
+            click.echo(click.style(
+                f"  architecture {arch!r} not in supported set; skipping",
+                fg="yellow",
+            ))
+            summary.append((name, "skipped_unsupported", str(arch)))
+            continue
+
+        sig = architecture_signature(architecture_fingerprint(model))
+        cached_for = seen_signatures.get(sig)
+        if cached_for:
+            click.echo(click.style(
+                f"  cache hit (same architecture as {cached_for}) — instant",
+                fg="green",
+            ))
+        else:
+            click.echo(f"  architecture: {arch}, signature: {sig[:12]}…")
+            seen_signatures[sig] = name
+
+        # Optimize.
+        device = torch_mod.device("cuda" if torch_mod.cuda.is_available() else "cpu")
+        model = model.to(device)
+        try:
+            from agnitra.sdk import optimize as _optimize
+            example = torch_mod.zeros(input_shape, dtype=torch_mod.long, device=device)
+            result = _optimize(
+                model,
+                input_tensor=example,
+                model_name=name,
+                project_id=f"optimize-dir/{models_dir.name}",
+                enable_rl=False,
+                quantize=quant_arg,
+                validate=not skip_validation,
+            )
+        except Exception as exc:
+            click.echo(click.style(f"  optimize failed: {exc}", fg="red"))
+            summary.append((name, "optimize_failed", str(exc)[:80]))
+            continue
+
+        if result.notes.get("reverted_due_to_drift"):
+            click.echo(click.style(
+                "  optimized but reverted (output drift exceeded tolerance)",
+                fg="yellow",
+            ))
+            summary.append((name, "reverted_drift", ""))
+        else:
+            click.echo(click.style("  optimized", fg="green"))
+            summary.append((name, "optimized", arch or ""))
+
+    # Summary table.
+    click.echo("\n" + "=" * 60)
+    click.echo("Summary")
+    click.echo("=" * 60)
+    counts: dict[str, int] = {}
+    for _name, status, _detail in summary:
+        counts[status] = counts.get(status, 0) + 1
+    for status, n in sorted(counts.items()):
+        click.echo(f"  {status:>22}: {n}")
+    click.echo(f"  unique architectures   : {len(seen_signatures)}")
+
+
+def _require_torch_and_transformers():
+    """Lazy imports so ``agnitra --help`` doesn't require torch/transformers."""
+    try:
+        import torch  # noqa: F401
+    except ImportError as exc:
+        raise click.ClickException(
+            "torch is not installed. Install with: pip install torch"
+        ) from exc
+    try:
+        import transformers  # noqa: F401
+    except ImportError as exc:
+        raise click.ClickException(
+            "transformers is not installed. Install with: pip install transformers"
+        ) from exc
+    import torch as _torch
+    import transformers as _transformers
+    return _torch, _transformers
+
+
 def main() -> None:
     """Console script entry point."""
 
