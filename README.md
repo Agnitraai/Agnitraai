@@ -152,6 +152,32 @@ model = optimize_after_prepare(model, input_shape=(1, 512))
 4. **Verifies** the optimized model produces the same outputs as the baseline.
 5. **Returns** the patched `nn.Module` plus a structured report (`RuntimeOptimizationResult`).
 
+## 🔒 Trust & provenance
+
+Every successful `agnitra.optimize()` call now produces a cryptographically signed **inference manifest** — a tamper-evident record of which base model was optimized, which optimizations applied, the drift verification metrics, and the runtime context. Required for regulated deployments (banking, healthcare, EU AI Act high-risk systems).
+
+```python
+result = agnitra.optimize(model, input_shape=(1, 512), quantize="auto")
+print(result.notes["trust_manifest"]["signature"])     # ed25519:...
+print(result.notes["trust_manifest"]["base_model"]["sha256"])  # 9f2b...
+```
+
+Verify a manifest from the CLI:
+
+```bash
+agnitra trust verify --manifest manifest.json
+# OK  signed by key_id=8f3b1c2d4e5a6b7c
+```
+
+Manage the signing key:
+
+```bash
+agnitra trust keys generate         # writes ~/.agnitra/keys/signing.pem
+agnitra trust keys show             # prints the public key fingerprint
+```
+
+Install with `pip install "agnitra[trust]"` (pulls in `cryptography>=42`). See [`docs/guides/trust.mdx`](docs/guides/trust.mdx) for the manifest schema, key management, and the layered roadmap (Layer 1 ships now; per-inference provenance tags, certified quantization recipes, and ZK proofs of inference are the longer arc).
+
 ## What Agnitra is *not*
 
 Honest scope, so you don't waste a day:

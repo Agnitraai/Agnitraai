@@ -684,6 +684,169 @@ def package_command(
     click.echo("  docker run --rm --gpus all -p 8000:8000 my-org/agnitra-nim:latest")
 
 
+@cli.group("trust")
+def trust_group() -> None:
+    """Cryptographic trust + provenance commands.
+
+    Layer 1 of the trust roadmap: signed inference manifests. Use
+    ``agnitra trust verify`` to check that a manifest hasn't been
+    tampered with, ``agnitra trust inspect`` to read its contents
+    without verifying, and ``agnitra trust keys`` to manage the
+    Ed25519 signing key.
+    """
+
+
+@trust_group.command("inspect")
+@click.option(
+    "manifest_path",
+    "--manifest",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    required=True,
+    help="Path to a manifest JSON produced by `agnitra optimize` or `agnitra trust sign`.",
+)
+def trust_inspect_command(manifest_path: Path) -> None:
+    """Pretty-print a manifest's fields without verifying the signature."""
+    import json
+    payload = json.loads(manifest_path.read_text())
+    click.echo(json.dumps(payload, indent=2, sort_keys=True))
+
+
+@trust_group.command("verify")
+@click.option(
+    "manifest_path",
+    "--manifest",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    required=True,
+    help="Path to a signed manifest JSON to verify.",
+)
+@click.option(
+    "trusted_keys",
+    "--trusted-keys",
+    default=None,
+    help="Comma-separated list of trusted key_id values. When omitted, "
+    "any well-formed signature passes structural verification.",
+)
+def trust_verify_command(
+    manifest_path: Path,
+    trusted_keys: Optional[str],
+) -> None:
+    """Verify a manifest's structure and signature.
+
+    Exits with code 0 on success, 1 on any verification failure.
+    Warnings (e.g. unknown manifest version) are surfaced but do not
+    block validity.
+    """
+    import json
+    from dataclasses import fields as dc_fields
+
+    try:
+        from agnitra.trust import InferenceManifest, verify_manifest
+        from agnitra.trust.manifest import (
+            BaseModelClaim,
+            OptimizationStep,
+            RuntimeContext,
+            SignerInfo,
+            VerificationMetrics,
+        )
+    except ImportError as exc:
+        raise click.ClickException(
+            f"Trust layer unavailable: {exc}. Install with: pip install \"agnitra[trust]\""
+        )
+
+    payload = json.loads(manifest_path.read_text())
+
+    def _coerce_dataclass(cls, data):
+        accepted = {f.name for f in dc_fields(cls)}
+        return cls(**{k: v for k, v in data.items() if k in accepted})
+
+    try:
+        manifest = InferenceManifest(
+            version=payload["version"],
+            issued_at=payload["issued_at"],
+            base_model=_coerce_dataclass(BaseModelClaim, payload.get("base_model", {})),
+            optimizations=[
+                _coerce_dataclass(OptimizationStep, step)
+                for step in payload.get("optimizations", [])
+            ],
+            verification=_coerce_dataclass(
+                VerificationMetrics, payload.get("verification", {})
+            ),
+            runtime=_coerce_dataclass(RuntimeContext, payload.get("runtime", {})),
+            signer=_coerce_dataclass(SignerInfo, payload.get("signer", {})),
+            signature=payload.get("signature"),
+        )
+    except Exception as exc:
+        raise click.ClickException(f"Manifest is structurally invalid: {exc!r}")
+
+    keys = (
+        {k.strip() for k in trusted_keys.split(",") if k.strip()}
+        if trusted_keys
+        else None
+    )
+
+    result = verify_manifest(manifest, trusted_keys=keys)
+
+    if result.valid:
+        click.echo(click.style(
+            f"OK  signed by key_id={manifest.signer.key_id}", fg="green"
+        ))
+        for warning in result.warnings:
+            click.echo(click.style(f"warn {warning}", fg="yellow"))
+        return
+
+    for err in result.errors:
+        click.echo(click.style(f"FAIL {err}", fg="red"), err=True)
+    for warning in result.warnings:
+        click.echo(click.style(f"warn {warning}", fg="yellow"), err=True)
+    raise click.ClickException("Manifest verification failed.")
+
+
+@trust_group.group("keys")
+def trust_keys_group() -> None:
+    """Manage the Ed25519 signing key."""
+
+
+@trust_keys_group.command("generate")
+@click.option(
+    "output_path",
+    "--output",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default=None,
+    help="Where to write the new private key PEM. Defaults to ~/.agnitra/keys/signing.pem.",
+)
+def trust_keys_generate_command(output_path: Optional[Path]) -> None:
+    """Generate a new Ed25519 keypair (refuses to overwrite an existing file)."""
+    try:
+        from agnitra.trust.keys import generate_keypair_pem
+    except ImportError as exc:
+        raise click.ClickException(
+            f"Trust layer unavailable: {exc}. Install with: pip install \"agnitra[trust]\""
+        )
+    try:
+        path, key_id = generate_keypair_pem(key_path=output_path)
+    except Exception as exc:
+        raise click.ClickException(str(exc))
+    click.echo(f"Wrote {path} (mode 0600)")
+    click.echo(f"key_id: {key_id}")
+
+
+@trust_keys_group.command("show")
+def trust_keys_show_command() -> None:
+    """Print the current signing key's fingerprint (NEVER the private key)."""
+    try:
+        from agnitra.trust.keys import (
+            fingerprint_public_key,
+            load_or_create_signing_key,
+        )
+    except ImportError as exc:
+        raise click.ClickException(
+            f"Trust layer unavailable: {exc}. Install with: pip install \"agnitra[trust]\""
+        )
+    key = load_or_create_signing_key()
+    public = key.public_key()
+    click.echo(f"key_id: {fingerprint_public_key(public)}")
+
+
 def _require_torch_and_transformers():
     """Lazy imports so ``agnitra --help`` doesn't require torch/transformers."""
     try:
