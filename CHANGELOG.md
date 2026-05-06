@@ -4,6 +4,54 @@ All notable changes to Agnitra are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.2] — 2026-05-06
+
+Patch release fixing 9 first-run bugs found by walking the codebase as
+different developer personas. Without these fixes a fresh
+``pip install agnitra`` followed by ``agnitra --help`` crashed with a
+torch ImportError before any user code ran.
+
+### Fixed
+
+- **`import agnitra` no longer requires torch.** The package now uses
+  PEP 562 ``__getattr__`` for lazy attribute access; ``__version__``
+  is read eagerly, but ``optimize`` / ``optimize_model`` / the ``sdk``
+  submodule are loaded only on first attribute access.
+- **`agnitra --help` no longer requires torch.** CLI handlers defer
+  the ``from .sdk import optimize`` import until they actually need
+  it. ``agnitra doctor`` works as advertised even when torch is
+  missing.
+- **`pip install -e .` works on Python 3.9/3.10.** Added
+  ``tomli; python_version<'3.11'`` to ``[build-system].requires`` so
+  the setup.py shim's pyproject.toml read works on older Pythons.
+- **`_MODE_RESOLVERS` capture-at-load bug.** PR #20's quantization
+  refactor used a dict-of-functions that captured references at
+  module load. Tests using ``monkeypatch.setattr(_quantization,
+  "_resolve_int8_weight_only_config", ...)`` had no effect on
+  dispatch. Replaced with a string-name table resolved via
+  ``getattr(this_module, name)`` at call time.
+- **`_DISPATCH` capture-at-load bug.** Same pattern in
+  ``decoder_lm/__init__.py``. Now maps ``model_type`` to the
+  specialist *module*, with ``module.optimize`` resolved at call time
+  so monkeypatching ``llama.optimize`` works.
+- **`detect_architecture` crash on descriptor-raising configs.**
+  ``getattr(obj, "attr", default)`` only swallows ``AttributeError``;
+  ``@property``-raised exceptions propagated. Wrapped
+  ``_config_model_type`` in defensive try/except.
+- **Tests that used `offline=True` failed without a license file.**
+  Removed the flag from tests that already monkeypatch the optimizer.
+- **Validation tests assumed the legacy agent path.**
+  ``use_specialist=True`` (the default) bypasses the mocked
+  ``RuntimeOptimizationAgent``. Tests now pass ``use_specialist=False``
+  to force the legacy agent path they're actually testing.
+
+### Changed
+
+- ``torch>=2.0`` is now declared as a runtime dependency in
+  ``pyproject.toml``. Previously the package required torch but didn't
+  declare it; ``pip install agnitra`` left users to install torch
+  themselves.
+
 ## [0.2.1] — 2026-05-06
 
 Patch release shipping NVIDIA-ecosystem surface and three additional
