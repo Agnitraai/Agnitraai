@@ -238,6 +238,10 @@ def optimize(
     license_seat: Optional[str] = None,
     license_org_id: Optional[str] = None,
     notify_webhook: Optional[WebhookNotifier] = None,
+    validate: bool = True,
+    fallback_on_regression: bool = True,
+    output_tolerance: float = 1e-3,
+    argmax_match_threshold: float = 0.95,
 ) -> RuntimeOptimizationResult:
     """Optimize ``model`` and return a metered runtime optimization report.
 
@@ -404,6 +408,57 @@ def optimize(
             cache_signature=fingerprint_sig,
         )
         duration = time.time() - start_time
+
+        # Output-validation safety net. If the optimizer changed the
+        # model's behavior beyond tolerance, revert to baseline and
+        # annotate. The check is best-effort — exceptions inside
+        # output_drift get captured into OutputDrift.error and treated
+        # as a regression signal.
+        if validate and result.optimized_model is not model:
+            try:
+                from agnitra.core.runtime.validation import output_drift
+                drift = output_drift(
+                    model,
+                    result.optimized_model,
+                    tensor,
+                    tolerance=output_tolerance,
+                )
+                cos_ok = drift.cosine_similarity >= (1.0 - output_tolerance)
+                arg_ok = drift.argmax_match_rate >= argmax_match_threshold
+                if drift.regressed or not (cos_ok and arg_ok):
+                    LOGGER.warning(
+                        "Optimization output drift exceeds tolerance "
+                        "(cos=%.4f, argmax=%.3f, max_abs=%.3e, error=%s); "
+                        "%s.",
+                        drift.cosine_similarity,
+                        drift.argmax_match_rate,
+                        drift.max_abs_diff,
+                        drift.error,
+                        "reverting to baseline model" if fallback_on_regression else "keeping optimized model anyway",
+                    )
+                    if isinstance(result.notes, dict):
+                        result.notes["validation"] = {
+                            "cosine_similarity": drift.cosine_similarity,
+                            "argmax_match_rate": drift.argmax_match_rate,
+                            "max_abs_diff": drift.max_abs_diff,
+                            "shapes_match": drift.shapes_match,
+                            "error": drift.error,
+                            "regressed": True,
+                        }
+                    if fallback_on_regression:
+                        result.optimized_model = model
+                        if isinstance(result.notes, dict):
+                            result.notes["reverted_due_to_drift"] = True
+                else:
+                    if isinstance(result.notes, dict):
+                        result.notes["validation"] = {
+                            "cosine_similarity": drift.cosine_similarity,
+                            "argmax_match_rate": drift.argmax_match_rate,
+                            "max_abs_diff": drift.max_abs_diff,
+                            "regressed": False,
+                        }
+            except Exception:
+                LOGGER.exception("Output validation crashed; keeping optimized model")
 
         optimization_context = result.notes.get("optimization_context", {}) if isinstance(result.notes, dict) else {}
         applied_preset = optimization_context.get("applied_preset")
