@@ -1,45 +1,86 @@
 ---
-title: "Telemetry Playbook"
-description: "Capture, export, and operationalize Agnitra telemetry and usage events."
+title: "Telemetry"
+description: "What Agnitra measures, where the data lives, and how to export it."
 ---
 
-# Telemetry Playbook
+# Telemetry
 
-Agnitra treats telemetry as a first-class artifact. Every optimization captures before/after metrics so engineering, infra, and finance teams agree on the impact of a rollout. This guide explains how telemetry is produced and how to route it to your observability stack.
+Agnitra emits structured telemetry at every stage of the optimization pipeline so you can audit decisions, prove uplift, and feed downstream observability tools.
 
-## What the CLI & SDK Emit
+## What gets measured
 
-| Artifact | File | Contents | Primary Consumers |
-| --- | --- | --- | --- |
-| Telemetry snapshot | `telemetry.json` (configurable via `--telemetry-out`) | Latency, throughput, GPU utilization, kernel-level hotspots, PPO scores. | Performance engineers, dashboards. |
-| Usage event | Printed to stdout and returned from SDK calls (`result.usage_event`) | GPU hours saved, cost deltas, currency, marketplace payloads, project metadata. | Billing, finance, marketplace exporters. |
-| Optimization artifact | `dist/<model>_optimized.pt` | TorchScript/ONNX artifact with patched kernels and metadata. | Serving teams, registries. |
+| Stage | Captured | Where it lands |
+|---|---|---|
+| Detection | Architecture name (`model_type`), structural fallback flag | `result.notes["detected_architecture"]` |
+| Fingerprint | Architecture + workload signatures | `result.notes["fingerprint"]`, `fingerprint_signature` |
+| Specialist | Which architecture handler ran, quantize mode | `result.notes["specialist"]`, log line |
+| Validation | Cosine similarity, max-abs-diff, argmax-match-rate | `result.notes["validation"]` |
+| Cache | Hit / miss / store, TTL | `result.notes["cache_info"]` |
+| Profiler | CUDA times, layer shapes, memory (when NVML available) | `OptimizationSnapshot.telemetry` |
 
-Both CLI and SDK expose the same data so you can automate pipelines or drive notebooks without format drift.
+## Reading telemetry from a result
 
-## Routing Telemetry
+```python
+result = agnitra.optimize(model, input_shape=(1, 512), quantize="int8_weight")
 
-1. **File drops** — `agnitra optimize --telemetry-out telemetry.json` writes a structured JSON file. Persist it to S3, GCS, or your artifact store.
-2. **Programmatic export** — Use `agnitra.telemetry_collector` and `agnitra.telemetry.usage_meter` helpers to push directly to HTTP, Kafka, or Snowflake.
-3. **Marketplace dispatchers** — Extras like `agnitra[marketplace]` register AWS, GCP, and Stripe exporters (`StripeUsageDispatcher`, `AwsMarketplaceDispatcher`) that run asynchronously after each optimization.
+print(result.notes["detected_architecture"])         # "llama"
+print(result.notes["validation"]["cosine_similarity"])  # 1.0 - tolerance bound
+print(result.baseline.latency_ms, result.optimized.latency_ms)
+```
 
-Telemetry payloads contain deterministic keys for `project_id`, `model_name`, and timestamps so you can join them in downstream jobs.
+## Exporting to external systems
 
-## Dashboards & Alerting
+### Webhook notifications
 
-- `agnitra-dashboard` renders telemetry bundles locally, highlighting speedups, GPU hour savings, and license compliance.
-- Push aggregated snapshots into your metrics system (Prometheus, Datadog, Grafana) to track optimization coverage and ROI over time.
-- Alert when `expected_speedup_pct` drops below target or when `usage_event.status != "delivered"` to catch marketplace backoffs.
+Set `AGNITRA_NOTIFY_WEBHOOK_URL` (Slack, Discord, Telegram, or generic JSON) and Agnitra POSTs a summary to your webhook after every successful optimization:
 
-## Best Practices
+```bash
+export AGNITRA_NOTIFY_WEBHOOK_URL="https://hooks.slack.com/services/..."
+```
 
-- Store raw telemetry before aggregating so you can retroactively re-price or inspect kernels.
-- Sign usage events before dispatching to marketplaces to meet compliance requirements.
-- Attach `job_metadata` (CLI flag) or `metadata` (SDK argument) to correlate runs with CI pipelines, pull requests, or customer tenants.
-- Rotate `AGNITRA_API_KEY` and audit outbound webhook targets to avoid leaking telemetry to untrusted endpoints.
+Or pass a `WebhookNotifier` programmatically:
 
-## Related Reading
+```python
+from agnitra.core.notifications import WebhookNotifier
 
-- [SDK & CLI Guide](/docs/guides/cli-and-sdk) — command references and return types.
-- [Marketplace & Billing](/docs/guides/marketplace) — how telemetry powers pricing workflows.
-- [Runtime Configuration](/docs/reference/configuration) — environment variables that toggle telemetry exporters.
+result = agnitra.optimize(
+    model,
+    input_shape=(1, 512),
+    notify_webhook=WebhookNotifier.from_env(),
+)
+```
+
+### Telemetry client (optional)
+
+For high-volume deployments, attach a `TelemetryClient` that batches snapshots:
+
+```python
+from agnitra.core.runtime.telemetry_client import TelemetryClient, TelemetryConfig
+
+client = TelemetryClient(TelemetryConfig(endpoint="https://your-collector.example.com"))
+result = agnitra.optimize(model, input_shape=(1, 512), telemetry_client=client)
+```
+
+Set `offline=True` to disable network calls entirely (useful for air-gapped deployments and CI).
+
+### NVML GPU metrics
+
+Install the NVML extra to capture per-call GPU utilization, power draw, and memory pressure:
+
+```bash
+pip install "agnitra[nvml]"
+```
+
+Snapshots include the `gpu_utilization` field automatically when NVML is present.
+
+## What Agnitra does NOT collect
+
+Agnitra is a local SDK by default. Without explicit configuration:
+
+- No data is sent to any Agnitra-operated service.
+- No model weights, input tensors, or generated outputs are persisted.
+- Architecture fingerprints stay in-process.
+
+The only exception is the LLM-guided research path (`enable_rl=True` with `OPENAI_API_KEY` set), which sends graph IR to OpenAI for kernel suggestions. The specialist path used by `use_specialist=True` (the default) makes no network calls.
+
+See [configuration reference](/docs/reference/configuration#environment-variables) for every environment variable that affects telemetry behavior.

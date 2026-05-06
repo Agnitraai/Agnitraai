@@ -1,82 +1,190 @@
 ---
-title: "SDK & CLI Guide"
-description: "Command reference and usage patterns for the Agnitra CLI and Python SDK."
+title: "SDK & CLI guide"
+description: "Every API surface — Python SDK, CLI, integrations — with copy-paste examples."
 ---
 
-# SDK & CLI Guide
+# SDK & CLI guide
 
-The Agnitra CLI mirrors the Python SDK so teams can trigger optimizations, collect telemetry, and emit usage events from any environment.
+This page is the canonical reference for every way to call Agnitra.
 
-## CLI Commands
+## Python SDK
+
+### `agnitra.optimize`
+
+The single entry point. Always returns a `RuntimeOptimizationResult` (never raises for unsupported architectures — see `notes["passthrough"]`).
+
+```python
+import agnitra
+
+result = agnitra.optimize(
+    model,
+    input_shape=(1, 512),
+    quantize="int8_weight",     # "int8_weight" | None
+    validate=True,              # output-drift safety net
+    fallback_on_regression=True, # revert to baseline if drift exceeds tolerance
+    use_specialist=True,        # route to ring-1 specialists (default)
+)
+fast_model = result.optimized_model
+```
+
+Full parameter list in the [configuration reference](/docs/reference/configuration#optimize-parameters).
+
+### HuggingFace
+
+`AgnitraModel.from_pretrained` is a drop-in replacement for `AutoModelForCausalLM.from_pretrained`:
+
+```python
+from agnitra.integrations.huggingface import AgnitraModel
+
+model = AgnitraModel.from_pretrained(
+    "meta-llama/Meta-Llama-3-8B-Instruct",
+    torch_dtype=torch.float16,
+    agnitra_kwargs={"input_shape": (1, 512), "quantize": "int8_weight"},
+).cuda()
+```
+
+For non-CausalLM workloads pass `model_class=`:
+
+```python
+from transformers import AutoModelForSeq2SeqLM
+
+model = AgnitraModel.from_pretrained(
+    "google/flan-t5-base",
+    model_class=AutoModelForSeq2SeqLM,
+    agnitra_kwargs={"input_shape": (1, 512)},
+)
+```
+
+To optimize a model you already have:
+
+```python
+from agnitra.integrations.huggingface import wrap_model
+
+fast = wrap_model(model, agnitra_kwargs={"input_shape": (1, 512)})
+```
+
+To swap the model inside a `transformers.pipeline`:
+
+```python
+from agnitra.integrations.huggingface import optimize_pipeline
+
+optimize_pipeline(pipe, agnitra_kwargs={"input_shape": (1, 512)})
+```
+
+### LangChain
+
+Agents call the LLM many times per task — model speedups compound into pipeline speedups.
+
+```python
+from langchain_huggingface import HuggingFacePipeline
+from agnitra.integrations.langchain import optimize_llm
+
+llm = HuggingFacePipeline.from_model_id(
+    "meta-llama/Meta-Llama-3-8B-Instruct",
+    task="text-generation",
+)
+optimize_llm(
+    llm,
+    agnitra_kwargs={"input_shape": (1, 512), "quantize": "int8_weight"},
+)
+# Use `llm` exactly as before — every chain / agent inherits the speedup.
+```
+
+Auto-detects `pipeline`, `_pipeline`, `client`, `hf_pipeline` attribute names — works with `langchain_huggingface`, `langchain_community`, and legacy LangChain paths.
+
+### LlamaIndex
+
+```python
+from llama_index.llms.huggingface import HuggingFaceLLM
+from agnitra.integrations.llama_index import optimize_llm
+
+llm = HuggingFaceLLM(model_name="meta-llama/Meta-Llama-3-8B-Instruct", ...)
+optimize_llm(llm, agnitra_kwargs={"input_shape": (1, 512), "quantize": "int8_weight"})
+```
+
+### accelerate
+
+Run after `accelerator.prepare()` so device placement and distributed wrapping are already done:
+
+```python
+from accelerate import Accelerator
+from agnitra.integrations.accelerate_helpers import optimize_after_prepare
+
+accelerator = Accelerator()
+model, optimizer, dataloader = accelerator.prepare(model, optimizer, dataloader)
+model = optimize_after_prepare(model, input_shape=(1, 512))
+```
+
+## INT8 quantization
+
+The single optimization that beats HuggingFace baseline. HF does not quantize by default; Agnitra wraps `torchao`'s `int8_weight_only` config:
+
+```python
+result = agnitra.optimize(model, input_shape=(1, 512), quantize="int8_weight")
+```
+
+Predicted impact on Llama-3-8B at H100:
+
+- ~1.3-1.7× throughput on memory-bound autoregressive decode
+- ~2× memory reduction
+- Near-zero quality loss
+
+Requires `pip install "agnitra[quantize]"`.
+
+## CLI
 
 ### `agnitra optimize`
 
-Optimize a TorchScript model and optionally save the optimized artifact.
+Optimize a single TorchScript model:
 
 ```bash
 agnitra optimize \
-  --model tinyllama.pt \
-  --input-shape 1,16,64 \
-  --output dist/tinyllama_optimized.pt \
-  --target A100
+  --model model.pt \
+  --input-shape 1,3,224,224 \
+  --output dist/model_optimized.pt \
+  --target H100
 ```
 
-Key flags:
+### `agnitra optimize-dir`
 
-- `--device` — moves the model to a specific device (e.g. `cuda:0`).
-- `--disable-rl` — skip PPO fine-tuning passes.
-- `--offline` — disable control plane calls (requires enterprise license).
-- `--require-license` — fail if license validation is unavailable.
-- `--license-seat` / `--license-org` — override license metadata sent to the control plane.
+Batch-optimize an entire directory of HuggingFace models. Architecture-fingerprint cache means same-architecture fine-tunes after the first one optimize instantly:
+
+```bash
+agnitra optimize-dir \
+  --models-dir /var/agnitra/fleet \
+  --quantize int8_weight \
+  --input-shape 1,512
+```
+
+Production use case: 50+ fine-tuned Llama-3 variants per customer / per use-case. Optimizing all 50 takes nearly the same wall time as optimizing one.
+
+### `agnitra doctor`
+
+Health check — torch / CUDA / NVML / Ollama / license:
+
+```bash
+agnitra doctor
+```
+
+Add `--check-api` to also probe the local agnitra-api server.
+
+### `agnitra heartbeat`
+
+Background re-optimization daemon:
+
+```bash
+agnitra heartbeat --interval 30   # minutes
+agnitra heartbeat --once          # run one cycle and exit
+```
 
 ### `agnitra-api`
 
-Start the Agentic Optimization API backed by Starlette:
+Run the optimization API server:
 
 ```bash
-agnitra-api --host 0.0.0.0 --port 8080
+agnitra-api    # binds to 127.0.0.1:8080
 ```
 
-Endpoints:
+The server exposes `POST /optimize`, `GET /jobs/{id}`, `GET /health`, and `WebSocket /ws/jobs/{id}`. Override the bind interface with `AGNITRA_API_HOST` / `AGNITRA_API_PORT`. Set `AGNITRA_ALLOW_PUBLIC_BIND=1` if you intentionally bind to a public interface.
 
-- `POST /optimize` — synchronous or async queued optimization.
-- `GET /jobs/{id}` — poll async job status.
-- `POST /usage` — convert telemetry snapshots into marketplace usage records.
-
-API keys are read from `AGNITRA_API_KEY` (and variants) and enforced for every request.
-
-### `agnitra-dashboard`
-
-Spin up the HTML dashboard for local telemetry review:
-
-```bash
-agnitra-dashboard --host 127.0.0.1 --port 3000
-```
-
-## Python SDK Highlights
-
-- `agnitra.optimize(model, input_tensor=...)` returns a `RuntimeOptimizationResult` including the optimized model, usage event, and patch metadata.
-- `agnitra.sdk.resolve_input_tensor` synthesizes input tensors based on shape hints or example tensors on the module.
-- Usage events expose GPU hours saved, cost savings, and marketplace metadata (see `agnitra/core/metering/usage_meter.py`).
-
-### Example
-
-```python
-from agnitra import optimize
-
-result = optimize(
-    model,
-    input_tensor=sample,
-    project_id="demo-project",
-    metadata={"source": "notebook"}
-)
-
-usage = result.usage_event
-print(f"GPU hours saved: {usage.gpu_hours_saved:.6f}")
-```
-
-## Troubleshooting
-
-- Missing PyTorch: install `torch>=2.0` or ensure CUDA libs are discoverable.
-- Control plane unavailable: pass `--offline` or set `AGNITRA_CONTROL_PLANE_URL` to the reachable endpoint.
-- Stripe/NVML optional deps: install extras (`agnitra[nvml]`, `agnitra[marketplace]`) to enable GPU telemetry and marketplace dispatchers.
+For browser / Node.js access to a hosted agnitra-api server, use the [npm `agnitra` HTTP client](https://www.npmjs.com/package/agnitra).
