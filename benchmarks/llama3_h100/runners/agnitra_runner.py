@@ -38,7 +38,12 @@ def _optimize(model):
         # variance run-to-run that makes regressions hard to detect.
         # Run the RL variant separately if you want to measure it.
         enable_rl=False,
-        offline=True,
+        # NOT offline=True: that flag activates license enforcement,
+        # which fails inside the Modal container without a license
+        # file. The specialist optimization path doesn't need network
+        # access anyway (no LLM/RL calls when use_specialist=True),
+        # so offline=False is safe for benchmarks.
+        offline=False,
         repeats=3,
         warmup=1,
     )
