@@ -1,6 +1,6 @@
 {
   "name": "agnitra",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "TypeScript HTTP client for the Agnitra inference-optimization API. The optimizer itself is Python-only; this package lets browser and Node.js apps call a hosted Agnitra service.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
