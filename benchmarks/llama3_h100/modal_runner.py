@@ -94,7 +94,12 @@ image = (
     )
     .env({
         "PYTHONUNBUFFERED": "1",
-        "HF_HUB_ENABLE_HF_TRANSFER": "1",
+        # hf_transfer (Rust-accelerated download) hits "no permits
+        # available" connection-pool errors on Modal's network when
+        # downloading multi-shard Llama-3 weights. Disable; fall back
+        # to the standard requests-based downloader. Slower (~minutes)
+        # but reliable.
+        "HF_HUB_ENABLE_HF_TRANSFER": "0",
         "PIP_NO_CACHE_DIR": "1",
     })
 )
