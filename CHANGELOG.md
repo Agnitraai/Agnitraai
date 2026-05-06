@@ -4,6 +4,45 @@ All notable changes to Agnitra are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] — 2026-05-06
+
+Patch release shipping NVIDIA-ecosystem surface and three additional
+quantization modes. Same wedge as 0.2.0; broader hardware reach.
+
+### Added
+
+- **TensorRT-LLM backend** — `agnitra.optimize(model, backend="tensorrt_llm",
+  backend_kwargs={"engine_dir": "./engine"})` wraps a pre-built
+  TensorRT-LLM engine in a HuggingFace-shaped runtime via
+  `agnitra/integrations/tensorrt_llm.py`. Exposes `.generate()`
+  signature unchanged so existing code paths work.
+- **NIM packaging** — new `agnitra package --model-dir X --output Y --as nim`
+  CLI command produces a Triton model repository plus a Dockerfile
+  based on `nvcr.io/nvidia/tritonserver`. Output is a starting
+  template for NIM-blessed deployment.
+- **INT4 weight-only quantization** — `quantize="int4_weight"`. ~4× memory
+  reduction, ~1.6-2.0× throughput on memory-bound decode. Mild quality
+  drop; verify against eval set.
+- **FP8 weight-only quantization** — `quantize="fp8_weight"`. Native FP8
+  tensor cores on H100 / H200 / Blackwell. ~2× throughput vs FP16 with
+  near-zero quality loss. Falls back to slow emulation on pre-Hopper —
+  use `"auto"` to avoid that footgun.
+- **Auto-mode quantization** — `quantize="auto"` inspects the GPU's
+  compute capability and picks FP8 on Hopper+ / Blackwell, INT8
+  elsewhere. Recommended portable default.
+- **NVIDIA docs guide** — `docs/guides/nvidia.mdx` covering TensorRT-LLM
+  backend, engine build, NIM packaging, Triton, NGC catalog, and
+  Inception program path.
+
+### Changed
+
+- README — new "NVIDIA ecosystem" section, expanded quantization table
+  showing all four modes (int8 / int4 / fp8 / auto).
+- `apply_universal` in `agnitra/optimizers/decoder_lm/_passes.py` now
+  threads any non-None `quantize` value through the unified
+  `apply_quantization(model, mode)` helper. Removes the hardcoded
+  INT8-only branch.
+
 ## [0.2.0] — 2026-05-06
 
 The wedge release. Agnitra narrows from "the PyTorch inference
