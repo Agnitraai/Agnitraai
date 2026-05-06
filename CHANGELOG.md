@@ -4,6 +4,42 @@ All notable changes to Agnitra are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.3] — 2026-05-06
+
+The trust release. Adds the cryptographic provenance layer for
+regulated LLM deployments. Every successful ``agnitra.optimize()``
+now produces a tamper-evident, Ed25519-signed manifest of the base
+model's deterministic SHA-256, the optimizations applied, the
+verification metrics, the runtime context, and the signer identity.
+
+### Added
+
+- **`agnitra/trust/`** — new package (~700 LOC) implementing Layer 1
+  of the trust roadmap. ``InferenceManifest`` schema, deterministic
+  ``model_sha256`` over weights, Ed25519 keypair management,
+  ``sign_manifest`` / ``verify_manifest`` helpers. The
+  ``cryptography`` package is an optional dep — install via
+  ``pip install "agnitra[trust]"``.
+- **``agnitra.optimize``** gains ``trust_sign=True`` (default on) and
+  ``trust_source: Optional[str]`` parameters. The manifest is
+  automatically attached to ``result.notes["trust_manifest"]``.
+- **``agnitra trust`` CLI group** with five subcommands:
+  ``trust inspect``, ``trust verify``, ``trust keys generate``,
+  ``trust keys show``, ``trust verify --trusted-keys``.
+- ``[trust]`` optional dependency group in ``pyproject.toml``.
+- ``docs/guides/trust.mdx`` — full user-facing documentation
+  including the Layer 1-5 trust roadmap.
+
+### Why this exists
+
+Regulated industries (banking, healthcare, EU AI Act high-risk
+systems, FDA SaMD) need cryptographic proof of which model was
+optimized and that the result was validated. No competitor
+structurally can host this — NVIDIA / vLLM / Together / HuggingFace
+all have conflicts of interest as either hardware vendors, runtime
+maintainers, or platform operators. An independent, foundation-
+governed standard is the play; Layer 1 is the technical foundation.
+
 ## [0.2.2] — 2026-05-06
 
 Patch release fixing 9 first-run bugs found by walking the codebase as
