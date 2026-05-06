@@ -38,6 +38,9 @@ from agnitra.core.runtime import (
     RuntimeOptimizationResult,
 )
 from agnitra.optimizers import detect_architecture, is_supported
+from agnitra.optimizers.registry import (
+    SUPPORTED_DECODER_LM_TYPES as _SUPPORTED_DECODER_LM_TYPES,
+)
 from agnitra.core.runtime.cache import CachedProfile, OptimizationCache
 from agnitra.core.runtime.control_plane import ControlPlaneClient, OptimizationPolicy
 from agnitra.core.runtime.fingerprint import fingerprint_signature, fingerprint_workload
@@ -176,6 +179,52 @@ def optimize_model(
     return _optimize_model(model, tensor, enable_rl=enable_rl)
 
 
+def _build_specialist_result(
+    *,
+    model: "nn.Module",
+    optimized_model: "nn.Module",
+    detected_architecture: Optional[str],
+    project_id: str,
+    model_name: Optional[str],
+    fingerprint_signature: str,
+    fingerprint_dict: Dict[str, Any],
+) -> RuntimeOptimizationResult:
+    """Wrap a specialist-optimized model in the standard result shape.
+
+    The specialist returns just an ``nn.Module``; the SDK is responsible
+    for the ``RuntimeOptimizationResult`` envelope so downstream
+    consumers (validation, cache, control plane) see the same shape
+    regardless of which optimization path produced the result.
+
+    Snapshots are zero-valued sentinels — the specialist path doesn't
+    run the legacy profiler. The benchmark suite measures latency
+    externally; for richer per-call metering the specialist path will
+    grow its own measurement step in a follow-up.
+    """
+    snapshot = OptimizationSnapshot(
+        latency_ms=0.0,
+        tokens_per_sec=0.0,
+        tokens_processed=0,
+        gpu_utilization=None,
+        telemetry={},
+        metadata={"specialist": True},
+    )
+    return RuntimeOptimizationResult(
+        optimized_model=optimized_model,
+        baseline=snapshot,
+        optimized=snapshot,
+        usage_event=None,
+        notes={
+            "specialist": True,
+            "detected_architecture": detected_architecture,
+            "project_id": project_id,
+            "model_name": model_name or getattr(model, "__class__", type(model)).__name__,
+            "fingerprint_signature": fingerprint_signature,
+            "fingerprint": fingerprint_dict,
+        },
+    )
+
+
 def _passthrough_result(
     model: "nn.Module",
     *,
@@ -242,6 +291,7 @@ def optimize(
     fallback_on_regression: bool = True,
     output_tolerance: float = 1e-3,
     argmax_match_threshold: float = 0.95,
+    use_specialist: bool = True,
 ) -> RuntimeOptimizationResult:
     """Optimize ``model`` and return a metered runtime optimization report.
 
@@ -381,32 +431,58 @@ def optimize(
         calibration_repeats = max(repeats, policy_repeats)
         calibration_warmup = max(warmup, policy_warmup)
 
-        agent = RuntimeOptimizationAgent(
-            usage_meter=usage_meter,
-            repeats=calibration_repeats,
-            warmup=calibration_warmup,
-            rate_per_gpu_hour=rate_per_gpu_hour,
-            success_margin_pct=success_margin_pct,
-        )
-
+        # Specialist routing for ring-1 architectures. The specialist
+        # applies a hard-coded, proven optimization sequence — TF32 +
+        # SDPA + static KV cache + torch.compile — without invoking the
+        # LLM/RL search paths in agent.optimize. The legacy agent path
+        # remains for `use_specialist=False` callers (research /
+        # exploration of new optimization patterns).
         start_time = time.time()
-        result = agent.optimize(
-            model,
-            tensor,
-            project_id=project_id,
-            model_name=model_name,
-            enable_rl=enable_rl,
-            metadata={
-                **metadata_map,
-                "fingerprint_signature": fingerprint_sig,
-            },
-            policy=policy,
-            cached_profile=cached_profile,
-            telemetry_client=telemetry_client_instance,
-            fingerprint=fingerprint_dict,
-            fingerprint_signature=fingerprint_sig,
-            cache_signature=fingerprint_sig,
-        )
+        if use_specialist and detected_architecture in _SUPPORTED_DECODER_LM_TYPES:
+            from agnitra.optimizers.decoder_lm import optimize_decoder_lm
+            LOGGER.info(
+                "Routing to decoder-LM specialist for architecture %r",
+                detected_architecture,
+            )
+            optimized_model = optimize_decoder_lm(
+                model,
+                model_type=detected_architecture,
+                sample_input=tensor,
+            )
+            result = _build_specialist_result(
+                model=model,
+                optimized_model=optimized_model,
+                detected_architecture=detected_architecture,
+                project_id=project_id,
+                model_name=model_name,
+                fingerprint_signature=fingerprint_sig,
+                fingerprint_dict=fingerprint_dict,
+            )
+        else:
+            agent = RuntimeOptimizationAgent(
+                usage_meter=usage_meter,
+                repeats=calibration_repeats,
+                warmup=calibration_warmup,
+                rate_per_gpu_hour=rate_per_gpu_hour,
+                success_margin_pct=success_margin_pct,
+            )
+            result = agent.optimize(
+                model,
+                tensor,
+                project_id=project_id,
+                model_name=model_name,
+                enable_rl=enable_rl,
+                metadata={
+                    **metadata_map,
+                    "fingerprint_signature": fingerprint_sig,
+                },
+                policy=policy,
+                cached_profile=cached_profile,
+                telemetry_client=telemetry_client_instance,
+                fingerprint=fingerprint_dict,
+                fingerprint_signature=fingerprint_sig,
+                cache_signature=fingerprint_sig,
+            )
         duration = time.time() - start_time
 
         # Output-validation safety net. If the optimizer changed the

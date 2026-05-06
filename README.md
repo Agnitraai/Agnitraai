@@ -1,6 +1,6 @@
 # Agnitra
 
-**The PyTorch inference optimizer for production. One line, no retraining, faster than `torch.compile` on the models you actually run.**
+**The inference optimizer for decoder-only LLMs. One line, no retraining, faster than `torch.compile` on the architectures you actually run in production.**
 
 [![PyPI version](https://img.shields.io/pypi/v/agnitra?color=blue&label=PyPI)](https://pypi.org/project/agnitra/)
 [![Python](https://img.shields.io/pypi/pyversions/agnitra)](https://pypi.org/project/agnitra/)
@@ -14,6 +14,36 @@ fast_model = result.optimized_model
 ```
 
 That's it. No retraining. No graph rewrites by hand. No serving stack to adopt.
+
+## Supported architectures
+
+Agnitra is intentionally narrow. The wedge is **decoder-only LLMs** — Llama-class models that account for ~80% of LLM inference spend in production. Every fine-tune of every supported architecture inherits the optimization decisions of its base model via architecture fingerprinting, so "13 architectures supported" effectively means "the ~100K decoder-LM fine-tunes on HuggingFace."
+
+| Architecture | `model_type` | Reference model | Status |
+|---|---|---|---|
+| Llama 1/2/3 | `llama` | `meta-llama/Meta-Llama-3-8B-Instruct` | ✅ tuned specialist |
+| Mistral | `mistral` | `mistralai/Mistral-7B-Instruct-v0.3` | ✅ tuned specialist |
+| Mixtral | `mixtral` | `mistralai/Mixtral-8x7B-Instruct-v0.1` | ✅ tuned specialist |
+| Qwen 2 / 2.5 | `qwen2` | `Qwen/Qwen2.5-7B-Instruct` | ✅ tuned specialist |
+| Qwen 2 MoE | `qwen2_moe` | `Qwen/Qwen2.5-MoE` | ✅ tuned specialist |
+| Gemma 1 / 2 | `gemma` / `gemma2` | `google/gemma-2-9b-it` | ✅ tuned specialist |
+| Phi / Phi-3 | `phi` / `phi3` | `microsoft/Phi-3-mini-4k-instruct` | 🟡 generic decoder-LM |
+| DeepSeek V2 | `deepseek_v2` | `deepseek-ai/DeepSeek-V2-Lite` | 🟡 generic decoder-LM |
+| OLMo, Yi, Falcon | `olmo` / `yi` / `falcon` | `allenai/OLMo-7B` | 🟡 generic decoder-LM |
+| Encoder transformers (BERT, RoBERTa, ViT) | — | — | ❌ pass-through |
+| Image generation (SDXL, FLUX) | — | — | ❌ pass-through (ring 2) |
+| Speech (Whisper) | — | — | ❌ pass-through (ring 3) |
+
+When a model is outside the ring-1 set, `agnitra.optimize` returns the input model unchanged with `result.notes["passthrough"] = True` and the detected architecture string. **Honest scoping is a feature** — a silent 5% no-op speedup destroys customer trust faster than honest refusal.
+
+LoRA fine-tunes are supported via `peft.merge_and_unload()` first; hot-swappable adapters are not yet supported.
+
+## Roadmap rings
+
+- **Ring 1 (now):** decoder-only LLMs. Llama, Mistral, Qwen, Gemma, Phi, DeepSeek, etc.
+- **Ring 2 (planned):** image generation. SDXL, SD3, FLUX. Different optimization landscape (UNet attention, classifier-free guidance batching, VAE decode).
+- **Ring 3 (planned):** speech. Whisper, Wav2Vec2.
+- **Out of scope:** encoder transformers, multimodal pipelines, image classification, training-time optimization, multi-GPU sharding.
 
 ## Status
 
