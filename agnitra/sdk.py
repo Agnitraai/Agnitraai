@@ -293,6 +293,8 @@ def optimize(
     argmax_match_threshold: float = 0.95,
     use_specialist: bool = True,
     quantize: Optional[str] = None,
+    trust_sign: bool = True,
+    trust_source: Optional[str] = None,
 ) -> RuntimeOptimizationResult:
     """Optimize ``model`` and return a metered runtime optimization report.
 
@@ -578,6 +580,33 @@ def optimize(
 
         if license_context and isinstance(result.notes, dict):
             result.notes.setdefault("license", license_context)
+
+        # Trust manifest — Layer 1 of the trust roadmap. Cryptographic
+        # record of base model SHA, optimizations applied, validation
+        # metrics, and runtime context, signed with Ed25519. Skipped if
+        # the optimizer didn't produce a different model (passthrough
+        # cases are not interesting to attest), and skipped silently if
+        # the cryptography dependency isn't installed.
+        if trust_sign and result.optimized_model is not model and isinstance(result.notes, dict):
+            try:
+                from agnitra.trust import (
+                    build_manifest_from_result,
+                    sign_manifest,
+                )
+                manifest = build_manifest_from_result(
+                    base_model=model,
+                    optimized_model=result.optimized_model,
+                    agnitra_result=result,
+                    quantize_mode=quantize,
+                    source=trust_source,
+                )
+                signed = sign_manifest(manifest)
+                result.notes["trust_manifest"] = signed.to_dict()
+            except Exception as exc:  # pragma: no cover - defensive
+                LOGGER.warning(
+                    "Failed to build/sign trust manifest (continuing without): %r",
+                    exc,
+                )
 
         if telemetry_client is None and telemetry_client_instance is not None:
             telemetry_client_instance.close()

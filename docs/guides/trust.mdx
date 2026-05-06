@@ -1,0 +1,179 @@
+---
+title: "Trust & provenance"
+description: "Cryptographically signed inference manifests for regulated deployments — Layer 1 of the trust roadmap."
+---
+
+# Trust & provenance
+
+Every successful `agnitra.optimize()` call produces a cryptographically signed **inference manifest** — a tamper-evident record of which base model was optimized, which optimizations applied, the post-optimization drift metrics, and the runtime context. The manifest is the cryptographic anchor that lets auditors prove a deployed model is exactly what was certified.
+
+This page covers the manifest schema, signing-key management, verification, and the longer trust roadmap (Layers 2–5).
+
+## Why this exists
+
+Regulated industries — banking, healthcare, EU AI Act high-risk systems — need three things to deploy LLMs in production:
+
+1. **Cryptographic verification of the base model.** Was this Meta's released Llama-3, or a tampered fork?
+2. **Attested optimization recipe.** Was the INT4 quantization applied with a known recipe, and did the eval set survive it?
+3. **Per-deployment audit trail.** For a dispute or audit later, you must reconstruct exactly what produced an output.
+
+The `agnitra.trust` layer (shipped in v0.2.x) provides 1 and the foundation for 2. Layers 2–5 below extend the chain to per-inference provenance, certified recipes, cross-runtime determinism, and zero-knowledge proofs.
+
+## Install
+
+```bash
+pip install "agnitra[trust]"
+```
+
+Adds `cryptography>=42` for Ed25519 signing/verification. The rest of Agnitra works without the extra; trust signing silently no-ops if the dependency is missing.
+
+## What gets signed
+
+Every manifest follows the `agnitra-trust/v1` schema:
+
+```json
+{
+  "version": "agnitra-trust/v1",
+  "issued_at": "2026-05-06T14:32:11+00:00",
+  "base_model": {
+    "sha256": "9f2b...60 hex chars...",
+    "fingerprint_signature": "8a1b...",
+    "fingerprint_dict": {"source": "config", "config": {"model_type": "llama", ...}},
+    "param_count": 8030261248,
+    "source": "huggingface://meta-llama/Meta-Llama-3-8B-Instruct",
+    "license": "meta-llama-3-community",
+    "detected_architecture": "llama"
+  },
+  "optimizations": [
+    {"name": "tf32", "timestamp": "..."},
+    {"name": "sdpa", "timestamp": "..."},
+    {"name": "static_kv_cache", "timestamp": "..."},
+    {"name": "compile", "timestamp": "..."},
+    {"name": "quantize", "parameters": {"mode": "int8_weight"}, "timestamp": "..."}
+  ],
+  "verification": {
+    "cosine_similarity": 0.9994,
+    "argmax_match_rate": 0.998,
+    "max_abs_diff": 0.04,
+    "drift_passed": true,
+    "reverted": false
+  },
+  "runtime": {
+    "torch_version": "2.4.0",
+    "cuda_version": "12.1",
+    "agnitra_version": "0.2.2",
+    "hardware": {"vendor": "nvidia", "model": "H100 80GB SXM5", ...},
+    "hostname": "..."
+  },
+  "signer": {
+    "public_key": "ed25519:base64...",
+    "key_id": "8f3b1c2d4e5a6b7c"
+  },
+  "signature": "ed25519:base64..."
+}
+```
+
+The `signature` is computed over a canonical JSON serialization (sorted keys, no whitespace, signature field excluded). Anyone with the embedded `public_key` can verify the signature without any other state.
+
+## Signing keys
+
+Resolution order for the signing key (first match wins):
+
+1. **`AGNITRA_TRUST_KEY_PEM`** environment variable (PEM contents inline) — for CI / containers without disk persistence.
+2. **`AGNITRA_TRUST_KEY_PATH`** environment variable (path to a PEM file).
+3. **`~/.agnitra/keys/signing.pem`** — default file location.
+4. **Generate fresh ephemeral key**, persist to (3), warn loudly. OK for local development; not OK for production.
+
+Generate a key explicitly:
+
+```bash
+agnitra trust keys generate
+# Wrote /Users/you/.agnitra/keys/signing.pem (mode 0600)
+# key_id: 8f3b1c2d4e5a6b7c
+```
+
+Show the public key fingerprint of the currently-resolved key:
+
+```bash
+agnitra trust keys show
+# key_id: 8f3b1c2d4e5a6b7c
+```
+
+**The CLI never prints the private key.** Manage rotation through your secret store; the file at `~/.agnitra/keys/signing.pem` is the canonical artifact.
+
+## Verifying a manifest
+
+```bash
+agnitra trust verify --manifest path/to/manifest.json
+```
+
+Exits 0 on success, 1 on any error. Warnings (e.g. unknown manifest version) are surfaced but do not block validity.
+
+Enforce a trusted-key allowlist:
+
+```bash
+agnitra trust verify --manifest manifest.json --trusted-keys 8f3b1c2d4e5a6b7c,deadbeef0123abcd
+```
+
+Programmatically:
+
+```python
+from agnitra.trust import verify_manifest, InferenceManifest
+import json
+
+payload = json.loads(open("manifest.json").read())
+# (Reconstruct the dataclass — see agnitra.trust.manifest for helpers)
+
+result = verify_manifest(reconstructed_manifest, trusted_keys={"8f3b..."})
+if result.valid:
+    print("OK")
+else:
+    for err in result.errors:
+        print("FAIL:", err)
+```
+
+`verify_manifest()` **never raises** — verification failures are returned as a `VerifyResult` so auditors and CI can branch on the outcome.
+
+## What verification checks
+
+| Check | What it catches |
+|---|---|
+| Signature matches canonical bytes | Tampering with any field after signing |
+| Public key + signature alignment | Replay attacks across keys |
+| Schema version known | Forward-compatibility breaks |
+| Trusted-keys allowlist (when set) | Manifests signed by unknown signers |
+
+## What verification does NOT check
+
+| Out of scope | Why |
+|---|---|
+| Whether `base_model.sha256` matches a model on disk | Hashing 16 GB of weights is expensive; opt-in via `--model` flag |
+| Whether the signer is "good" (without `--trusted-keys`) | Identity is your concern; we just verify signatures |
+| Whether the optimization recipe was "correct" | Layer 3 (certified recipes) — not yet shipped |
+| Whether the runtime numerically matched some other runtime | Layer 4 (cross-runtime determinism) — not yet shipped |
+
+## The trust roadmap (Layers 1–5)
+
+Layer 1 (this page) is shipped today. The longer arc:
+
+| Layer | What it adds | Status |
+|---|---|---|
+| **1. Signed manifests** | Tamper-evident record per `optimize()` call | ✅ shipped (v0.2.x) |
+| **2. Per-inference provenance tags** | Compact tag emitted on every `model.generate()` call linking the output to a manifest | planned |
+| **3. Certified quantization recipes** | Versioned, foundation-signed quantization recipes with eval-set drift bounds | planned |
+| **4. Cross-runtime determinism cert** | Spec for "this output is reproducible across vLLM / TRT-LLM / torchao" | future |
+| **5. Zero-knowledge proof of inference** | Cryptographic proof "this output was produced by this model" without revealing inputs/weights | research |
+
+Layer 1 is useful as a standalone enterprise feature even if you never ship Layers 2–5. A bank deploying a quantized Llama-3 with `result.notes["trust_manifest"]` already gets cryptographic proof of the base model + tamper-evident record of optimizations + signed drift metrics + auditable signer identity.
+
+## Performance notes
+
+- **Manifest signing cost:** ~30 seconds on CPU for an 8B-parameter fp16 model (dominated by the SHA-256 over weights). Amortized over many subsequent inferences.
+- **Manifest verification cost:** microseconds. Verification only inspects the manifest, never re-hashes the model unless you pass `--model` to the CLI.
+- **Manifest size:** ~2-4 KB JSON, small enough to ship alongside model checkpoints.
+
+## See also
+
+- [Configuration reference](/docs/reference/configuration) — `AGNITRA_TRUST_KEY_PATH`, `AGNITRA_TRUST_KEY_PEM`
+- [SDK & CLI guide](/docs/guides/cli-and-sdk) — full `agnitra optimize` flag list
+- [Architecture overview](/docs/intro/architecture) — where trust sits in the optimization pipeline
