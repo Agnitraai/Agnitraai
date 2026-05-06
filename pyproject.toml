@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "agnitra"
 version = "0.2.4"
-description = "Inference optimizer for decoder-only LLMs. One-line drop-in for HuggingFace models."
+description = "Trust and optimization layer for production LLM inference — faster, cheaper, cryptographically signed."
 readme = "README.md"
 requires-python = ">=3.8"
 license = { file = "LICENSE" }

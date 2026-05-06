@@ -2,8 +2,8 @@
 
 # Agnitra
 
-**The inference optimizer for decoder-only LLMs.**
-One Python keyword. No retraining. **2× memory ↓ · 1.5–2× throughput ↑ · cryptographically signed**.
+**Agnitra is the trust and optimization layer for production LLM inference — faster, cheaper, cryptographically signed.**
+One Python keyword. No retraining. **2× memory ↓ · 1.5–2× throughput ↑ · Ed25519-signed manifests**.
 
 [![PyPI](https://img.shields.io/pypi/v/agnitra?color=blue&label=PyPI)](https://pypi.org/project/agnitra/)
 [![npm](https://img.shields.io/npm/v/agnitra?color=red&label=npm)](https://www.npmjs.com/package/agnitra)
