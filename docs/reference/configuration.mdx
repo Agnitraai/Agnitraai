@@ -1,73 +1,104 @@
 ---
-title: "Runtime Configuration"
-description: "Environment variables and feature flags that control Agnitra SDK, CLI, and control-plane behaviour."
+title: "Configuration reference"
+description: "Every environment variable, supported architecture, and optimize() parameter."
 ---
 
-# Runtime Configuration
+# Configuration reference
 
-Agnitra uses environment variables to keep the CLI, SDK, and control plane stateless. This reference lists the most important settings and when to apply them.
+## Environment variables
 
-## Core Credentials
+| Variable | Default | Purpose |
+|---|---|---|
+| `OPENAI_API_KEY` | unset | Enables the LLM-guided research path (`enable_rl=True`). Not used by the default specialist path. |
+| `AGNITRA_OLLAMA_URL` | `http://localhost:11434` | Local LLM backend for the research path. |
+| `AGNITRA_OLLAMA_MODEL` | `llama3` | Model name passed to Ollama. |
+| `AGNITRA_API_HOST` | `127.0.0.1` | Bind interface for `agnitra-api`. Set explicitly to bind publicly. |
+| `AGNITRA_API_PORT` | `8080` | Port for `agnitra-api`. |
+| `AGNITRA_API_URL` | `http://127.0.0.1:8080` | Default `--api-url` for `agnitra doctor --check-api`. |
+| `AGNITRA_DASHBOARD_HOST` | `127.0.0.1` | Reserved (dashboard removed in 0.2.0). |
+| `AGNITRA_DASHBOARD_PORT` | `8000` | Reserved. |
+| `AGNITRA_ALLOW_PUBLIC_BIND` | `0` | Silences the warning when `agnitra-api` binds to a public interface. |
+| `AGNITRA_LICENSE_PATH` | unset | Path to a license file when using enterprise features. |
+| `AGNITRA_REQUIRE_LICENSE` | `0` | Force license validation even when `offline=False`. |
+| `AGNITRA_NOTIFY_WEBHOOK_URL` | unset | Slack/Discord/Telegram/generic webhook for post-optimization notifications. |
+| `AGNITRA_BENCH_GPU` | `0` | GPU index used by `benchmarks/llama3_h100/run.sh`. |
+| `AGNITRA_BENCH_SKIP_HF_CHECK` | `0` | Skip the `HF_TOKEN` preflight in the benchmark runner. |
+| `HF_TOKEN` | unset | HuggingFace access token; required for gated models like Llama-3. |
 
-| Variable | Description |
-| --- | --- |
-| `AGNITRA_API_KEY` | Required credential for CLI, SDK, and API calls. Scope keys per environment and rotate every 90 days. |
-| `AGNITRA_API_BASE_URL` | Overrides the managed control plane hostname (e.g. `https://api.agnitra.ai`). Use it for staging or self-hosted deployments. |
-| `AGNITRA_CONTROL_PLANE_URL` | Internal service discovery override when deploying the Starlette control plane behind a load balancer. |
+## `optimize` parameters
 
-## Telemetry & Usage
+```python
+agnitra.optimize(
+    model,                       # nn.Module — the model to optimize
+    input_tensor=None,           # Tensor — a representative input (one of input_tensor or input_shape required)
+    *,
+    input_shape=None,            # Sequence[int] — alternative to input_tensor
+    device=None,                 # torch.device — synthetic input is allocated here
+    enable_rl=True,              # bool — enables the LLM/RL research path (use_specialist must be False)
+    project_id="default",        # str — for billing / metering / logs
+    model_name=None,             # str | None — logging only
+    usage_meter=None,            # UsageMeter | None
+    repeats=10,                  # int — calibration iterations
+    warmup=3,                    # int — calibration warmups
+    rate_per_gpu_hour=2.5,       # float — used by usage events
+    success_margin_pct=0.2,      # float — minimum uplift before considering optimization successful
+    metadata=None,               # Mapping | None — attached to the usage event
+    telemetry_client=None,       # TelemetryClient | None
+    control_plane_client=None,   # ControlPlaneClient | None
+    optimization_cache=None,     # OptimizationCache | None
+    offline=False,               # bool — disables network calls; requires license entitlement
+    license_manager=None,        # LicenseManager | None
+    require_license=False,       # bool
+    license_seat=None,           # str | None
+    license_org_id=None,         # str | None
+    notify_webhook=None,         # WebhookNotifier | None
+    validate=True,               # bool — output-drift safety net
+    fallback_on_regression=True, # bool — revert to baseline if drift exceeds tolerance
+    output_tolerance=1e-3,       # float — cosine-similarity threshold
+    argmax_match_threshold=0.95, # float — fraction of greedy decisions that must match
+    use_specialist=True,         # bool — route to ring-1 specialists (default) vs. legacy LLM/RL path
+    quantize=None,               # "int8_weight" | None
+)
+```
 
-| Variable | Description |
-| --- | --- |
-| `AGNITRA_TELEMETRY_EXPORT` | Comma-separated list of telemetry exporters (`s3,stripe,aws,internal`). |
-| `AGNITRA_DASHBOARD_BASE_URL` | Custom dashboard endpoint for multi-tenant deployments. |
-| `AGNITRA_USAGE_WEBHOOK` | Optional HTTP endpoint that receives every usage event for auditing or enrichment. |
-| `AGNITRA_USAGE_SIGNING_KEY` | Secret used to sign outbound usage events. Rotate regularly if you rely on downstream verification. |
+## Supported architectures
 
-## Licensing & Compliance
+Models whose `model_type` matches one of these values route through the decoder-LM specialist:
 
-| Variable | Description |
-| --- | --- |
-| `AGNITRA_LICENSE_ORG` / `AGNITRA_LICENSE_SEAT` | Explicit license metadata for on-prem installs and offline validation. |
-| `AGNITRA_REQUIRE_LICENSE` | When set to `1`, optimization runs abort if license validation fails. |
-| `AGNITRA_OFFLINE_MODE` | Forces the CLI/SDK to skip control-plane calls (also available via `--offline`). |
+```
+llama, mistral, mixtral, qwen2, qwen2_moe, gemma, gemma2,
+phi, phi3, deepseek_v2, olmo, yi, falcon
+```
 
-## Optimization Behaviour
+Each entry maps to a canonical reference model documented in `agnitra/optimizers/registry.py`. Adding a new entry is a commitment: the specialist must produce measurable speedup AND pass the output-validation safety net for that architecture's representative model.
 
-| Variable | Description |
-| --- | --- |
-| `AGNITRA_ENABLE_LLM_RL` | Enable reinforcement-learning passes after Responses API suggestions. |
-| `AGNITRA_ONLY_LLM` | Skip PPO and apply only LLM-suggested kernels (useful for fast iteration). |
-| `AGNITRA_LLM_MODEL` | Override the default Responses API deployment (e.g. `gpt-5-codex`). |
-| `AGNITRA_MAX_BATCH_SIZE` | Upper bound used by the runtime patcher when auto-tuning Triton kernels. |
+## RuntimeOptimizationResult
 
-## Logging & Diagnostics
+```python
+@dataclass
+class RuntimeOptimizationResult:
+    optimized_model: nn.Module       # the (possibly-reverted) optimized model
+    baseline: OptimizationSnapshot   # latency / throughput / memory before
+    optimized: OptimizationSnapshot  # latency / throughput / memory after
+    usage_event: UsageEvent | None   # billing payload
+    notes: dict[str, Any]            # see below
+```
 
-| Variable | Description |
-| --- | --- |
-| `AGNITRA_LOG_LEVEL` | Controls SDK/CLI verbosity (`INFO`, `DEBUG`, `TRACE`). |
-| `AGNITRA_PROFILER_SAMPLES` | Number of warmup iterations the telemetry collector performs before capturing metrics. |
-| `AGNITRA_BENCHMARK_REPEATS` | Overrides default repeats for `agnitra benchmark` runs. |
+### `notes` keys
 
-## Marketplace Credentials
+| Key | When set | Meaning |
+|---|---|---|
+| `detected_architecture` | always | The HF `model_type` returned by detection. |
+| `passthrough` | unsupported architecture | Returned model is unchanged. |
+| `specialist` | supported architecture | Specialist path ran (vs. legacy LLM/RL path). |
+| `validation` | `validate=True` | Cosine similarity, argmax-match-rate, max-abs-diff metrics. |
+| `reverted_due_to_drift` | drift > tolerance | Optimized model failed validation; baseline restored. |
+| `cache_info` | always | Architecture-fingerprint cache hit/store status. |
+| `fingerprint` | always | Workload fingerprint payload. |
+| `license` | license active | Seat ID + license metadata. |
 
-| Provider | Environment Variables |
-| --- | --- |
-| Stripe | `STRIPE_API_KEY`, `STRIPE_PRODUCT_ID`, `STRIPE_METER_ID` |
-| AWS Marketplace | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `AGNITRA_AWS_PRODUCT_CODE` |
-| GCP Marketplace | `GOOGLE_APPLICATION_CREDENTIALS`, `AGNITRA_GCP_PRODUCT_ID` |
+## See also
 
-Unset provider credentials cause marketplace dispatchers to mark events as `skipped` or `deferred`. Use this to rehearse workflows before enabling billing.
-
-## Feature Flags in Tests
-
-PyTest suites monkeypatch the CLI to inject lightweight profilers and bypass heavy dependencies. Respect the following hooks when adding new commands:
-
-- `cli.main.profile_model` — override profiler behaviour in tests.
-- `AGNITRA_TEST_MODE` — signal to the SDK that fixture telemetry should be generated instead of real runs.
-
-## Further Reading
-
-- [SDK & CLI Guide](/docs/guides/cli-and-sdk) for command-line equivalents of many flags.
-- [Telemetry Playbook](/docs/guides/telemetry) to see how configuration changes affect exports.
-- [`pyproject.toml`](../../pyproject.toml) lists optional extras (`openai`, `rl`, `nvml`, `marketplace`) that unlock additional features documented here.
+- [Quickstart](/docs/intro/quickstart) — first-run walkthrough
+- [Architecture overview](/docs/intro/architecture) — how the pipeline decides
+- [SDK & CLI guide](/docs/guides/cli-and-sdk) — every API surface with examples

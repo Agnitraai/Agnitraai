@@ -1,46 +1,62 @@
 ---
-title: "Architecture Overview"
-description: "Understand how the Agnitra optimization stack links telemetry, AI planning, kernel generation, and billing."
+title: "Architecture overview"
+description: "How agnitra.optimize routes from a HuggingFace model to a faster nn.Module — detection, specialist passes, validation, fingerprint cache."
 ---
 
-# Architecture Overview
+# Architecture overview
 
-Agnitra combines profiling, AI-assisted kernel tuning, and usage-based billing so you can prove performance gains before pushing new models to production. This overview explains how the pieces fit together from a user’s point of view.
+`agnitra.optimize(model)` runs a five-stage pipeline. Every stage is reversible and observable; failures fall back to the baseline rather than silently producing wrong outputs.
 
-## Optimization Loop at a Glance
+## Stage 1 — Detect
 
-1. **Profile & capture telemetry** – The CLI or SDK traces your TorchScript/ONNX model, capturing latency, throughput, memory, and GPU utilization.
-2. **Plan optimizations** – Telemetry is fed to the Agnitra optimizer, which pairs OpenAI Responses API hints with reinforcement learning to propose kernel tweaks.
-3. **Patch & validate** – Agnitra generates Triton/CUDA kernels, validates correctness against your baseline, and swaps them into the runtime.
-4. **Report uplift** – Before/after telemetry becomes a structured usage event you can forward to finance systems, marketplaces, or dashboards.
+`agnitra/optimizers/detection.py` reads `model.config.model_type` (canonical for HuggingFace models) and falls back to a structural fingerprint (presence of `embed_tokens` / `lm_head` plus an `Attention`-class submodule) for raw `torch.nn.Module` instances without a config.
 
-Every stage emits artifacts (telemetry JSON, optimized models, usage events) so you can audit changes or roll back quickly.
+If the detected architecture is **not** in [`SUPPORTED_DECODER_LM_TYPES`](/docs/reference/configuration#supported-architectures), the SDK returns a passthrough `RuntimeOptimizationResult` immediately. No tensor work, no measurement, no surprise.
 
-## Core Surfaces You’ll Use
+## Stage 2 — Fingerprint
 
-- **CLI & Python SDK** – Run `agnitra optimize` locally or embed `agnitra.optimize()` inside services to automate tuning.
-- **Agentic Optimization API (`agnitra-api`)** – Offload work to a remote control plane, queue jobs, and replay usage events via REST.
-- **Telemetry exporters** – Push JSON snapshots to S3, HTTP endpoints, Kafka, or your observability stack for long-term analysis.
-- **Marketplace dispatchers** – Enable adapters (Stripe, AWS Marketplace, GCP Marketplace) to translate usage events into billable records.
+`agnitra/core/runtime/fingerprint.py` computes two distinct signatures:
 
-## Deployment Options
+- **Architecture fingerprint** — `model_type` plus key dims (`hidden_size`, `num_hidden_layers`, `num_attention_heads`, `num_key_value_heads`, `intermediate_size`, `vocab_size`, `rope_theta`, `rms_norm_eps`). Stable across every fine-tune of a base model.
+- **Workload fingerprint** — model + input shape + GPU + framework. Identifies a specific run for telemetry purposes.
 
-- **Managed** – Point the CLI/SDK at the hosted control plane (`https://api.agnitra.ai`) and use preconfigured telemetry dashboards.
-- **Self-hosted** – Run `agnitra-api` in your environment, connect it to GPU workers, and plug telemetry into your data stores.
-- **Offline / regulated** – Enable offline mode with enterprise licenses to generate optimizations without external network access; usage events sync once connectivity returns.
+The architecture fingerprint is the cache key for "what optimizations apply to this architecture class." When you optimize a Llama-3-8B fine-tune for the second time, Agnitra finds the cached decisions for the base architecture and applies them instantly. This is what makes "support 100K HuggingFace models" mean "support 13 architectures and inherit decisions across their fine-tunes."
 
-## Performance Goals
+## Stage 3 — Specialize
 
-| Metric | Target |
-| --- | --- |
-| Tokens per second uplift | ≥ 20% |
-| Latency reduction | ≥ 15% |
-| Memory efficiency | ≥ 25% |
-| Integration time | < 10 minutes |
-| Output correctness | ≥ 99.9% parity with baseline |
+`agnitra/optimizers/decoder_lm/__init__.py` dispatches by `model_type` to a specialist module: `llama.py`, `mistral.py`, `qwen2.py`, `gemma.py`. Each specialist runs the universal sequence — TF32 matmul, SDPA verification, static KV cache, `torch.compile(reduce-overhead)` — plus optional INT8 weight-only quantization when `quantize="int8_weight"`.
 
-## Continue Exploring
+The universal sequence is intentionally hard-coded rather than auto-discovered. Production users need deterministic, repeatable behavior; the LLM- and RL-guided research paths under `agnitra/_sdk/` remain available behind `enable_rl=True` for users exploring new optimization patterns.
 
-- Follow the [Quickstart](/docs/intro/quickstart) to install the SDK and run your first optimization.
-- Deep dive into automation patterns in the [SDK & CLI Guide](/docs/guides/cli-and-sdk).
-- Wire telemetry to billing systems using the [Marketplace & Billing guide](/docs/guides/marketplace).
+## Stage 4 — Validate
+
+`agnitra/core/runtime/validation.py` runs both the baseline and optimized models on the calibration tensor and compares cosine similarity, max-abs-diff, and argmax-match-rate. If drift exceeds tolerance and `fallback_on_regression=True` (the default), `result.optimized_model` reverts to the original baseline and `result.notes["reverted_due_to_drift"] = True`.
+
+This is non-negotiable for production. An optimizer that silently changes outputs is worse than one that doesn't optimize at all — it ships incorrect results to users without anyone noticing until the support ticket arrives.
+
+## Stage 5 — Return
+
+The SDK wraps the optimized model in a [`RuntimeOptimizationResult`](/docs/reference/configuration#runtime-optimization-result) carrying `baseline`, `optimized`, and `notes` (architecture, validation metrics, cache hits, license context). The result shape is identical regardless of whether the specialist or legacy paths produced it, so downstream consumers (validation, notification, cache) treat them uniformly.
+
+## What's NOT in the pipeline
+
+By design, Agnitra does not implement:
+
+- **Paged KV cache / continuous batching / speculative decoding** — these are *serving* concerns. Pair Agnitra with vLLM, TGI, SGLang, or your own serving stack.
+- **INT4 / activation quantization / AWQ / GPTQ** — out of scope. INT8 weight-only is the only quantization mode supported in 0.2.x.
+- **Multi-GPU sharding / tensor parallelism** — single-GPU optimization. Sharding is a separate problem.
+- **Training-time optimization** — inference only.
+
+See [What Agnitra is not](/docs/index#what-agnitra-is-not) for the full list.
+
+## Where the code lives
+
+| Path | Responsibility |
+|---|---|
+| `agnitra/sdk.py` | Public `optimize()` entry point — orchestrates all five stages |
+| `agnitra/optimizers/detection.py` | Stage 1 — architecture detection |
+| `agnitra/optimizers/registry.py` | The supported-architecture frozenset |
+| `agnitra/core/runtime/fingerprint.py` | Stage 2 — architecture + workload fingerprints |
+| `agnitra/optimizers/decoder_lm/` | Stage 3 — specialist optimizers |
+| `agnitra/core/runtime/validation.py` | Stage 4 — output drift safety net |
+| `agnitra/core/runtime/agent.py` | Legacy LLM/RL-guided pipeline (research path) |

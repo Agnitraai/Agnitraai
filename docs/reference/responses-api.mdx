@@ -1,128 +1,69 @@
 ---
-title: "Responses API Contract"
-description: "How Agnitra integrates with the OpenAI Responses API for optimization hints and telemetry enrichment."
+title: "LLM-guided research path"
+description: "Optional OpenAI / Ollama integration for exploring new optimizations. Not used by the default specialist path."
 ---
 
-# Responses API Contract
+# LLM-guided research path
 
-Agnitra uses the OpenAI Responses API to translate profiler telemetry into kernel tuning recommendations. This reference covers request schemas, tooling payloads, and operational guardrails.
+By default Agnitra runs the **specialist optimization path** — a hard-coded sequence of proven passes (TF32, SDPA, static cache, `torch.compile`, optional INT8 weight-only quantization). The specialist path makes no network calls and is the right choice for production workloads.
 
-## Base URL
+This page documents the **research path**: an optional LLM-guided pipeline (`enable_rl=True`, `use_specialist=False`) that asks an LLM to suggest kernel-tuning parameters. The research path exists so you can explore optimization patterns the specialists don't yet cover. **Do not enable it for production traffic** — outputs are non-deterministic and add latency for every optimization decision.
 
-```
-https://api.openai.com/v1/responses
-```
+## When to use the research path
 
-All calls must be made over HTTPS.
+- Investigating whether a fused RoPE+RMSNorm kernel is worth implementing for an architecture
+- Exploring quantization regimes the standard specialists don't yet support
+- Benchmarking against academic papers that describe novel optimizations
 
-## Authentication
+## How to invoke
 
-| Header | Value |
-| --- | --- |
-| `Authorization` | `Bearer <OPENAI_API_KEY>` |
-| `OpenAI-Project` | Optional. Overrides the project context associated with the API key. |
-| `OpenAI-Organization` | Optional. Use when the key belongs to multiple organisations. |
+```python
+import agnitra
 
-Store API keys in a secrets manager or environment variable. Never expose them in client-side code.
-
-## Request Schema
-
-```json
-{
-  "model": "gpt-5-codex",
-  "input": [
-    { "role": "system", "content": "Provide kernel tuning recommendations for the supplied telemetry." },
-    { "role": "user", "content": "Telemetry summary: {...}" }
-  ],
-  "tools": [
-    {
-      "type": "function",
-      "function": {
-        "name": "record_patch_plan",
-        "description": "Persist selected kernel parameters.",
-        "parameters": {
-          "type": "object",
-          "properties": {
-            "block_size": { "type": "integer" },
-            "tile_shape": {
-              "type": "array",
-              "items": { "type": "integer" },
-              "minItems": 2,
-              "maxItems": 2
-            },
-            "expected_latency_ms": { "type": "number" }
-          },
-          "required": ["block_size", "tile_shape", "expected_latency_ms"]
-        }
-      }
-    }
-  ],
-  "metadata": {
-    "project_id": "demo",
-    "model_name": "tinyllama",
-    "target": "A100"
-  }
-}
+result = agnitra.optimize(
+    model,
+    input_shape=(1, 512),
+    enable_rl=True,
+    use_specialist=False,    # required: routes off the specialist path
+)
 ```
 
-- `model` must reference a Responses-capable deployment (e.g. `gpt-5-codex` or `gpt-5-mini`). Do not use deprecated parameters such as `temperature` or `max_output_tokens`.
-- `input` accepts text or image content. Agnitra sends JSON-formatted telemetry snippets.
-- `tools` unlock structured responses via function calling; strict schemas avoid invalid payloads.
-- `metadata` captures attribution for usage metering and billing.
+Both flags are required. `use_specialist=True` (the default) bypasses the research path even if `enable_rl=True`.
 
-## Response Structure
+## LLM backends
 
-```json
-{
-  "id": "resp_123",
-  "usage": { "total_tokens": 512 },
-  "output": [
-    {
-      "role": "assistant",
-      "content": [
-        { "type": "output_text", "text": "Suggested block size: 128 ..." }
-      ]
-    }
-  ],
-  "tool_calls": [
-    {
-      "type": "function",
-      "function": {
-        "name": "record_patch_plan",
-        "arguments": "{\"block_size\":128,\"tile_shape\":[64,64]}"
-      }
-    }
-  ]
-}
-```
+Agnitra picks a backend based on which API keys / processes are available, in this order:
 
-- Parse `tool_calls` and validate against the schema before mutating kernels.
-- `usage.total_tokens` feeds into Agnitra’s cost telemetry pipeline.
+1. **OpenAI** if `OPENAI_API_KEY` is set and the `openai` extra is installed (`pip install "agnitra[openai]"`).
+2. **Codex CLI** if it is on the user's `PATH`.
+3. **Ollama** if a local Ollama server is running on `AGNITRA_OLLAMA_URL` (default `http://localhost:11434`).
+4. **No-op** — the optimizer returns the unchanged baseline if no backend is reachable.
 
-## Rate Limits & Diagnostics
+Override the auto-selection by setting `LLMOptimizerConfig(backend="openai" | "ollama" | "codex" | "none")`.
 
-- Inspect `x-ratelimit-*` headers to understand remaining token/request budgets.
-- Log the `x-request-id` header for each call to accelerate support escalation.
-- Retry with exponential backoff on `429` and `5xx` responses; avoid retrying validation errors.
+## What the LLM sees
 
-## Error Handling
+The optimizer sends a JSON payload describing:
 
-| Status | Typical Cause | Resolution |
-| --- | --- | --- |
-| `400 Bad Request` | Invalid JSON schema or tool payload. | Inspect error body, correct request data. |
-| `401 Unauthorized` | API key missing/invalid. | Refresh credentials and retry. |
-| `403 Forbidden` | Project/org mismatch. | Confirm `OpenAI-Project`/`OpenAI-Organization` headers. |
-| `429 Too Many Requests` | Rate limit exceeded. | Use `Retry-After` header and exponential backoff. |
-| `500`/`503` | Upstream transient error. | Retry with jitter (max 3 attempts). |
+- Architecture fingerprint (`model_type`, key dims)
+- Per-layer profiler telemetry (CUDA times, tensor shapes, memory)
+- Hardware target (e.g. `H100`)
 
-## Security Checklist
+It does NOT send model weights, input data, or generated outputs.
 
-- Rotate API keys regularly and scope them to the minimum required access.
-- Sanitize telemetry content to avoid leaking customer identifiers.
-- Validate every tool-call payload against the defined JSON schema prior to execution.
+## What the LLM returns
 
-## Related Documentation
+A structured tuning preset — TF32 toggle, attention implementation choice, compile mode, etc. The optimizer applies the preset, validates the output against the baseline (same drift safety net as the specialist path), and reverts if the suggestion regresses.
 
-- [Runtime Configuration](/docs/reference/configuration) — environment variables that toggle Responses API usage.
-- [SDK & CLI Guide](/docs/guides/cli-and-sdk) — how responses inform local optimisation flows.
-- [Architecture Overview](/docs/intro/architecture) — where Responses API fits in the optimization loop.
+## Caveats
+
+- **Non-deterministic.** The same model can receive different optimizations across runs.
+- **Adds latency.** A network round-trip per optimization decision. Cache hits via the architecture fingerprint mitigate this for repeat workloads.
+- **Costs money.** OpenAI calls bill against your API account. Ollama is free but slower.
+
+For production, use `use_specialist=True` (the default).
+
+## See also
+
+- [Architecture overview](/docs/intro/architecture) — how the specialist and research paths fit together
+- [Configuration reference](/docs/reference/configuration) — every environment variable

@@ -47,14 +47,14 @@
     "global": {
       "anchors": [
         {
-          "anchor": "Open Console",
-          "href": "https://console.agnitra.ai",
-          "icon": "rocket"
+          "anchor": "GitHub",
+          "href": "https://github.com/agnitraai/agnitraai",
+          "icon": "github"
         },
         {
-          "anchor": "Slack Community",
-          "href": "https://join.slack.com/t/agnitra/shared_invite/abcdef",
-          "icon": "slack"
+          "anchor": "PyPI",
+          "href": "https://pypi.org/project/agnitra/",
+          "icon": "python"
         }
       ]
     }
@@ -62,14 +62,18 @@
   "navbar": {
     "links": [
       {
-        "label": "CLI Reference",
-        "href": "https://github.com/agnitraai/agnitraai/tree/main/cli"
+        "label": "Quickstart",
+        "href": "/docs/intro/quickstart"
+      },
+      {
+        "label": "GitHub",
+        "href": "https://github.com/agnitraai/agnitraai"
       }
     ],
     "primary": {
       "type": "button",
-      "label": "Get API Key",
-      "href": "https://console.agnitra.ai"
+      "label": "Install",
+      "href": "/docs/intro/quickstart"
     }
   },
   "footer": {
