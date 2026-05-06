@@ -1,0 +1,42 @@
+name: Feature request
+description: Propose new functionality.
+title: "[feat] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Describe the user need first, the proposed solution second.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed
+    attributes:
+      label: Proposed API / behavior
+      description: A code snippet or CLI invocation showing how a user would use this.
+      render: python
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What else could solve this? Why is the proposed shape the right one?
+
+  - type: dropdown
+    id: ring
+    attributes:
+      label: Which ring?
+      description: |
+        Agnitra is intentionally narrow. Features should fall into ring 1
+        (decoder-only LLMs) for now; ring 2 / 3 are deferred.
+      options:
+        - "Ring 1 — decoder-only LLM optimization"
+        - "Ring 2 — image generation (SDXL, FLUX, etc.)"
+        - "Ring 3 — speech (Whisper, etc.)"
+        - "Out of scope (please make the case)"
+    validations:
+      required: true

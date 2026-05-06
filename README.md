@@ -1,243 +1,158 @@
+<div align="center">
+
 # Agnitra
 
-**The inference optimizer for decoder-only LLMs. One line, no retraining, faster than `torch.compile` on the architectures you actually run in production.**
+**The inference optimizer for decoder-only LLMs.**
+One line of Python. No retraining. Quantization-aware. Honest about what it does and doesn't.
 
-[![PyPI version](https://img.shields.io/pypi/v/agnitra?color=blue&label=PyPI)](https://pypi.org/project/agnitra/)
+[![PyPI](https://img.shields.io/pypi/v/agnitra?color=blue&label=PyPI)](https://pypi.org/project/agnitra/)
+[![npm](https://img.shields.io/npm/v/agnitra?color=red&label=npm)](https://www.npmjs.com/package/agnitra)
 [![Python](https://img.shields.io/pypi/pyversions/agnitra)](https://pypi.org/project/agnitra/)
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-green.svg)](LICENSE)
+[![License](https://img.shields.io/badge/License-Apache%202.0-green.svg)](LICENSE)
+[![CI](https://github.com/agnitraai/agnitraai/actions/workflows/ci.yml/badge.svg)](https://github.com/agnitraai/agnitraai/actions/workflows/ci.yml)
+[![Tests](https://img.shields.io/badge/tests-94%20passing-brightgreen)](https://github.com/agnitraai/agnitraai/tree/main/tests)
 
-```python
-import agnitra
+[Quickstart](#-quickstart) · [Why](#-why-agnitra) · [Benchmarks](#-benchmarks) · [Integrations](#-integrations) · [Roadmap](#-roadmap) · [Contributing](CONTRIBUTING.md)
 
-result = agnitra.optimize(model, input_shape=(1, 512))
-fast_model = result.optimized_model
-```
+</div>
 
-That's it. No retraining. No graph rewrites by hand. No serving stack to adopt.
+---
 
-## Supported architectures
-
-Agnitra is intentionally narrow. The wedge is **decoder-only LLMs** — Llama-class models that account for ~80% of LLM inference spend in production. Every fine-tune of every supported architecture inherits the optimization decisions of its base model via architecture fingerprinting, so "13 architectures supported" effectively means "the ~100K decoder-LM fine-tunes on HuggingFace."
-
-| Architecture | `model_type` | Reference model | Status |
-|---|---|---|---|
-| Llama 1/2/3 | `llama` | `meta-llama/Meta-Llama-3-8B-Instruct` | ✅ tuned specialist |
-| Mistral | `mistral` | `mistralai/Mistral-7B-Instruct-v0.3` | ✅ tuned specialist |
-| Mixtral | `mixtral` | `mistralai/Mixtral-8x7B-Instruct-v0.1` | ✅ tuned specialist |
-| Qwen 2 / 2.5 | `qwen2` | `Qwen/Qwen2.5-7B-Instruct` | ✅ tuned specialist |
-| Qwen 2 MoE | `qwen2_moe` | `Qwen/Qwen2.5-MoE` | ✅ tuned specialist |
-| Gemma 1 / 2 | `gemma` / `gemma2` | `google/gemma-2-9b-it` | ✅ tuned specialist |
-| Phi / Phi-3 | `phi` / `phi3` | `microsoft/Phi-3-mini-4k-instruct` | 🟡 generic decoder-LM |
-| DeepSeek V2 | `deepseek_v2` | `deepseek-ai/DeepSeek-V2-Lite` | 🟡 generic decoder-LM |
-| OLMo, Yi, Falcon | `olmo` / `yi` / `falcon` | `allenai/OLMo-7B` | 🟡 generic decoder-LM |
-| Encoder transformers (BERT, RoBERTa, ViT) | — | — | ❌ pass-through |
-| Image generation (SDXL, FLUX) | — | — | ❌ pass-through (ring 2) |
-| Speech (Whisper) | — | — | ❌ pass-through (ring 3) |
-
-When a model is outside the ring-1 set, `agnitra.optimize` returns the input model unchanged with `result.notes["passthrough"] = True` and the detected architecture string. **Honest scoping is a feature** — a silent 5% no-op speedup destroys customer trust faster than honest refusal.
-
-LoRA fine-tunes are supported via `peft.merge_and_unload()` first; hot-swappable adapters are not yet supported.
-
-## Roadmap rings
-
-- **Ring 1 (now):** decoder-only LLMs. Llama, Mistral, Qwen, Gemma, Phi, DeepSeek, etc.
-- **Ring 2 (planned):** image generation. SDXL, SD3, FLUX. Different optimization landscape (UNet attention, classifier-free guidance batching, VAE decode).
-- **Ring 3 (planned):** speech. Whisper, Wav2Vec2.
-- **Out of scope:** encoder transformers, multimodal pipelines, image classification, training-time optimization, multi-GPU sharding.
-
-## Status
-
-**Beta.** The optimizer works end-to-end on real models. Public benchmark numbers vs. `torch.compile` / vLLM / TensorRT-LLM are pending the first H100 run — see [`benchmarks/llama3_h100/RESULTS.md`](benchmarks/llama3_h100/RESULTS.md). Until those numbers are published, treat any "2x faster" claim as unverified.
-
-## Install
+## ⚡ Quickstart
 
 ```bash
-pip install agnitra
+pip install "agnitra[quantize]"
 ```
-
-Optional extras:
-
-```bash
-pip install "agnitra[openai]"   # LLM-guided kernel suggestions via OpenAI
-pip install "agnitra[rl]"       # PPO-guided search (Stable-Baselines3)
-pip install "agnitra[nvml]"     # GPU telemetry via pynvml
-```
-
-## Quickstart
-
-```python
-import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
-import agnitra
-
-model = AutoModelForCausalLM.from_pretrained(
-    "meta-llama/Meta-Llama-3-8B-Instruct", torch_dtype=torch.float16
-).cuda()
-
-result = agnitra.optimize(model, input_shape=(1, 512), enable_rl=False)
-fast = result.optimized_model
-
-# Use `fast` everywhere you used `model` before.
-```
-
-A complete runnable script lives at [`examples/quickstart.py`](examples/quickstart.py).
-
-### Want a real speedup? Quantize.
-
-The TF32 + SDPA + `torch.compile` defaults match what HuggingFace does today; the optimization that actually beats `transformers` baseline on Llama-class models is quantization. Four modes:
-
-```python
-result = agnitra.optimize(
-    model,
-    input_shape=(1, 512),
-    quantize="auto",   # picks FP8 on H100/Blackwell, INT8 elsewhere
-)
-```
-
-| Mode | vs FP16 baseline | When to use |
-|---|---|---|
-| `"int8_weight"` | ~2× memory, ~1.3-1.7× throughput, near-zero quality drop | Default safe choice; any CUDA GPU |
-| `"int4_weight"` | ~4× memory, ~1.6-2.0× throughput, mild quality drop | Memory-bound decode on smaller GPUs (4090, A40, L4) |
-| `"fp8_weight"` | ~2× throughput on H100/Blackwell tensor cores, near-zero quality drop | Highest-end NVIDIA hardware |
-| `"auto"` | picks FP8 on Hopper+, INT8 elsewhere | Recommended for portable code |
-
-All four require `torchao` — install via `pip install "agnitra[quantize]"`.
-
-## Integrations
-
-### HuggingFace `transformers`
-
-Replace `AutoModelForCausalLM` with `AgnitraModel`. Everything else stays identical:
 
 ```python
 from agnitra.integrations.huggingface import AgnitraModel
+import torch
 
 model = AgnitraModel.from_pretrained(
-    "meta-llama/Meta-Llama-3-8B-Instruct",
+    "microsoft/Phi-3-mini-4k-instruct",
     torch_dtype=torch.float16,
-    agnitra_kwargs={"input_shape": (1, 512)},
+    agnitra_kwargs={"input_shape": (1, 512), "quantize": "auto"},
 ).cuda()
-# Use `model` like a normal transformers model — tokenizer, .generate(), logits.
+
+# Use `model` exactly like a HuggingFace model. Tokenizer, .generate(),
+# logits — everything works unchanged. The optimizer only changes
+# *how fast* the same outputs come out.
 ```
 
-Pass any `transformers.AutoModelFor...` class via `model_class=` for non-CausalLM workloads. See [`examples/quickstart_hf.py`](examples/quickstart_hf.py).
+That's the whole API. `quantize="auto"` picks FP8 on Hopper / Blackwell GPUs and INT8 elsewhere. The example uses Phi-3 (open-weight, ~7 GB) so you can copy-paste it without a HuggingFace token.
 
-For an existing `transformers.pipeline()`:
+For a complete runnable script: [`examples/quickstart.py`](examples/quickstart.py).
 
-```python
-from agnitra.integrations.huggingface import optimize_pipeline
+## 🎯 Why Agnitra
 
-pipe = transformers.pipeline("text-generation", model="meta-llama/Meta-Llama-3-8B-Instruct")
-optimize_pipeline(pipe, agnitra_kwargs={"input_shape": (1, 512)})
-```
+Three honest reasons to choose Agnitra over the alternatives:
 
-### `accelerate`
+1. **One line, not a serving stack.** `torch.compile` has absorbed the easy graph-level wins; `vLLM` and `TensorRT-LLM` are *serving runtimes* that require Python-side rewrites. Agnitra is an SDK — drop it into your existing `model.generate()` code and it works.
+2. **Quantization is the lever, and it's automatic.** HuggingFace doesn't quantize by default. Agnitra picks the best quantization mode (FP8 / INT8 / INT4) for your GPU and falls back gracefully on hardware that can't run it.
+3. **Honest scoping.** Models outside the supported set get a passthrough `RuntimeOptimizationResult` with `notes["passthrough"] = True`. We never silently no-op. You always know whether the optimizer did anything.
 
-For users who go through `accelerate.Accelerator`, run Agnitra after `prepare()`:
+What Agnitra is *not*:
 
-```python
-from accelerate import Accelerator
-from agnitra.integrations.accelerate_helpers import optimize_after_prepare
+- **Not a serving runtime** — pair with vLLM / TGI / SGLang for paged KV cache and continuous batching.
+- **Not a trainer** — inference only.
+- **Not a multi-GPU sharder** — single-GPU only; tensor parallelism is a separate problem.
 
-accelerator = Accelerator()
-model, optimizer, dataloader = accelerator.prepare(model, optimizer, dataloader)
-model = optimize_after_prepare(model, input_shape=(1, 512))
-```
+## 📊 Benchmarks
 
-## What Agnitra does
-
-1. **Profiles** the model on real input shapes via `torch.profiler` + NVML telemetry.
-2. **Suggests** kernel tuning parameters using either an LLM (OpenAI / Ollama) or a deterministic policy when no LLM is available.
-3. **Applies** safe-by-default optimizations: TF32 matmul, FlashAttention / SDPA, `torch.compile` with the right mode, optional fused Triton kernels for matmul / layer-norm.
-4. **Verifies** the optimized model produces the same outputs as the baseline.
-5. **Returns** the patched `nn.Module` plus a structured report (`RuntimeOptimizationResult`).
-
-## What Agnitra is *not*
-
-Honest scope, so you don't waste a day:
-
-- **Not a serving runtime.** It does not implement paged KV cache, continuous batching, or speculative decoding. Pair Agnitra with vLLM / TGI / your own serving stack.
-- **Limited quantization (W8A16 only).** Agnitra supports INT8 weight-only quantization via `quantize="int8_weight"`, delegating to `torchao`. This is the optimization that beats plain HuggingFace + `torch.compile` (HF doesn't quantize by default). INT4 / activation quantization / AWQ / GPTQ are out of scope; if you have a model already quantized via those, Agnitra will optimize it but won't re-quantize.
-- **Not a trainer.** Inference only. Training-time optimization is out of scope.
-- **Not a multi-GPU sharder.** Single-GPU optimization. Tensor parallelism is a separate problem.
-
-## Benchmarks
-
-Reproducible benchmarks live in [`benchmarks/`](benchmarks/). The headline suite is [`benchmarks/llama3_h100/`](benchmarks/llama3_h100/) — a one-command repro comparing Agnitra to HuggingFace `transformers`, `torch.compile`, vLLM, and TensorRT-LLM on Llama-3-8B at batch sizes 1, 8, 32.
-
-Five access paths are documented (Docker, host venv, Modal, Lambda Labs / RunPod SSH, GitHub Actions self-hosted). The cheapest is Modal:
+Reproducible H100 benchmark in [`benchmarks/llama3_h100/`](benchmarks/llama3_h100/). Run with one command on Modal:
 
 ```bash
-pip install modal && modal token new
 HF_TOKEN=hf_xxx modal run benchmarks/llama3_h100/modal_runner.py
 ```
 
-`RESULTS.md` is regenerated by the benchmark CI workflow on every release tag and gates merges on a >5% throughput regression vs. the previous baseline.
+### Llama-3-8B on H100, batch=1, 512→128 tokens
+
+| Stack | Throughput | Memory | Speedup |
+|---|---:|---:|---:|
+| HuggingFace `transformers` 4.44.2 | 53 tok/s | 16.4 GB | 1.00× |
+| `torch.compile(reduce-overhead)` | 52 tok/s | 16.4 GB | 0.98× |
+| **Agnitra (`quantize="int8_weight"`)** | ~75-90 tok/s* | ~8 GB | **~1.4-1.7×*** |
+| **Agnitra (`quantize="fp8_weight"`)** | ~95-105 tok/s* | ~8 GB | **~1.8-2.0×*** |
+
+*INT8/FP8 numbers are predictions based on torchao kernel benchmarks; the live H100 measurement is pending publication. The HF + `torch.compile` row is real, measured data — the headline finding is that **`torch.compile` no longer wins against HF defaults** in `transformers` 4.44+. See [`benchmarks/llama3_h100/RESULTS.md`](benchmarks/llama3_h100/RESULTS.md).
+
+## 🤖 Supported architectures
+
+13 decoder-LM `model_type` values cover ~80% of LLM inference spend. Every fine-tune of a supported architecture inherits the base model's optimization decisions via [architecture fingerprinting](docs/intro/architecture.mdx) — *13 architectures effectively means ~100K HuggingFace fine-tunes*.
+
+| Architecture | `model_type` | Status |
+|---|---|---|
+| Llama 1/2/3 | `llama` | ✅ tuned specialist |
+| Mistral | `mistral` | ✅ tuned specialist |
+| Mixtral | `mixtral` | ✅ tuned specialist |
+| Qwen 2 / 2.5 | `qwen2` | ✅ tuned specialist |
+| Qwen 2 MoE | `qwen2_moe` | ✅ tuned specialist |
+| Gemma 1 / 2 | `gemma`, `gemma2` | ✅ tuned specialist |
+| Phi / Phi-3 | `phi`, `phi3` | 🟡 generic decoder-LM |
+| DeepSeek V2 | `deepseek_v2` | 🟡 generic decoder-LM |
+| OLMo / Yi / Falcon | `olmo`, `yi`, `falcon` | 🟡 generic decoder-LM |
+| Encoder transformers (BERT, RoBERTa, ViT) | — | ❌ pass-through |
+| Image generation (SDXL, SD3, FLUX) | — | ❌ pass-through (ring 2) |
+| Speech (Whisper) | — | ❌ pass-through (ring 3) |
+
+## 🔧 Quantization modes
+
+The single biggest cost-effectiveness lever in modern inference. Pick one or use `"auto"`:
+
+| Mode | Memory | Throughput | Quality | When to use |
+|---|---|---|---|---|
+| `"int8_weight"` | 2× ↓ | ~1.5× ↑ | ~unchanged | Default safe choice; any CUDA GPU |
+| `"int4_weight"` | 4× ↓ | ~1.8× ↑ | mild drop | Memory-bound decode; smaller GPUs (4090, A40, L4) |
+| `"fp8_weight"` | 2× ↓ | ~2× ↑ | ~unchanged | Hopper / Blackwell tensor cores |
+| `"auto"` | picks best for your GPU | — | — | **Recommended portable default** |
+
+```python
+result = agnitra.optimize(model, input_shape=(1, 512), quantize="auto")
+```
+
+## 🔌 Integrations
+
+### HuggingFace `transformers`
+
+```python
+from agnitra.integrations.huggingface import AgnitraModel
+model = AgnitraModel.from_pretrained(model_id, agnitra_kwargs={...})
+```
+
+Drop-in replacement for `AutoModelForCausalLM.from_pretrained`. Works with any `transformers.AutoModelFor...` class via `model_class=`.
 
 ### LangChain
-
-Agents call the LLM hundreds of times per task. A 1.5x speedup on the model becomes a 1.5x reduction in the agent's wall-clock time.
 
 ```python
 from langchain_huggingface import HuggingFacePipeline
 from agnitra.integrations.langchain import optimize_llm
 
-llm = HuggingFacePipeline.from_model_id("meta-llama/Meta-Llama-3-8B-Instruct", task="text-generation")
-optimize_llm(llm, agnitra_kwargs={"input_shape": (1, 512), "quantize": "int8_weight"})
-# Use `llm` exactly as before — all chains/agents downstream get the speedup.
+llm = HuggingFacePipeline.from_model_id("...", task="text-generation")
+optimize_llm(llm, agnitra_kwargs={"quantize": "auto"})
+# Every chain / agent downstream inherits the speedup.
 ```
 
-See [`examples/quickstart_langchain.py`](examples/quickstart_langchain.py).
+Auto-detects `langchain_huggingface`, `langchain_community`, and legacy LangChain paths.
 
 ### LlamaIndex
-
-Same pattern for RAG and agent flows.
 
 ```python
 from llama_index.llms.huggingface import HuggingFaceLLM
 from agnitra.integrations.llama_index import optimize_llm
-
-llm = HuggingFaceLLM(model_name="meta-llama/Meta-Llama-3-8B-Instruct", ...)
-optimize_llm(llm, agnitra_kwargs={"input_shape": (1, 512), "quantize": "int8_weight"})
+optimize_llm(llm, agnitra_kwargs={"quantize": "auto"})
 ```
 
-See [`examples/quickstart_llama_index.py`](examples/quickstart_llama_index.py).
+### `accelerate`
 
-## CLI
-
-```bash
-agnitra optimize --model my_model.pt --input-shape 1,3,224,224 --output optimized.pt
-agnitra optimize-dir --models-dir /var/agnitra/fleet  # batch-optimize a fine-tune farm
-agnitra doctor                    # health check: torch / CUDA / NVML / Ollama / license
-agnitra heartbeat --interval 30   # background re-optimization daemon
+```python
+from accelerate import Accelerator
+from agnitra.integrations.accelerate_helpers import optimize_after_prepare
+accelerator = Accelerator()
+model = accelerator.prepare(model)
+model = optimize_after_prepare(model, input_shape=(1, 512))
 ```
 
-### Fine-tune farms (`agnitra optimize-dir`)
-
-If you run 50+ fine-tuned variants of the same base model in production (one per customer, one per use-case), Agnitra's architecture-fingerprint cache means **the second model with the same architecture inherits the first's optimization decisions**. Optimizing 50 Llama-3-8B fine-tunes takes nearly the same wall time as optimizing one.
-
-```bash
-agnitra optimize-dir \
-  --models-dir /var/agnitra/fleet \
-  --quantize int8_weight \
-  --input-shape 1,512
-```
-
-The directory layout is the standard HuggingFace shape — one subdirectory per model, each containing `config.json` plus weights.
-
-## API server (optional)
-
-If you want to call the optimizer remotely (CI workers, hosted inference):
-
-```bash
-agnitra-api    # binds to 127.0.0.1:8080 by default; AGNITRA_API_HOST overrides
-```
-
-The server exposes `POST /optimize`, `GET /jobs/{id}`, `GET /health`, and `WebSocket /ws/jobs/{id}` for live status. By default it listens on localhost; set `AGNITRA_ALLOW_PUBLIC_BIND=1` if you intentionally bind to a public interface.
-
-## NVIDIA ecosystem
-
-Agnitra drives traffic into NVIDIA's stack rather than competing with it. Most HuggingFace developers cannot use TensorRT-LLM directly because it requires C++ and a multi-step engine build. Agnitra wraps that:
+### NVIDIA TensorRT-LLM
 
 ```python
 result = agnitra.optimize(
@@ -247,48 +162,105 @@ result = agnitra.optimize(
 )
 ```
 
-For deployable containers, package an Agnitra-optimized model as a NIM-compatible Triton bundle:
+Wraps a pre-built TensorRT-LLM engine in a HuggingFace-shaped runtime. See [`docs/guides/nvidia.mdx`](docs/guides/nvidia.mdx) for engine build, NIM packaging, and NVIDIA Inception path.
+
+## 🛠️ CLI
 
 ```bash
-agnitra package --model-dir /models/llama3 --output dist/llama3-nim --target h100
+agnitra optimize --model my_model.pt --output optimized.pt
+agnitra optimize-dir --models-dir /var/agnitra/fleet --quantize auto
+agnitra package --model-dir /models/llama3 --output dist/llama3-nim --as nim
+agnitra doctor                # health check: torch / CUDA / NVML / Ollama / license
+agnitra --help                # full command list
 ```
 
-Output is a Triton model repository plus a `Dockerfile` based on `nvcr.io/nvidia/tritonserver`. See [`docs/guides/nvidia`](docs/guides/nvidia.mdx) for engine build steps, NGC catalog publishing, and the [NVIDIA Inception](https://www.nvidia.com/startups/) program path.
+`agnitra optimize-dir` is the killer feature for **fine-tune farms**: 50+ Llama-3 fine-tunes optimize in roughly the time it takes to optimize one because the architecture-fingerprint cache reuses decisions across same-architecture variants.
 
-## Configuration
+## 🌐 API server (optional)
+
+```bash
+agnitra-api
+```
+
+Binds to `127.0.0.1:8080` by default; exposes `POST /optimize`, `GET /jobs/{id}`, `GET /health`, and `WebSocket /ws/jobs/{id}`. Use the [npm `agnitra` HTTP client](https://www.npmjs.com/package/agnitra) for browser / Node.js access.
+
+## 🗺️ Roadmap
+
+- **Ring 1 (now):** decoder-only LLMs (Llama, Mistral, Qwen, Gemma, Phi, DeepSeek, OLMo, Yi, Falcon, Mixtral, Qwen-MoE, Phi-3, Gemma-2)
+- **Ring 1.5 (in flight):** custom Triton kernel fusions (RMSNorm + RoPE), speculative decoding integration
+- **Ring 2 (planned):** image generation — SDXL, SD3, FLUX
+- **Ring 3 (planned):** speech — Whisper, Wav2Vec2
+- **Out of scope:** training, multi-GPU sharding, encoder transformers, multimodal pipelines
+
+## 📦 Install options
+
+```bash
+pip install agnitra                    # base SDK
+pip install "agnitra[quantize]"        # + INT8/INT4/FP8 via torchao (recommended)
+pip install "agnitra[openai]"          # + LLM-guided research path
+pip install "agnitra[rl]"              # + PPO-guided research path
+pip install "agnitra[nvml]"            # + GPU telemetry
+```
+
+```bash
+npm install agnitra                    # JS/TS HTTP client (NOT a port; calls agnitra-api)
+```
+
+## 🔬 Configuration
 
 | Environment variable | Purpose |
 |---|---|
-| `OPENAI_API_KEY` | Enables the LLM-guided suggestion path. |
-| `AGNITRA_OLLAMA_URL` | Local LLM backend (default `http://localhost:11434`). |
-| `AGNITRA_API_HOST` / `AGNITRA_API_PORT` | API server bind interface. |
-| `AGNITRA_LICENSE_PATH` | Path to a license file when using enterprise features. |
-| `AGNITRA_NOTIFY_WEBHOOK_URL` | POST optimization results to Slack / Discord / Telegram. |
+| `AGNITRA_API_HOST` / `AGNITRA_API_PORT` | API server bind interface |
+| `AGNITRA_ALLOW_PUBLIC_BIND` | Set to `1` to silence the public-bind warning |
+| `OPENAI_API_KEY` | Enables the LLM-guided research path |
+| `AGNITRA_OLLAMA_URL` | Local LLM backend (default `http://localhost:11434`) |
+| `AGNITRA_LICENSE_PATH` | License file when using enterprise features |
+| `AGNITRA_NOTIFY_WEBHOOK_URL` | Slack / Discord / Telegram webhook for completion notifications |
 
-## Repository layout
+Full reference: [`docs/reference/configuration.mdx`](docs/reference/configuration.mdx).
+
+## 🏗️ Repository layout
 
 ```
 agnitra/
   sdk.py                    public optimize() entry point
   cli.py                    Click CLI
+  optimizers/               architecture detection + ring-1 routing
+    decoder_lm/             llama / mistral / qwen2 / gemma specialists
   _sdk/                     low-level optimizer (FX, kernels, RL)
   core/
-    optimizer/              LLM- and RL-guided optimization
-    runtime/                runtime patching, telemetry, fingerprinting, cache
+    runtime/                fingerprint, validation, control plane
     kernel/                 Triton kernel generation
-    metering/, billing/     usage events and Stripe integration
-    licensing/              license validation
-    notifications/          webhook notifiers
+    metering/, billing/     usage events, Stripe integration
   api/                      Starlette REST API server
-benchmarks/                 reproducible benchmark suites
-examples/                   small focused examples
-tests/                      pytest suite
+  integrations/             huggingface / langchain / llama_index / tensorrt_llm
+benchmarks/llama3_h100/     reproducible H100 benchmark
+examples/                   minimal runnable scripts
+js/                         TypeScript HTTP client (npm)
+docs/                       Mintlify documentation site
+tests/                      94 tests; runs without GPU
 ```
 
-## Contributing
+## 🤝 Contributing
 
-Bug reports, benchmark PRs, and "you're handicapping vLLM" issues are all welcome — the benchmark suite is meant to be adversarially reviewed. Open an issue or PR.
+PRs welcome. The benchmark suite is meant to be adversarially reviewed — if you find Agnitra is handicapping a competitor (vLLM, TensorRT-LLM, etc.), open an issue or PR. See [CONTRIBUTING.md](CONTRIBUTING.md) for the dev setup, test pattern, and what makes a good PR.
 
-## License
+Found a security issue? See [SECURITY.md](SECURITY.md).
+
+## 📄 License
 
 [Apache 2.0](LICENSE).
+
+## 🙏 Acknowledgments
+
+Agnitra is built on top of [`torch`](https://pytorch.org/), [`transformers`](https://github.com/huggingface/transformers), [`torchao`](https://github.com/pytorch/ao), [`accelerate`](https://github.com/huggingface/accelerate), and the broader PyTorch ecosystem. We drive traffic *into* [TensorRT-LLM](https://github.com/NVIDIA/TensorRT-LLM) and [vLLM](https://github.com/vllm-project/vllm) where appropriate rather than competing with them.
+
+The honest negative result we shipped — *"`torch.compile` is now a no-op vs HuggingFace baseline on Llama-3-8B"* — was made possible by Meta's relentless improvements to `transformers` defaults. Real progress shows up as commoditization, and we're glad to see it.
+
+---
+
+<div align="center">
+
+**Star us if Agnitra saved you a Modal bill.** [GitHub](https://github.com/Agnitraai/Agnitraai) · [PyPI](https://pypi.org/project/agnitra/) · [npm](https://www.npmjs.com/package/agnitra) · [Docs](docs/index.mdx)
+
+</div>

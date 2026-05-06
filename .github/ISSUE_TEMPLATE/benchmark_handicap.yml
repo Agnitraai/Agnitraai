@@ -1,0 +1,44 @@
+name: Benchmark handicap
+description: Report that Agnitra's published benchmark unfairly disadvantages a competitor.
+title: "[bench] handicap: "
+labels: ["benchmark"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        We treat the public benchmark in `benchmarks/llama3_h100/` as
+        adversarially reviewable. If you find Agnitra is handicapping
+        a competitor (vLLM, TensorRT-LLM, torch.compile, etc.) in our
+        published numbers, **this is exactly the kind of issue we
+        want to see**.
+
+  - type: input
+    id: which-runner
+    attributes:
+      label: Which runner is being handicapped?
+      placeholder: "runners/vllm_runner.py"
+    validations:
+      required: true
+
+  - type: textarea
+    id: configuration
+    attributes:
+      label: What's the handicap?
+      description: Be specific. "vLLM should be using `enforce_eager=False`" is useful; "vLLM is slow" is not.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed-fix
+    attributes:
+      label: Proposed configuration change
+      description: A diff to `benchmarks/llama3_h100/runners/<runner>.py` that addresses the handicap.
+      render: diff
+    validations:
+      required: true
+
+  - type: input
+    id: expected-impact
+    attributes:
+      label: Expected impact on the benchmark
+      placeholder: "vLLM throughput should improve from X tok/s to Y tok/s on batch=8"

@@ -1,0 +1,60 @@
+name: Bug report
+description: Something doesn't work as documented.
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug. The more concrete
+        the reproduction, the faster the fix.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you expect, and what did you actually see?
+      placeholder: |
+        I ran `agnitra.optimize(model, quantize="auto")` and expected ...
+        Instead, I got ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: 5-10 lines of Python (or shell) that reproduces the issue.
+      render: python
+    validations:
+      required: true
+
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Output of `agnitra doctor`
+      description: Run `agnitra doctor` and paste the full output here.
+      render: shell
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Agnitra version
+      description: Run `pip show agnitra` and paste the version line.
+      placeholder: "0.2.2"
+    validations:
+      required: true
+
+  - type: input
+    id: gpu
+    attributes:
+      label: GPU
+      description: e.g. NVIDIA H100 80GB SXM5, NVIDIA RTX 4090, AMD MI300, none (CPU)
+
+  - type: textarea
+    id: traceback
+    attributes:
+      label: Full error traceback
+      render: shell
