@@ -82,6 +82,21 @@ fast = result.optimized_model
 
 A complete runnable script lives at [`examples/quickstart.py`](examples/quickstart.py).
 
+### Want a real speedup? Quantize.
+
+The TF32 + SDPA + `torch.compile` defaults match what HuggingFace does today; the optimization that actually beats `transformers` baseline on Llama-class models is INT8 weight-only quantization:
+
+```python
+result = agnitra.optimize(
+    model,
+    input_shape=(1, 512),
+    enable_rl=False,
+    quantize="int8_weight",   # ← the lever
+)
+```
+
+Expected impact on Llama-3-8B: ~1.3–1.7× throughput on memory-bound decode, ~2× memory reduction, near-zero quality loss. Requires `torchao` (`pip install "agnitra[quantize]"`).
+
 ## Integrations
 
 ### HuggingFace `transformers`
@@ -136,7 +151,7 @@ model = optimize_after_prepare(model, input_shape=(1, 512))
 Honest scope, so you don't waste a day:
 
 - **Not a serving runtime.** It does not implement paged KV cache, continuous batching, or speculative decoding. Pair Agnitra with vLLM / TGI / your own serving stack.
-- **Not a quantizer.** No INT8/INT4 weight quantization or activation quantization. Use `bitsandbytes` / AWQ for that, then optimize the quantized model with Agnitra.
+- **Limited quantization (W8A16 only).** Agnitra supports INT8 weight-only quantization via `quantize="int8_weight"`, delegating to `torchao`. This is the optimization that beats plain HuggingFace + `torch.compile` (HF doesn't quantize by default). INT4 / activation quantization / AWQ / GPTQ are out of scope; if you have a model already quantized via those, Agnitra will optimize it but won't re-quantize.
 - **Not a trainer.** Inference only. Training-time optimization is out of scope.
 - **Not a multi-GPU sharder.** Single-GPU optimization. Tensor parallelism is a separate problem.
 

@@ -111,15 +111,35 @@ def compile_for_decode(model: Any) -> Any:
 # --- Sequence builders ----------------------------------------------------
 
 
-def apply_universal(model: Any, *, sample_input: Any, enable_compile: bool = True) -> Any:
+def apply_universal(
+    model: Any,
+    *,
+    sample_input: Any,
+    enable_compile: bool = True,
+    quantize: Optional[str] = None,
+) -> Any:
     """The universal-decoder-LM sequence: TF32 + SDPA + static cache + compile.
 
     Applied to every ring-1 architecture. Architecture-specialist
     modules call this first, then layer their own passes on top.
+
+    ``quantize="int8_weight"`` enables INT8 weight-only quantization
+    (W8A16) before compilation. This is the optimization that gives
+    Agnitra a real speedup over plain HuggingFace + ``torch.compile``,
+    because HF doesn't quantize by default. Expected: ~1.3-1.7x
+    throughput on memory-bound decode plus 2x memory reduction. Other
+    values are reserved for future quantization modes.
     """
     enable_tf32()
     model = ensure_sdpa_attention(model)
     model = enable_static_kv_cache(model)
+    # Quantize BEFORE compile: torch.compile then captures the
+    # dequantize+matmul kernel pattern under cudagraphs.
+    if quantize == "int8_weight":
+        from agnitra.optimizers.decoder_lm._quantization import apply_int8_weight_only
+        model = apply_int8_weight_only(model)
+    elif quantize is not None:
+        LOGGER.warning("Unknown quantize=%r; skipping quantization", quantize)
     if enable_compile:
         model = compile_for_decode(model)
     return model

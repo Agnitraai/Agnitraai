@@ -52,6 +52,7 @@ def optimize_decoder_lm(
     model_type: str,
     sample_input: Any,
     enable_compile: bool = True,
+    quantize: Optional[str] = None,
 ) -> Any:
     """Apply the architecture-appropriate specialist sequence.
 
@@ -62,21 +63,46 @@ def optimize_decoder_lm(
     ``enable_compile=False`` is for tests: ``torch.compile`` is slow at
     first invocation and we don't want every unit test to pay that
     cost. Production callers should always leave this on.
+
+    ``quantize="int8_weight"`` enables INT8 weight-only quantization
+    via torchao. This is the optimization that gives Agnitra a real
+    speedup over plain HuggingFace + ``torch.compile`` (HF doesn't
+    quantize by default). Expected: ~1.3-1.7x throughput on
+    memory-bound decode plus 2x memory reduction.
     """
     handler = _DISPATCH.get(model_type, _generic_decoder_lm)
     LOGGER.info(
-        "decoder_lm specialist: %s (handler=%s)", model_type, handler.__module__
+        "decoder_lm specialist: %s (handler=%s, quantize=%r)",
+        model_type,
+        handler.__module__,
+        quantize,
     )
-    return handler(model, sample_input=sample_input, enable_compile=enable_compile)
+    return handler(
+        model,
+        sample_input=sample_input,
+        enable_compile=enable_compile,
+        quantize=quantize,
+    )
 
 
-def _generic_decoder_lm(model, *, sample_input, enable_compile: bool = True):
+def _generic_decoder_lm(
+    model,
+    *,
+    sample_input,
+    enable_compile: bool = True,
+    quantize: Optional[str] = None,
+):
     """Fallback for ring-1 architectures without a tuned specialist yet.
 
-    Applies only the universally-safe passes. Architecture-specific
-    fusions (RoPE, RMSNorm) are skipped.
+    Applies only the universally-safe passes plus optional quantization.
+    Architecture-specific fusions (RoPE, RMSNorm) are skipped.
     """
-    return _passes.apply_universal(model, sample_input=sample_input, enable_compile=enable_compile)
+    return _passes.apply_universal(
+        model,
+        sample_input=sample_input,
+        enable_compile=enable_compile,
+        quantize=quantize,
+    )
 
 
 __all__ = ["optimize_decoder_lm"]

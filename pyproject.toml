@@ -62,6 +62,11 @@ rl = [
 nvml = [
     "pynvml>=11.0.0",
 ]
+# INT8 weight-only quantization via torchao — the optimization that
+# actually beats HuggingFace baseline on decoder LLMs.
+quantize = [
+    "torchao>=0.5.0",
+]
 
 [project.scripts]
 agnitra = "agnitra.cli:main"

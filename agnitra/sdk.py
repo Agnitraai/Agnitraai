@@ -292,6 +292,7 @@ def optimize(
     output_tolerance: float = 1e-3,
     argmax_match_threshold: float = 0.95,
     use_specialist: bool = True,
+    quantize: Optional[str] = None,
 ) -> RuntimeOptimizationResult:
     """Optimize ``model`` and return a metered runtime optimization report.
 
@@ -448,6 +449,7 @@ def optimize(
                 model,
                 model_type=detected_architecture,
                 sample_input=tensor,
+                quantize=quantize,
             )
             result = _build_specialist_result(
                 model=model,

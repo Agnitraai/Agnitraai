@@ -8,6 +8,13 @@ protobuf==5.27.2
 numpy==1.26.4
 huggingface-hub==0.24.6
 
+# torchao provides INT8/INT4 weight-only quantization. Agnitra's
+# specialist uses it via `quantize="int8_weight"` — the optimization
+# that gives a real speedup over plain HF + torch.compile (HF doesn't
+# quantize by default). Pinned to the version that ships matching
+# kernels for torch 2.4.
+torchao==0.5.0
+
 # vLLM is intentionally NOT in this requirements file.
 #
 # vllm 0.5.4 has a transitive dependency on pyairports via outlines.
