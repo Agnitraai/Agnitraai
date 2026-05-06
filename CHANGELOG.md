@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Agnitra are documented here. The format follows
+All notable changes to Agnitra AI are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
@@ -148,7 +148,7 @@ quantization modes. Same wedge as 0.2.0; broader hardware reach.
 
 ## [0.2.0] — 2026-05-06
 
-The wedge release. Agnitra narrows from "the PyTorch inference
+The wedge release. Agnitra AI narrows from "the PyTorch inference
 optimizer" to "the inference optimizer for decoder-only LLMs" and
 ships the first mechanism with a real speedup hypothesis vs. the
 HuggingFace baseline (INT8 weight-only quantization).

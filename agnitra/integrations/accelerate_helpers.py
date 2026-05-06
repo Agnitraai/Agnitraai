@@ -1,4 +1,4 @@
-"""Helpers for using Agnitra with HuggingFace ``accelerate``.
+"""Helpers for using Agnitra AI with HuggingFace ``accelerate``.
 
 ``accelerate`` is the standard way HuggingFace users prepare models for
 inference and training across devices. This module exposes one small
@@ -17,7 +17,7 @@ The clean integration is::
     model = optimize_after_prepare(model, input_shape=(1, 512))
 
 That is — ``accelerator.prepare()`` runs first (handles device placement
-and any distributed wrapping), then Agnitra runs on the prepared model.
+and any distributed wrapping), then Agnitra AI runs on the prepared model.
 """
 from __future__ import annotations
 
@@ -44,7 +44,7 @@ def optimize_after_prepare(
     input_tensor: Optional["torch.Tensor"] = None,
     agnitra_kwargs: Optional[Mapping[str, Any]] = None,
 ):
-    """Run Agnitra on a model that has already been ``accelerator.prepare``-d.
+    """Run Agnitra AI on a model that has already been ``accelerator.prepare``-d.
 
     Either ``input_shape`` or ``input_tensor`` must be provided so the
     optimizer can profile a forward pass at the workload's actual shape.

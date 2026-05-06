@@ -1,4 +1,4 @@
-"""API key authentication helpers for the Agnitra cloud API."""
+"""API key authentication helpers for the Agnitra AI cloud API."""
 
 from __future__ import annotations
 

@@ -33,7 +33,7 @@
     "huggingface",
     "pytorch"
   ],
-  "author": "Agnitra Labs <support@agnitra.ai>",
+  "author": "Agnitra AI <support@agnitra.ai>",
   "license": "Apache-2.0",
   "homepage": "https://github.com/agnitraai/agnitraai/tree/main/js",
   "repository": {

@@ -329,7 +329,7 @@ def optimize_log_with_open_evolve(
     evaluator: Optional[Callable[[Path], Mapping[str, Any]]] = None,
     extra_config: Optional[Mapping[str, Any]] = None,
 ) -> Optional[OpenEvolveResult]:
-    """Best-effort optimisation of a saved Agnitra log via OpenEvolve."""
+    """Best-effort optimisation of a saved Agnitra AI log via OpenEvolve."""
 
     path_obj = Path(log_path)
     if not path_obj.exists():

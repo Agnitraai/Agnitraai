@@ -1,4 +1,4 @@
-"""Core components of the Agnitra SDK."""
+"""Core components of the Agnitra AI SDK."""
 
 # Re-export core modules for convenience
 from .telemetry import Telemetry

@@ -1,6 +1,6 @@
 # Llama-3-8B on H100 — Reproducible Benchmark
 
-Public, reproducible comparison of Agnitra against the strongest open-source
+Public, reproducible comparison of Agnitra AI against the strongest open-source
 inference runtimes on a single workload.
 
 ## What this measures
@@ -12,14 +12,14 @@ inference runtimes on a single workload.
 | Input length | 512 tokens |
 | Output length | 128 tokens (greedy decode) |
 | Batch sizes | 1, 8, 32 |
-| Runners | HuggingFace `transformers`, `torch.compile`, vLLM, TensorRT-LLM, **Agnitra** |
+| Runners | HuggingFace `transformers`, `torch.compile`, vLLM, TensorRT-LLM, **Agnitra AI** |
 | Metrics | TTFT (p50, p99), decode tokens/sec, throughput tokens/sec, peak GPU memory |
 
 ## Why it exists
 
 Vendor benchmarks are not credible. This directory exists so that a skeptical
 engineer with an H100 can run **one command**, get the same numbers we publish
-(within ±5%), and verify or refute Agnitra's performance claims.
+(within ±5%), and verify or refute Agnitra AI's performance claims.
 
 If you find a configuration that handicaps a baseline, **open a PR**. We treat
 fair-fight benchmarks as adversarial review, not marketing.
@@ -40,7 +40,7 @@ fair-fight benchmarks as adversarial review, not marketing.
 ### Option A — Docker (recommended)
 
 The Dockerfile expects the build context at the **repo root** because it
-installs Agnitra from source. Run the build from the repo root:
+installs Agnitra AI from source. Run the build from the repo root:
 
 ```bash
 # from the repo root, NOT this directory
@@ -60,7 +60,7 @@ docker run --rm --gpus all \
 # from this directory
 python3.11 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-pip install -e ../..      # install Agnitra from the repo root
+pip install -e ../..      # install Agnitra AI from the repo root
 HF_TOKEN=hf_xxx ./run.sh
 ```
 
@@ -87,7 +87,7 @@ no Python venv. Run the bootstrap helper, then `run.sh`:
 ssh ubuntu@<your-h100-host>
 git clone https://github.com/Agnitraai/Agnitraai.git
 cd Agnitraai/benchmarks/llama3_h100
-./bootstrap.sh             # installs Python 3.11 + deps + Agnitra
+./bootstrap.sh             # installs Python 3.11 + deps + Agnitra AI
 HF_TOKEN=hf_xxx ./run.sh
 ```
 
@@ -165,8 +165,8 @@ benchmarks/llama3_h100/
 - vLLM and TensorRT-LLM are designed for *serving* workloads. Single-shot
   `generate()` is not their best mode. The numbers here are useful but a
   full picture also requires sustained-load benchmarks (coming).
-- Agnitra is a graph-level optimizer; it does **not** implement paged KV
-  cache or continuous batching. Expect Agnitra to be most competitive at
+- Agnitra AI is a graph-level optimizer; it does **not** implement paged KV
+  cache or continuous batching. Expect Agnitra AI to be most competitive at
   low batch / low concurrency, and vLLM/TRT-LLM to widen at high batch.
 - All numbers are *single-H100*. Multi-GPU tensor parallelism is a
   separate benchmark.

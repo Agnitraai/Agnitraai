@@ -1,6 +1,6 @@
 """Architecture-specific optimizers (ring 1: decoder-only LLMs).
 
-The wedge says Agnitra is the inference optimizer for *decoder-only LLMs*
+The wedge says Agnitra AI is the inference optimizer for *decoder-only LLMs*
 — Llama, Mistral, Qwen, Gemma, Phi, DeepSeek, and their fine-tunes.
 This package encodes that commitment in code.
 

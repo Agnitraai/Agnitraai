@@ -1,4 +1,4 @@
-"""Agnitra SDK package.
+"""Agnitra AI SDK package.
 
 The package import is intentionally cheap: ``import agnitra`` reads
 ``__version__`` and exits without touching torch, transformers, or any

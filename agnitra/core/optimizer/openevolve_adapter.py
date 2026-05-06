@@ -1,4 +1,4 @@
-"""OpenEvolve integration utilities for Agnitra logs.
+"""OpenEvolve integration utilities for Agnitra AI logs.
 
 This module provides light-weight helpers that take the structured log output
 from :class:`~agnitra.core.optimizer.LLMOptimizer` and translate it into an
@@ -10,7 +10,7 @@ strategies.
 The primary entry point is :func:`run_open_evolve_from_log`, which loads a log
 file, constructs an :class:`OpenEvolveProblem`, and executes a short evolution
 loop via :class:`OpenEvolveRunner`. The runner prefers the ``gpt-5-mini`` model
-by default to align with Agnitra's LLM optimisation pipeline, but callers can
+by default to align with Agnitra AI's LLM optimisation pipeline, but callers can
 override the underlying configuration when needed.
 """
 
@@ -70,7 +70,7 @@ def _render_initial_program(
     target_latency = _to_float(suggestion.get("target_latency_ms"))
     if target_latency is None:
         target_latency = min(expected_latency, base_latency * 0.85)
-    rationale_literal = json.dumps(str(suggestion.get("rationale") or "Seed configuration derived from Agnitra log."))
+    rationale_literal = json.dumps(str(suggestion.get("rationale") or "Seed configuration derived from Agnitra AI log."))
     metadata_literal = json.dumps({
         "baseline": {
             "op": baseline_summary.get("op"),
@@ -78,7 +78,7 @@ def _render_initial_program(
             "latency_ms": baseline_summary.get("latency_ms", base_latency),
         }
     })
-    header = '"""Agnitra-generated kernel tuning seed for OpenEvolve."""'
+    header = '"""Agnitra AI-generated kernel tuning seed for OpenEvolve."""'
     program = (
         f"{header}\n\n"
         f"BASELINE_LATENCY_MS = {base_latency:.4f}\n"
@@ -136,7 +136,7 @@ class OpenEvolveConfig:
 
 @dataclass
 class OpenEvolveProblem:
-    """Normalised optimisation problem derived from an Agnitra log."""
+    """Normalised optimisation problem derived from an Agnitra AI log."""
 
     name: str
     description: str

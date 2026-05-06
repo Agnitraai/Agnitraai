@@ -110,7 +110,7 @@ class WebhookNotifier:
         model_name = result.notes.get("model_name", "model") if isinstance(result.notes, dict) else "model"
 
         summary_lines = [
-            f"*Agnitra optimization complete* — `{model_name}` (project: `{project_id}`)",
+            f"*Agnitra AI optimization complete* — `{model_name}` (project: `{project_id}`)",
             f"• Baseline: `{baseline_ms:.2f} ms` → Optimized: `{optimized_ms:.2f} ms`"
             f" ({improvement_pct:+.1f}%)",
         ]

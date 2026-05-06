@@ -1,15 +1,15 @@
 ---
 title: "NVIDIA ecosystem"
-description: "Agnitra in NVIDIA's stack — TensorRT-LLM, NIM packaging, Triton Inference Server, NGC."
+description: "Agnitra AI in NVIDIA's stack — TensorRT-LLM, NIM packaging, Triton Inference Server, NGC."
 ---
 
 # NVIDIA ecosystem
 
-Agnitra is designed to **drive traffic into NVIDIA's stack**, not compete with it. NVIDIA ships world-class kernel-level optimizations (TensorRT-LLM, FlashAttention-2 in CUDA, FP8 on H100, FP4 on Blackwell). Most HuggingFace developers cannot use those tools directly because TensorRT-LLM requires C++, CUDA-version discipline, and a multi-step engine-build workflow. Agnitra's job is to make NVIDIA's stack reachable from a single Python keyword.
+Agnitra AI is designed to **drive traffic into NVIDIA's stack**, not compete with it. NVIDIA ships world-class kernel-level optimizations (TensorRT-LLM, FlashAttention-2 in CUDA, FP8 on H100, FP4 on Blackwell). Most HuggingFace developers cannot use those tools directly because TensorRT-LLM requires C++, CUDA-version discipline, and a multi-step engine-build workflow. Agnitra AI's job is to make NVIDIA's stack reachable from a single Python keyword.
 
 ## TensorRT-LLM as a backend
 
-When you have a pre-built TensorRT-LLM engine, point Agnitra at it:
+When you have a pre-built TensorRT-LLM engine, point Agnitra AI at it:
 
 ```python
 import agnitra
@@ -47,7 +47,7 @@ Then `engine_dir="./engine"` in the snippet above.
 
 ## NIM (NVIDIA Inference Microservices)
 
-NIM is NVIDIA's preferred packaging format for shipping models. Agnitra produces a NIM-compatible container layout in one command:
+NIM is NVIDIA's preferred packaging format for shipping models. Agnitra AI produces a NIM-compatible container layout in one command:
 
 ```bash
 agnitra package \
@@ -61,8 +61,8 @@ The output directory contains:
 
 - `Dockerfile` — based on `nvcr.io/nvidia/tritonserver`
 - `model_repo/<model>/config.pbtxt` — Triton model config
-- `model_repo/<model>/1/model.py` — Triton Python backend that calls Agnitra
-- `agnitra_optimization.json` — manifest of what Agnitra did
+- `model_repo/<model>/1/model.py` — Triton Python backend that calls Agnitra AI
+- `agnitra_optimization.json` — manifest of what Agnitra AI did
 
 Build and run:
 
@@ -72,7 +72,7 @@ docker build -t my-org/llama3-nim:latest .
 docker run --rm --gpus all -p 8000:8000 my-org/llama3-nim:latest
 ```
 
-For an officially-blessed NIM microservice deployment in production, see the [NVIDIA NIM documentation](https://docs.nvidia.com/nim/) for the full microservice template — Agnitra's output is a starting template, not a final NIM image.
+For an officially-blessed NIM microservice deployment in production, see the [NVIDIA NIM documentation](https://docs.nvidia.com/nim/) for the full microservice template — Agnitra AI's output is a starting template, not a final NIM image.
 
 ## Triton Inference Server
 
@@ -82,11 +82,11 @@ The NIM packaging output IS a Triton model repository. To use Triton without the
 tritonserver --model-repository=/path/to/dist/llama3-nim/model_repo
 ```
 
-The Python backend (`model_repo/<model>/1/model.py`) loads the model and applies Agnitra on `initialize()`. Customize that file for serving SLAs your team requires (continuous batching, request prioritization, etc.).
+The Python backend (`model_repo/<model>/1/model.py`) loads the model and applies Agnitra AI on `initialize()`. Customize that file for serving SLAs your team requires (continuous batching, request prioritization, etc.).
 
 ## NGC catalog
 
-NVIDIA's NGC catalog hosts containers and models for the AI ecosystem. To list an Agnitra-optimized container there:
+NVIDIA's NGC catalog hosts containers and models for the AI ecosystem. To list an Agnitra AI-optimized container there:
 
 1. Build your NIM container locally as above.
 2. Tag for NGC: `docker tag my-org/llama3-nim:latest nvcr.io/<your-org>/agnitra-llama3:0.2.0`
@@ -108,14 +108,14 @@ Application takes ~30 minutes. Submit your GitHub repository as the portfolio.
 
 ## Performance positioning
 
-When you publish benchmark numbers comparing Agnitra to TensorRT-LLM or NIM, frame Agnitra as **the developer-experience layer above** rather than a competitor. NVIDIA's developer relations notice and reward projects that make TensorRT-LLM more accessible.
+When you publish benchmark numbers comparing Agnitra AI to TensorRT-LLM or NIM, frame Agnitra AI as **the developer-experience layer above** rather than a competitor. NVIDIA's developer relations notice and reward projects that make TensorRT-LLM more accessible.
 
 The honest comparison axes:
 
-- **Time-to-first-result.** Agnitra: one Python import. TensorRT-LLM: engine build, ~30 minutes per architecture.
-- **Model coverage.** Agnitra: every HuggingFace decoder-LM. TensorRT-LLM: per-architecture conversion scripts.
-- **Peak throughput.** TensorRT-LLM wins on H100/Blackwell — Agnitra explicitly delegates to it via `backend="tensorrt_llm"` when peak performance is the goal.
-- **Quantization quality.** Both support INT8 weight-only; FP8 / FP4 are TRT-LLM specialties Agnitra defers to.
+- **Time-to-first-result.** Agnitra AI: one Python import. TensorRT-LLM: engine build, ~30 minutes per architecture.
+- **Model coverage.** Agnitra AI: every HuggingFace decoder-LM. TensorRT-LLM: per-architecture conversion scripts.
+- **Peak throughput.** TensorRT-LLM wins on H100/Blackwell — Agnitra AI explicitly delegates to it via `backend="tensorrt_llm"` when peak performance is the goal.
+- **Quantization quality.** Both support INT8 weight-only; FP8 / FP4 are TRT-LLM specialties Agnitra AI defers to.
 
 ## See also
 

@@ -1,8 +1,8 @@
 <div align="center">
 
-# Agnitra
+# Agnitra AI
 
-**Agnitra is the trust and optimization layer for production LLM inference — faster, cheaper, cryptographically signed.**
+**Agnitra AI is the trust and optimization layer for production LLM inference — faster, cheaper, cryptographically signed.**
 One Python keyword. No retraining. **2× memory ↓ · 1.5–2× throughput ↑ · Ed25519-signed manifests**.
 
 [![PyPI](https://img.shields.io/pypi/v/agnitra?color=blue&label=PyPI)](https://pypi.org/project/agnitra/)
@@ -49,12 +49,12 @@ model = AgnitraModel.from_pretrained(
 
 `quantize="auto"` picks **FP8 on H100/Blackwell** and **INT8 elsewhere**. The full runnable script is at [`examples/quickstart.py`](examples/quickstart.py).
 
-## 🎯 Why Agnitra
+## 🎯 Why Agnitra AI
 
 > **`torch.compile` is now a no-op against HuggingFace defaults on Llama-3-8B in `transformers` 4.44+.** We measured it. The wedge has narrowed — quantization is the lever that's left.
 
-- **One line, not a serving stack.** vLLM and TensorRT-LLM are *serving runtimes* requiring Python-side rewrites. Agnitra is an SDK — drop it into your existing `model.generate()` code.
-- **Quantization, automatic.** HuggingFace doesn't quantize by default. Agnitra picks the best mode for your GPU (FP8 / INT8 / INT4) and falls back gracefully when hardware can't run it.
+- **One line, not a serving stack.** vLLM and TensorRT-LLM are *serving runtimes* requiring Python-side rewrites. Agnitra AI is an SDK — drop it into your existing `model.generate()` code.
+- **Quantization, automatic.** HuggingFace doesn't quantize by default. Agnitra AI picks the best mode for your GPU (FP8 / INT8 / INT4) and falls back gracefully when hardware can't run it.
 - **Honest scoping.** Models outside the supported set get a passthrough `RuntimeOptimizationResult` with `notes["passthrough"] = True`. We never silently no-op.
 
 ## 📦 Install
@@ -277,7 +277,7 @@ Five access paths documented (Docker, host venv, Modal, Lambda Labs / RunPod SSH
 
 ## 🟢 NVIDIA ecosystem
 
-Agnitra drives traffic *into* NVIDIA's stack rather than competing with it.
+Agnitra AI drives traffic *into* NVIDIA's stack rather than competing with it.
 
 ```python
 result = agnitra.optimize(model, backend="tensorrt_llm", backend_kwargs={"engine_dir": "./engine"})
@@ -289,12 +289,12 @@ agnitra package --model-dir /models/llama3 --output dist/llama3-nim --target h10
 
 Output is a Triton model repository plus a `Dockerfile` based on `nvcr.io/nvidia/tritonserver`. See [`docs/guides/nvidia.mdx`](docs/guides/nvidia.mdx) for engine build, NGC catalog publishing, and the [NVIDIA Inception](https://www.nvidia.com/startups/) program path.
 
-## 🚫 What Agnitra is *not*
+## 🚫 What Agnitra AI is *not*
 
 Honest scope, so you don't waste a day:
 
 - **Not a serving runtime.** No paged KV cache, continuous batching, or speculative decoding. Pair with vLLM / TGI / SGLang.
-- **Limited quantization (W8A16 / W4A16 / W8(FP8)A8(FP8)).** AWQ / GPTQ are out of scope; Agnitra optimizes already-quantized models but won't re-quantize via those formats.
+- **Limited quantization (W8A16 / W4A16 / W8(FP8)A8(FP8)).** AWQ / GPTQ are out of scope; Agnitra AI optimizes already-quantized models but won't re-quantize via those formats.
 - **Not a trainer.** Inference only.
 - **Not a multi-GPU sharder.** Single-GPU optimization. Use `accelerate` or vLLM for tensor parallelism.
 - **Not multimodal.** Text decoder-LMs only. Image generation, speech, and vision-language models are explicitly ring 2 / 3.
@@ -372,13 +372,13 @@ PRs welcome. Three things make a good PR:
 2. **Tests for new behavior.** Use the monkeypatched-optimizer pattern in existing tests as your template — most run without GPU or torchao installed.
 3. **CHANGELOG entry** for user-visible changes.
 
-The benchmark suite is meant to be **adversarially reviewed** — if you find Agnitra is handicapping a competitor, open an issue with a specific configuration change. We treat it as signal, not criticism.
+The benchmark suite is meant to be **adversarially reviewed** — if you find Agnitra AI is handicapping a competitor, open an issue with a specific configuration change. We treat it as signal, not criticism.
 
 Found a security issue? Email `security@agnitra.ai` (see [`SECURITY.md`](SECURITY.md) when present).
 
 ## 💬 Get involved
 
-- ⭐ **Star this repo** if Agnitra saved you a Modal bill — it helps signal value to other developers.
+- ⭐ **Star this repo** if Agnitra AI saved you a Modal bill — it helps signal value to other developers.
 - 💬 [GitHub Discussions](https://github.com/Agnitraai/Agnitraai/discussions) — the place for "how do I…" questions and design proposals.
 - 🐛 [GitHub Issues](https://github.com/Agnitraai/Agnitraai/issues) — bugs, feature requests, benchmark handicap reports.
 - 📦 [PyPI](https://pypi.org/project/agnitra/) · [npm](https://www.npmjs.com/package/agnitra) · [Docs](docs/index.mdx)
@@ -393,7 +393,7 @@ Found a security issue? Email `security@agnitra.ai` (see [`SECURITY.md`](SECURIT
 
 Apache 2.0 — see [LICENSE](LICENSE).
 
-Agnitra is built on [`torch`](https://pytorch.org/), [`transformers`](https://github.com/huggingface/transformers), [`torchao`](https://github.com/pytorch/ao), [`accelerate`](https://github.com/huggingface/accelerate), and the broader PyTorch ecosystem. We drive traffic *into* [TensorRT-LLM](https://github.com/NVIDIA/TensorRT-LLM) and [vLLM](https://github.com/vllm-project/vllm) where appropriate rather than competing with them.
+Agnitra AI is built on [`torch`](https://pytorch.org/), [`transformers`](https://github.com/huggingface/transformers), [`torchao`](https://github.com/pytorch/ao), [`accelerate`](https://github.com/huggingface/accelerate), and the broader PyTorch ecosystem. We drive traffic *into* [TensorRT-LLM](https://github.com/NVIDIA/TensorRT-LLM) and [vLLM](https://github.com/vllm-project/vllm) where appropriate rather than competing with them.
 
 The honest negative result we shipped — *"`torch.compile` is now a no-op vs HuggingFace baseline on Llama-3-8B in `transformers` 4.44+"* — was made possible by Meta's relentless improvements to `transformers` defaults. Real progress shows up as commoditization, and we're glad to see it.
 

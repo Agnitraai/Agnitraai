@@ -1,4 +1,4 @@
-"""Cryptographic trust and provenance layer for Agnitra.
+"""Cryptographic trust and provenance layer for Agnitra AI.
 
 Layer 1 of the trust roadmap: signed inference manifests. Every
 ``agnitra.optimize()`` call produces a tamper-evident record of:

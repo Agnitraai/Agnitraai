@@ -1,11 +1,11 @@
 ---
-title: "Agnitra"
+title: "Agnitra AI"
 description: "The trust and optimization layer for production LLM inference — faster, cheaper, cryptographically signed."
 ---
 
-# Agnitra
+# Agnitra AI
 
-**Agnitra is the trust and optimization layer for production LLM inference — faster, cheaper, cryptographically signed.** One Python keyword. No retraining. Drop-in replacement for `model.generate()` calls.
+**Agnitra AI is the trust and optimization layer for production LLM inference — faster, cheaper, cryptographically signed.** One Python keyword. No retraining. Drop-in replacement for `model.generate()` calls.
 
 ```python
 from agnitra.integrations.huggingface import AgnitraModel
@@ -19,9 +19,9 @@ model = AgnitraModel.from_pretrained(
 
 That's it. No retraining. No graph rewrites by hand. No serving stack to adopt.
 
-## What Agnitra optimizes
+## What Agnitra AI optimizes
 
-Agnitra is intentionally narrow. The wedge is **decoder-only LLMs** — Llama-class models that account for ~80% of LLM inference spend in production. Every fine-tune of every supported architecture inherits the optimization decisions of its base model via [architecture fingerprinting](/docs/intro/architecture), so "13 architectures supported" effectively means "the ~100K decoder-LM fine-tunes on Hugging Face."
+Agnitra AI is intentionally narrow. The wedge is **decoder-only LLMs** — Llama-class models that account for ~80% of LLM inference spend in production. Every fine-tune of every supported architecture inherits the optimization decisions of its base model via [architecture fingerprinting](/docs/intro/architecture), so "13 architectures supported" effectively means "the ~100K decoder-LM fine-tunes on Hugging Face."
 
 See [Supported architectures](/docs/reference/configuration#supported-architectures) for the full list.
 
@@ -33,13 +33,13 @@ See [Supported architectures](/docs/reference/configuration#supported-architectu
 
 ## Two things to know up front
 
-1. **`torch.compile` defaults already include SDPA + static cache.** Plain Agnitra (without quantization) matches `torch.compile` on Llama-3-8B in `transformers 4.44.2` rather than beating it. **The actual speedup lever is `quantize="int8_weight"`** — see [INT8 quantization](/docs/guides/cli-and-sdk#int8-quantization).
-2. **Honest scoping.** Models outside the supported architecture set get a passthrough `RuntimeOptimizationResult` with `notes["passthrough"]=True`. Agnitra never silently no-ops — you always know whether the optimizer ran.
+1. **`torch.compile` defaults already include SDPA + static cache.** Plain Agnitra AI (without quantization) matches `torch.compile` on Llama-3-8B in `transformers 4.44.2` rather than beating it. **The actual speedup lever is `quantize="int8_weight"`** — see [INT8 quantization](/docs/guides/cli-and-sdk#int8-quantization).
+2. **Honest scoping.** Models outside the supported architecture set get a passthrough `RuntimeOptimizationResult` with `notes["passthrough"]=True`. Agnitra AI never silently no-ops — you always know whether the optimizer ran.
 
 ## Where to go next
 
 - [Quickstart](/docs/intro/quickstart) — install, run, see the speedup
 - [Architecture overview](/docs/intro/architecture) — how the optimizer works internally
 - [SDK & CLI guide](/docs/guides/cli-and-sdk) — every API surface with copy-paste examples
-- [Telemetry guide](/docs/guides/telemetry) — what data Agnitra collects and where it goes
+- [Telemetry guide](/docs/guides/telemetry) — what data Agnitra AI collects and where it goes
 - [Configuration reference](/docs/reference/configuration) — every environment variable and supported architecture

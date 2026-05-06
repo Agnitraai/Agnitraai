@@ -7,7 +7,7 @@ Two signals, in priority order:
 2. Structural fingerprint — count transformer blocks, attention modules,
    and a final language-modeling head. Catches raw ``torch``-saved
    models that have lost their ``config`` but retain the structural
-   pattern Agnitra targets.
+   pattern Agnitra AI targets.
 
 Returns the model_type string (which downstream code compares against
 :data:`SUPPORTED_DECODER_LM_TYPES`) or ``None`` when no decoder-LM

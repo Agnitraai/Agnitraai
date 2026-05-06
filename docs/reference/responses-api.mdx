@@ -5,7 +5,7 @@ description: "Optional OpenAI / Ollama integration for exploring new optimizatio
 
 # LLM-guided research path
 
-By default Agnitra runs the **specialist optimization path** — a hard-coded sequence of proven passes (TF32, SDPA, static cache, `torch.compile`, optional INT8 weight-only quantization). The specialist path makes no network calls and is the right choice for production workloads.
+By default Agnitra AI runs the **specialist optimization path** — a hard-coded sequence of proven passes (TF32, SDPA, static cache, `torch.compile`, optional INT8 weight-only quantization). The specialist path makes no network calls and is the right choice for production workloads.
 
 This page documents the **research path**: an optional LLM-guided pipeline (`enable_rl=True`, `use_specialist=False`) that asks an LLM to suggest kernel-tuning parameters. The research path exists so you can explore optimization patterns the specialists don't yet cover. **Do not enable it for production traffic** — outputs are non-deterministic and add latency for every optimization decision.
 
@@ -32,7 +32,7 @@ Both flags are required. `use_specialist=True` (the default) bypasses the resear
 
 ## LLM backends
 
-Agnitra picks a backend based on which API keys / processes are available, in this order:
+Agnitra AI picks a backend based on which API keys / processes are available, in this order:
 
 1. **OpenAI** if `OPENAI_API_KEY` is set and the `openai` extra is installed (`pip install "agnitra[openai]"`).
 2. **Codex CLI** if it is on the user's `PATH`.

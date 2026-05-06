@@ -1,4 +1,4 @@
-# Agnitra Benchmarks
+# Agnitra AI Benchmarks
 
 Public, reproducible benchmarks. Each subdirectory pins one workload on
 one GPU SKU and ships a one-command repro plus a committed results file.
@@ -12,7 +12,7 @@ one GPU SKU and ships a one-command repro plus a committed results file.
 Inference optimization claims ("2x faster") are unfalsifiable without a
 fixed workload, fixed hardware, fixed software versions, and a one-command
 repro. This directory exists so a skeptic with a GPU can reproduce — or
-refute — every number Agnitra publishes within ±5%.
+refute — every number Agnitra AI publishes within ±5%.
 
 ## Adding a new suite
 
@@ -28,5 +28,5 @@ refute — every number Agnitra publishes within ±5%.
 
 The benchmark CI workflow at `.github/workflows/benchmark.yml` re-runs
 `llama3_h100/run.sh` on a self-hosted H100 runner for every release tag,
-fails the build if Agnitra's throughput regresses >5% vs. the previous
+fails the build if Agnitra AI's throughput regresses >5% vs. the previous
 tagged release, and uploads the new `RESULTS.md` as a release asset.

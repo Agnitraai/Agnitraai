@@ -216,7 +216,7 @@ def main() -> None:
     experimentation in Colab.
     """
 
-    parser = argparse.ArgumentParser(description="Agnitra demo")
+    parser = argparse.ArgumentParser(description="Agnitra AI demo")
     parser.add_argument(
         "--profile-samples",
         action="store_true",
