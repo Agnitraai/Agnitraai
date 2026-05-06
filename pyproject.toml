@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agnitra"
-version = "0.1.0"
-description = "Optimization SDK, CLI, and API for Agnitra's pay-per-optimization platform."
+version = "0.2.0"
+description = "Inference optimizer for decoder-only LLMs. One-line drop-in for HuggingFace models."
 readme = "README.md"
 requires-python = ">=3.8"
 license = { file = "LICENSE" }
