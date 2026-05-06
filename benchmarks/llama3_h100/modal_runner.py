@@ -60,15 +60,6 @@ image = (
         add_python="3.11",
     )
     .apt_install("git", "curl", "ca-certificates", "build-essential")
-    # Install pyairports 2.1.1 from real PyPI before the requirements
-    # file is processed. Modal's internal pip mirror only carries the
-    # broken 0.0.1 sdist (see the note in requirements.txt); without
-    # this step vllm's import fails inside the container with
-    # "No module named 'pyairports'".
-    .pip_install(
-        "pyairports==2.1.1",
-        index_url="https://pypi.org/simple",
-    )
     .pip_install_from_requirements(
         str(BENCH_DIR / "requirements.txt"),
     )
