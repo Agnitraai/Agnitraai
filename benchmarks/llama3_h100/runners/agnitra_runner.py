@@ -38,12 +38,13 @@ def _optimize(model):
         # variance run-to-run that makes regressions hard to detect.
         # Run the RL variant separately if you want to measure it.
         enable_rl=False,
-        # NOT offline=True: that flag activates license enforcement,
-        # which fails inside the Modal container without a license
-        # file. The specialist optimization path doesn't need network
-        # access anyway (no LLM/RL calls when use_specialist=True),
-        # so offline=False is safe for benchmarks.
         offline=False,
+        # INT8 weight-only quantization. The single optimization that
+        # gives Agnitra a measurable speedup over plain HF +
+        # torch.compile (HF doesn't quantize by default). Expected:
+        # ~1.3-1.7x throughput on memory-bound decode plus 2x memory.
+        # Requires `torchao` in the benchmark image.
+        quantize="int8_weight",
         repeats=3,
         warmup=1,
     )

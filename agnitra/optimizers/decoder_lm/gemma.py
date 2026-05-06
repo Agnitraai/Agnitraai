@@ -8,7 +8,7 @@ RMSNorm fusions are a future optimization.
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any, Optional
 
 from agnitra.optimizers.decoder_lm import _passes
 
@@ -16,10 +16,22 @@ from agnitra.optimizers.decoder_lm import _passes
 LOGGER = logging.getLogger(__name__)
 
 
-def optimize(model: Any, *, sample_input: Any, enable_compile: bool = True) -> Any:
-    LOGGER.info("Gemma specialist: applying optimization sequence")
+def optimize(
+    model: Any,
+    *,
+    sample_input: Any,
+    enable_compile: bool = True,
+    quantize: Optional[str] = None,
+) -> Any:
+    LOGGER.info(
+        "Gemma specialist: applying optimization sequence (quantize=%r)",
+        quantize,
+    )
     return _passes.apply_universal(
-        model, sample_input=sample_input, enable_compile=enable_compile
+        model,
+        sample_input=sample_input,
+        enable_compile=enable_compile,
+        quantize=quantize,
     )
 
 
