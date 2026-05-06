@@ -102,10 +102,15 @@ def _resolve_fp8_weight_only_config() -> Tuple[Callable[..., None], Any]:
         )
 
 
-_MODE_RESOLVERS = {
-    "int8_weight": _resolve_int8_weight_only_config,
-    "int4_weight": _resolve_int4_weight_only_config,
-    "fp8_weight": _resolve_fp8_weight_only_config,
+# Map mode -> resolver-function name. We look the function up on this
+# module by name at call time so that monkeypatching the module
+# attribute (the standard test pattern) actually affects the dispatch.
+# Capturing function objects directly here would freeze them at module
+# load and ignore patches.
+_MODE_RESOLVER_NAMES = {
+    "int8_weight": "_resolve_int8_weight_only_config",
+    "int4_weight": "_resolve_int4_weight_only_config",
+    "fp8_weight": "_resolve_fp8_weight_only_config",
 }
 
 
@@ -157,12 +162,15 @@ def apply_quantization(model: Any, mode: str) -> Any:
         LOGGER.info("Quantization mode 'auto' resolved to %r", chosen)
         mode = chosen
 
-    if mode not in _MODE_RESOLVERS:
+    if mode not in _MODE_RESOLVER_NAMES:
         LOGGER.warning("Unknown quantization mode %r; skipping", mode)
         return model
 
+    import sys
+    this_module = sys.modules[__name__]
+    resolver = getattr(this_module, _MODE_RESOLVER_NAMES[mode])
     try:
-        quantize_fn, config = _MODE_RESOLVERS[mode]()
+        quantize_fn, config = resolver()
     except ImportError as exc:
         LOGGER.warning("Skipping %s quantization: %s", mode, exc)
         return model

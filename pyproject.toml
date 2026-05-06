@@ -1,5 +1,7 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+# tomli is needed by setup.py on Python <3.11 (which ships tomllib in stdlib).
+# Without this pin, `pip install -e .` fails with ModuleNotFoundError on 3.9/3.10.
+requires = ["setuptools>=61.0", "tomli; python_version < '3.11'"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -39,6 +41,13 @@ dependencies = [
     "uvicorn>=0.22.0",
     "jinja2>=3.1.0",
     "python-multipart>=0.0.6",
+    # torch is required for every optimizer call. The package import itself
+    # works without it (PEP 562 __getattr__ in agnitra/__init__.py), but
+    # any real use needs torch, so we declare it as a base dependency.
+    # Users who want CPU-only torch can `pip install --index-url
+    # https://download.pytorch.org/whl/cpu torch` separately first; pip
+    # will treat the requirement as satisfied.
+    "torch>=2.0",
 ]
 
 [project.urls]

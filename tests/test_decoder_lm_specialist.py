@@ -132,7 +132,7 @@ def test_optimize_decoder_lm_dispatches_llama(monkeypatch):
 
     called = {}
 
-    def _fake(model, *, sample_input, enable_compile):
+    def _fake(model, *, sample_input, enable_compile, **_kw):
         called["arch"] = "llama"
         return model
 
@@ -165,7 +165,7 @@ def test_optimize_decoder_lm_dispatches_by_model_type(monkeypatch, model_type, e
     target = {"mistral": mistral, "qwen2": qwen2, "gemma": gemma}[expected_module]
     called = {"hit": False}
 
-    def _fake(model, *, sample_input, enable_compile):
+    def _fake(model, *, sample_input, enable_compile, **_kw):
         called["hit"] = True
         return model
 
@@ -184,7 +184,7 @@ def test_optimize_decoder_lm_falls_back_to_generic_for_unknown_in_set(monkeypatc
     falls through to the generic decoder-LM passes."""
     invoked = {"universal": False}
 
-    def _fake_universal(model, *, sample_input, enable_compile):
+    def _fake_universal(model, *, sample_input, enable_compile, **_kw):
         invoked["universal"] = True
         return model
 
@@ -210,7 +210,7 @@ def test_sdk_routes_supported_arch_to_specialist(monkeypatch):
 
     called = {"specialist": False, "agent": False}
 
-    def _fake_specialist(model, *, model_type, sample_input, enable_compile=True):
+    def _fake_specialist(model, *, model_type, sample_input, enable_compile=True, **_kw):
         called["specialist"] = True
         called["model_type"] = model_type
         return model
@@ -231,7 +231,7 @@ def test_sdk_routes_supported_arch_to_specialist(monkeypatch):
     )
     monkeypatch.setattr("agnitra.sdk.RuntimeOptimizationAgent", _FailingAgent)
 
-    result = sdk.optimize(_Tiny(), input_shape=(1, 4), offline=True)
+    result = sdk.optimize(_Tiny(), input_shape=(1, 4))
     assert called["specialist"] is True
     assert called["agent"] is False
     assert called["model_type"] == "llama"
@@ -277,6 +277,6 @@ def test_sdk_use_specialist_false_falls_back_to_agent(monkeypatch):
     )
     monkeypatch.setattr("agnitra.sdk.RuntimeOptimizationAgent", _FakeAgent)
 
-    sdk.optimize(_Tiny(), input_shape=(1, 4), offline=True, use_specialist=False)
+    sdk.optimize(_Tiny(), input_shape=(1, 4), use_specialist=False)
     assert called["agent"] is True
     assert called["specialist"] is False

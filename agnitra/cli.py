@@ -10,10 +10,25 @@ from typing import Optional, Sequence, TYPE_CHECKING
 
 import click
 
-from .sdk import optimize as optimize_with_metering, resolve_input_tensor
 
-# Backwards compatibility for older tests/importers expecting ``optimize_model``
-optimize_model = optimize_with_metering
+# Heavy imports (`from .sdk import optimize`) are deferred to inside
+# command handlers so that `agnitra --help`, `agnitra --version`, and
+# argument parsing all work on a system that hasn't installed torch
+# yet. The CLI is the developer's first touchpoint; making it require
+# CUDA-capable torch just to print --help breaks every kick-the-tires
+# moment.
+def _import_sdk():
+    """Lazy SDK import. Returns ``(optimize, resolve_input_tensor)``."""
+    from .sdk import optimize as _optimize, resolve_input_tensor as _resolve
+    return _optimize, _resolve
+
+
+# Back-compat shim for callers doing ``from agnitra.cli import optimize_model``.
+def optimize_model(*args, **kwargs):
+    """Backwards-compatible re-export of ``agnitra.optimize``."""
+    optimize_with_metering, _ = _import_sdk()
+    return optimize_with_metering(*args, **kwargs)
+
 
 if TYPE_CHECKING:  # pragma: no cover - help type checkers only
     import torch
@@ -135,6 +150,7 @@ def optimize_command(
             except Exception as exc:
                 raise click.ClickException(f"Unable to move model to {device_name}: {exc}") from exc
 
+    optimize_with_metering, resolve_input_tensor = _import_sdk()
     try:
         sample = resolve_input_tensor(model, input_tensor=None, input_shape=input_shape, device=device)
     except Exception as exc:

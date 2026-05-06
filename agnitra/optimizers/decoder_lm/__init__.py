@@ -30,19 +30,20 @@ from agnitra.optimizers.decoder_lm import (
 LOGGER = logging.getLogger(__name__)
 
 
-# Mapping from HF ``model_type`` to the specialist module that knows
-# how to optimize it. Architectures not in this map but in
-# ``SUPPORTED_DECODER_LM_TYPES`` fall through to the shared
-# ``decoder_lm_generic`` pipeline (still better than the legacy
-# LLM/RL path, just not architecture-tuned).
-_DISPATCH: Dict[str, Callable[..., Any]] = {
-    "llama": _llama.optimize,
-    "mistral": _mistral.optimize,
-    "mixtral": _mistral.optimize,  # same architectural family
-    "qwen2": _qwen2.optimize,
-    "qwen2_moe": _qwen2.optimize,
-    "gemma": _gemma.optimize,
-    "gemma2": _gemma.optimize,
+# Mapping from HF ``model_type`` to the specialist *module* that knows
+# how to optimize it. We resolve ``module.optimize`` at call time
+# (rather than capturing the function reference at import) so that
+# ``monkeypatch.setattr(llama, "optimize", ...)`` in tests actually
+# affects dispatch — capturing the function would freeze it at
+# import and ignore the patch.
+_DISPATCH = {
+    "llama": _llama,
+    "mistral": _mistral,
+    "mixtral": _mistral,  # same architectural family
+    "qwen2": _qwen2,
+    "qwen2_moe": _qwen2,
+    "gemma": _gemma,
+    "gemma2": _gemma,
 }
 
 
@@ -70,11 +71,17 @@ def optimize_decoder_lm(
     quantize by default). Expected: ~1.3-1.7x throughput on
     memory-bound decode plus 2x memory reduction.
     """
-    handler = _DISPATCH.get(model_type, _generic_decoder_lm)
+    module = _DISPATCH.get(model_type)
+    if module is None:
+        handler = _generic_decoder_lm
+        handler_label = "decoder_lm._generic_decoder_lm"
+    else:
+        handler = module.optimize  # late binding — picks up monkeypatched fakes
+        handler_label = module.__name__
     LOGGER.info(
         "decoder_lm specialist: %s (handler=%s, quantize=%r)",
         model_type,
-        handler.__module__,
+        handler_label,
         quantize,
     )
     return handler(
