@@ -8,16 +8,22 @@ protobuf==5.27.2
 numpy==1.26.4
 huggingface-hub==0.24.6
 
-# NOTE on pyairports: vllm 0.5.4 -> outlines pulls in pyairports as a
-# transitive dep. pyairports 0.0.1 (the version on Modal's pip mirror)
-# has a packaging bug — installs but is not importable, breaking vllm.
-# pyairports>=2.0 fixes this BUT Modal's pip mirror does not carry
-# those versions. modal_runner.py installs pyairports==2.1.1 from
-# real PyPI BEFORE this file is processed; outlines then sees a
-# satisfying version already present.
-
-# vLLM 0.5.4 is built against torch 2.4.
-vllm==0.5.4
+# vLLM is intentionally NOT in this requirements file.
+#
+# vllm 0.5.4 has a transitive dependency on pyairports via outlines.
+# Only pyairports 0.0.1 exists on PyPI, and that version has a
+# packaging issue that leaves the module installed-but-unimportable
+# inside vllm's process. This blocks the entire image build.
+#
+# The vllm runner (runners/vllm_runner.py) gracefully skips when
+# vllm is not installed — it writes a JSON result with success=false
+# and library_version="vllm (not installed)". The vLLM column in
+# RESULTS.md is therefore left blank for this benchmark suite until
+# the dep mess is solved properly (likely by upgrading torch + vllm
+# together to a newer pair).
+#
+# Re-add `vllm==<pinned-version>` here when ready and rebuild the
+# Modal image. Track in: TODO(benchmark): restore vllm column.
 
 # TensorRT-LLM is intentionally NOT pinned here — it requires a separate
 # install path (NGC container or PyPI nightly with matching CUDA). The
