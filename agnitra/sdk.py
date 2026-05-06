@@ -37,6 +37,7 @@ from agnitra.core.runtime import (
     RuntimeOptimizationAgent,
     RuntimeOptimizationResult,
 )
+from agnitra.optimizers import detect_architecture, is_supported
 from agnitra.core.runtime.cache import CachedProfile, OptimizationCache
 from agnitra.core.runtime.control_plane import ControlPlaneClient, OptimizationPolicy
 from agnitra.core.runtime.fingerprint import fingerprint_signature, fingerprint_workload
@@ -175,6 +176,44 @@ def optimize_model(
     return _optimize_model(model, tensor, enable_rl=enable_rl)
 
 
+def _passthrough_result(
+    model: "nn.Module",
+    *,
+    detected_architecture: Optional[str],
+    project_id: str,
+    model_name: Optional[str],
+) -> RuntimeOptimizationResult:
+    """Build a RuntimeOptimizationResult that returns ``model`` unchanged.
+
+    Used when ``detect_architecture`` reports an architecture outside
+    Agnitra's ring-1 supported set. The baseline and optimized snapshots
+    are zero-valued sentinels; ``notes`` carries the detection result so
+    callers can branch on it (e.g. log a warning, surface in a UI, fall
+    back to ``torch.compile`` themselves).
+    """
+    snapshot = OptimizationSnapshot(
+        latency_ms=0.0,
+        tokens_per_sec=0.0,
+        tokens_processed=0,
+        gpu_utilization=None,
+        telemetry={},
+        metadata={"unoptimized": True},
+    )
+    return RuntimeOptimizationResult(
+        optimized_model=model,
+        baseline=snapshot,
+        optimized=snapshot,
+        usage_event=None,
+        notes={
+            "passthrough": True,
+            "reason": "unsupported_architecture",
+            "detected_architecture": detected_architecture,
+            "project_id": project_id,
+            "model_name": model_name or getattr(model, "__class__", type(model)).__name__,
+        },
+    )
+
+
 def optimize(
     model: "nn.Module",
     input_tensor: Optional["Tensor"] = None,
@@ -199,6 +238,10 @@ def optimize(
     license_seat: Optional[str] = None,
     license_org_id: Optional[str] = None,
     notify_webhook: Optional[WebhookNotifier] = None,
+    validate: bool = True,
+    fallback_on_regression: bool = True,
+    output_tolerance: float = 1e-3,
+    argmax_match_threshold: float = 0.95,
 ) -> RuntimeOptimizationResult:
     """Optimize ``model`` and return a metered runtime optimization report.
 
@@ -225,6 +268,26 @@ def optimize(
     """
 
     torch_mod = _require_torch()
+
+    # Architecture gate (ring 1: decoder-only LLMs). Models outside the
+    # supported set pass through unchanged with a `notes` annotation so
+    # callers can detect "Agnitra didn't actually optimize this." This
+    # is intentional: a silent 5% no-op speedup is worse than honest
+    # refusal because customers feel deceived and never come back.
+    detected_architecture = detect_architecture(model)
+    if not is_supported(detected_architecture):
+        LOGGER.info(
+            "Architecture %r is not in Agnitra's ring-1 supported set; "
+            "returning baseline model unchanged.",
+            detected_architecture,
+        )
+        return _passthrough_result(
+            model,
+            detected_architecture=detected_architecture,
+            project_id=project_id,
+            model_name=model_name,
+        )
+
     tensor = resolve_input_tensor(model, input_tensor, input_shape=input_shape, device=device)
     if device is not None and isinstance(tensor, torch_mod.Tensor) and tensor.device != device:
         tensor = tensor.to(device)
@@ -345,6 +408,57 @@ def optimize(
             cache_signature=fingerprint_sig,
         )
         duration = time.time() - start_time
+
+        # Output-validation safety net. If the optimizer changed the
+        # model's behavior beyond tolerance, revert to baseline and
+        # annotate. The check is best-effort — exceptions inside
+        # output_drift get captured into OutputDrift.error and treated
+        # as a regression signal.
+        if validate and result.optimized_model is not model:
+            try:
+                from agnitra.core.runtime.validation import output_drift
+                drift = output_drift(
+                    model,
+                    result.optimized_model,
+                    tensor,
+                    tolerance=output_tolerance,
+                )
+                cos_ok = drift.cosine_similarity >= (1.0 - output_tolerance)
+                arg_ok = drift.argmax_match_rate >= argmax_match_threshold
+                if drift.regressed or not (cos_ok and arg_ok):
+                    LOGGER.warning(
+                        "Optimization output drift exceeds tolerance "
+                        "(cos=%.4f, argmax=%.3f, max_abs=%.3e, error=%s); "
+                        "%s.",
+                        drift.cosine_similarity,
+                        drift.argmax_match_rate,
+                        drift.max_abs_diff,
+                        drift.error,
+                        "reverting to baseline model" if fallback_on_regression else "keeping optimized model anyway",
+                    )
+                    if isinstance(result.notes, dict):
+                        result.notes["validation"] = {
+                            "cosine_similarity": drift.cosine_similarity,
+                            "argmax_match_rate": drift.argmax_match_rate,
+                            "max_abs_diff": drift.max_abs_diff,
+                            "shapes_match": drift.shapes_match,
+                            "error": drift.error,
+                            "regressed": True,
+                        }
+                    if fallback_on_regression:
+                        result.optimized_model = model
+                        if isinstance(result.notes, dict):
+                            result.notes["reverted_due_to_drift"] = True
+                else:
+                    if isinstance(result.notes, dict):
+                        result.notes["validation"] = {
+                            "cosine_similarity": drift.cosine_similarity,
+                            "argmax_match_rate": drift.argmax_match_rate,
+                            "max_abs_diff": drift.max_abs_diff,
+                            "regressed": False,
+                        }
+            except Exception:
+                LOGGER.exception("Output validation crashed; keeping optimized model")
 
         optimization_context = result.notes.get("optimization_context", {}) if isinstance(result.notes, dict) else {}
         applied_preset = optimization_context.get("applied_preset")
