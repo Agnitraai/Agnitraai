@@ -4,6 +4,25 @@ All notable changes to Agnitra are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.4] — 2026-05-06
+
+Docs-only release. Refreshes the PyPI project page with the
+comprehensive README that's been on the GitHub repo since PR #29.
+
+PyPI caches the long_description at upload time, so the previous
+0.2.3 page kept showing an outdated README. This bump exists solely
+to update what appears on https://pypi.org/project/agnitra/ — no
+runtime changes.
+
+### Changed
+
+- README.md — viral-repo polish: concrete metrics in the hero
+  ("2× memory ↓ · 1.5–2× throughput ↑"), Phi-3 quickstart (no HF
+  token needed), star history graph, GitHub Discussions link,
+  collapsible <details> sections for advanced reference, contrarian
+  benchmark blockquote ("torch.compile is now a no-op against HF
+  defaults"), back-to-top link, tighter prose throughout.
+
 ## [0.2.3] — 2026-05-06
 
 The trust release. Adds the cryptographic provenance layer for
