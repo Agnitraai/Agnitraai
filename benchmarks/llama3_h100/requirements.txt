@@ -8,11 +8,13 @@ protobuf==5.27.2
 numpy==1.26.4
 huggingface-hub==0.24.6
 
-# pyairports 0.0.1 (which vllm 0.5.4 -> outlines pulls in by default)
-# only ships an sdist that fails to build on Modal's image. Pinning a
-# recent wheel-only version skips the build path. Must be listed BEFORE
-# vllm so pip's resolver picks it up first.
-pyairports==2.1.1
+# NOTE on pyairports: vllm 0.5.4 -> outlines pulls in pyairports as a
+# transitive dep. pyairports 0.0.1 (the version on Modal's pip mirror)
+# has a packaging bug — installs but is not importable, breaking vllm.
+# pyairports>=2.0 fixes this BUT Modal's pip mirror does not carry
+# those versions. modal_runner.py installs pyairports==2.1.1 from
+# real PyPI BEFORE this file is processed; outlines then sees a
+# satisfying version already present.
 
 # vLLM 0.5.4 is built against torch 2.4.
 vllm==0.5.4
