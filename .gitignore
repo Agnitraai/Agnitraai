@@ -116,6 +116,7 @@ docs/*.pdf
 node_modules/
 js/node_modules/
 js/package-lock.json
+js/dist/
 
 # Temporary files
 tmp/

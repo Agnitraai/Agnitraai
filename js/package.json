@@ -1,0 +1,53 @@
+{
+  "name": "agnitra",
+  "version": "0.2.0",
+  "description": "TypeScript HTTP client for the Agnitra inference-optimization API. The optimizer itself is Python-only; this package lets browser and Node.js apps call a hosted Agnitra service.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "module": "dist/index.mjs",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "node --test --import tsx test/",
+    "lint": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "agnitra",
+    "inference",
+    "optimization",
+    "llm",
+    "huggingface",
+    "pytorch"
+  ],
+  "author": "Agnitra Labs <support@agnitra.ai>",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/agnitraai/agnitraai/tree/main/js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/agnitraai/agnitraai.git",
+    "directory": "js"
+  },
+  "bugs": {
+    "url": "https://github.com/agnitraai/agnitraai/issues"
+  },
+  "devDependencies": {
+    "tsx": "^4.7.0",
+    "typescript": "^5.4.0"
+  },
+  "dependencies": {}
+}
