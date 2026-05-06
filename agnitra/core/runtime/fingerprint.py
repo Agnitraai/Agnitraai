@@ -177,6 +177,98 @@ def fingerprint_workload(
     return fingerprint
 
 
+# --------------------------------------------------------------------------
+# Architecture fingerprint
+#
+# Distinct from the workload fingerprint above:
+#
+#   * Workload fingerprint identifies a SPECIFIC RUN (model + input shape +
+#     hardware + framework versions). Used for run-level telemetry and
+#     calibration cache lookups against the exact same conditions.
+#
+#   * Architecture fingerprint identifies a MODEL CLASS (model_type +
+#     structural dims). Stable across every fine-tune of, say, Llama-3-8B.
+#     This is what lets "support 100K HuggingFace models" actually mean
+#     "support ~12 architectures and inherit decisions across their fine-tunes."
+#
+# A specialist optimizer (e.g. agnitra/optimizers/decoder_lm/llama.py)
+# stores its decision sequence keyed on the architecture signature so
+# the second customer with a Llama-3 fine-tune skips re-derivation.
+# --------------------------------------------------------------------------
+
+
+# HF config attributes that uniquely identify an LLM architecture's shape.
+# Order matters for stable hashing — keep alphabetical, prepend new keys
+# only after consultation with the cache TTL policy.
+_ARCH_CONFIG_KEYS: Sequence[str] = (
+    "hidden_size",
+    "intermediate_size",
+    "max_position_embeddings",
+    "model_type",
+    "num_attention_heads",
+    "num_hidden_layers",
+    "num_key_value_heads",
+    "rms_norm_eps",
+    "rope_theta",
+    "tie_word_embeddings",
+    "vocab_size",
+)
+
+
+def architecture_fingerprint(model: Any) -> Dict[str, Any]:
+    """Identify the architecture class of ``model``, ignoring weights.
+
+    For HuggingFace ``transformers`` models, reads canonical config
+    attributes (``model_type``, ``hidden_size``, ``num_hidden_layers``,
+    ``num_attention_heads``, ``num_key_value_heads``, ``intermediate_size``,
+    ``vocab_size``, ``rope_theta``, ``rms_norm_eps``, ...). For raw
+    ``torch.nn.Module`` instances without ``config``, falls back to a
+    structural signature (parameter / buffer counts + the module-class
+    names that appear in the tree).
+
+    Two models with the same architecture but different weights —
+    e.g. base Llama-3-8B and any of its fine-tunes — produce identical
+    fingerprints.
+    """
+    cfg = getattr(model, "config", None)
+    if cfg is not None:
+        config_dict: Dict[str, Any] = {}
+        for key in _ARCH_CONFIG_KEYS:
+            value = getattr(cfg, key, None)
+            if value is not None:
+                config_dict[key] = value
+        if config_dict:
+            return {"source": "config", "config": config_dict}
+
+    # Structural fallback: count modules by class name. This is coarse
+    # — two unrelated decoders with the same module classes would
+    # collide — but works for "no config" models without crashing.
+    structural: Dict[str, int] = {}
+    try:
+        for _name, sub in model.named_modules():
+            class_name = type(sub).__name__
+            structural[class_name] = structural.get(class_name, 0) + 1
+    except Exception:  # pragma: no cover - exotic modules
+        pass
+    return {
+        "source": "structural",
+        "module_classes": dict(sorted(structural.items())),
+        "param_count": _model_param_count(model),
+        "buffer_count": _model_buffer_count(model),
+    }
+
+
+def architecture_signature(arch_fingerprint: Mapping[str, Any]) -> str:
+    """Stable hash of an architecture fingerprint.
+
+    Use this as a cache key for "what optimizations apply to this
+    architecture class." Fine-tunes of the same base model produce the
+    same signature; different architectures produce different signatures.
+    """
+    canonical = json.dumps(arch_fingerprint, sort_keys=True, default=str)
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
 def fingerprint_signature(payload: Mapping[str, Any]) -> str:
     """Generate a stable signature for the fingerprint mapping."""
 
