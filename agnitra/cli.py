@@ -1,4 +1,4 @@
-"""Click-based CLI for Agnitra."""
+"""Click-based CLI for Agnitra AI."""
 from __future__ import annotations
 
 import importlib
@@ -49,7 +49,7 @@ def _parse_shape(_: click.Context, __: click.Parameter, value: Optional[str]) ->
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
 @click.version_option(package_name="agnitra")
 def cli() -> None:
-    """Agnitra command line interface."""
+    """Agnitra AI command line interface."""
 
 
 @cli.command("optimize")
@@ -323,7 +323,7 @@ def doctor_command(check_api: bool, api_url: str) -> None:
             line += f" — {detail}"
         click.echo(line)
 
-    click.echo("Agnitra Doctor")
+    click.echo("Agnitra AI Doctor")
     click.echo("=" * 40)
 
     # PyTorch
@@ -486,7 +486,7 @@ def optimize_dir_command(
     """Optimize every HuggingFace model in a directory.
 
     Use case: production fleets running 50+ fine-tuned variants of the
-    same base model. Agnitra's architecture-fingerprint cache means the
+    same base model. Agnitra AI's architecture-fingerprint cache means the
     SECOND model with the same config (e.g. a fine-tune of the first)
     inherits its optimization decisions instantly. Optimizing 50
     Llama-3-8B fine-tunes takes nearly the same wall time as
@@ -651,12 +651,12 @@ def package_command(
     target_arch: str,
     quantize: str,
 ) -> None:
-    """Package an Agnitra-optimized model as a deployable container.
+    """Package an Agnitra AI-optimized model as a deployable container.
 
     Currently supports NVIDIA NIM (NVIDIA Inference Microservices)
     layout — a Triton Inference Server model repository plus a
     Dockerfile based on ``nvcr.io/nvidia/tritonserver``. The Python
-    backend inside the container loads the model and applies Agnitra
+    backend inside the container loads the model and applies Agnitra AI
     on first request.
 
     Build the container:

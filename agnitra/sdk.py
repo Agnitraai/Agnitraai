@@ -146,7 +146,7 @@ def optimize_model(
     device: Optional["torch.device"] = None,
     enable_rl: bool = True,
 ) -> "nn.Module":
-    """Optimize ``model`` using Agnitra's pipeline.
+    """Optimize ``model`` using Agnitra AI's pipeline.
 
     Parameters
     ----------
@@ -235,7 +235,7 @@ def _passthrough_result(
     """Build a RuntimeOptimizationResult that returns ``model`` unchanged.
 
     Used when ``detect_architecture`` reports an architecture outside
-    Agnitra's ring-1 supported set. The baseline and optimized snapshots
+    Agnitra AI's ring-1 supported set. The baseline and optimized snapshots
     are zero-valued sentinels; ``notes`` carries the detection result so
     callers can branch on it (e.g. log a warning, surface in a UI, fall
     back to ``torch.compile`` themselves).
@@ -324,13 +324,13 @@ def optimize(
 
     # Architecture gate (ring 1: decoder-only LLMs). Models outside the
     # supported set pass through unchanged with a `notes` annotation so
-    # callers can detect "Agnitra didn't actually optimize this." This
+    # callers can detect "Agnitra AI didn't actually optimize this." This
     # is intentional: a silent 5% no-op speedup is worse than honest
     # refusal because customers feel deceived and never come back.
     detected_architecture = detect_architecture(model)
     if not is_supported(detected_architecture):
         LOGGER.info(
-            "Architecture %r is not in Agnitra's ring-1 supported set; "
+            "Architecture %r is not in Agnitra AI's ring-1 supported set; "
             "returning baseline model unchanged.",
             detected_architecture,
         )

@@ -1,4 +1,4 @@
-"""LlamaIndex integration for Agnitra.
+"""LlamaIndex integration for Agnitra AI.
 
 LlamaIndex's RAG and agent flows hit the LLM repeatedly: query
 rewriting, response synthesis, sub-question decomposition, evaluator

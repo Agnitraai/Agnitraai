@@ -1,4 +1,4 @@
-"""HuggingFace `transformers` integration for Agnitra.
+"""HuggingFace `transformers` integration for Agnitra AI.
 
 The wedge promises: drop one line into your inference code and the model
 gets faster. For HuggingFace users, that one line is::
@@ -97,7 +97,7 @@ class AgnitraModel:
     ``model_class=YourClass`` to use a different head (for example
     ``transformers.AutoModelForSeq2SeqLM``); defaults to
     ``AutoModelForCausalLM`` because that is the dominant inference
-    workload Agnitra targets.
+    workload Agnitra AI targets.
 
     Example::
 

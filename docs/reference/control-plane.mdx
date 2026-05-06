@@ -25,7 +25,7 @@ Submit an optimization job. The server queues the work and returns a job ID imme
 ```bash
 curl -X POST http://127.0.0.1:8080/optimize \
   -H 'Content-Type: application/json' \
-  -H "X-Agnitra-Api-Key: $AGNITRA_API_KEY" \
+  -H "X-Agnitra AI-Api-Key: $AGNITRA_API_KEY" \
   -d '{
     "project_id": "my-project",
     "model_name": "meta-llama/Meta-Llama-3-8B-Instruct",
@@ -86,7 +86,7 @@ for await (const update of client.subscribeToJob(jobId)) {
 
 ## Authentication
 
-The server checks `X-Agnitra-Api-Key` against the `AGNITRA_API_KEY` environment variable when set. If `AGNITRA_API_KEY` is unset, all routes are open — that's only safe when the server binds to `127.0.0.1`. Always set an API key before binding to a public interface.
+The server checks `X-Agnitra AI-Api-Key` against the `AGNITRA_API_KEY` environment variable when set. If `AGNITRA_API_KEY` is unset, all routes are open — that's only safe when the server binds to `127.0.0.1`. Always set an API key before binding to a public interface.
 
 ## Configuration
 

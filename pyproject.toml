@@ -12,7 +12,7 @@ readme = "README.md"
 requires-python = ">=3.8"
 license = { file = "LICENSE" }
 authors = [
-    { name = "Agnitra Labs", email = "support@agnitra.ai" },
+    { name = "Agnitra AI", email = "support@agnitra.ai" },
 ]
 keywords = [
     "machine-learning",

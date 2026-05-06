@@ -1,4 +1,4 @@
-"""Benchmarking utilities for Agnitra.
+"""Benchmarking utilities for Agnitra AI.
 
 Provides helpers to compare baseline vs optimized model performance and
 persist summary metrics for quick inspection.

@@ -5,7 +5,7 @@ description: "Every API surface — Python SDK, CLI, integrations — with copy-
 
 # SDK & CLI guide
 
-This page is the canonical reference for every way to call Agnitra.
+This page is the canonical reference for every way to call Agnitra AI.
 
 ## Python SDK
 
@@ -117,7 +117,7 @@ model = optimize_after_prepare(model, input_shape=(1, 512))
 
 ## INT8 quantization
 
-The single optimization that beats HuggingFace baseline. HF does not quantize by default; Agnitra wraps `torchao`'s `int8_weight_only` config:
+The single optimization that beats HuggingFace baseline. HF does not quantize by default; Agnitra AI wraps `torchao`'s `int8_weight_only` config:
 
 ```python
 result = agnitra.optimize(model, input_shape=(1, 512), quantize="int8_weight")

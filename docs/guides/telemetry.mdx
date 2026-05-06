@@ -1,11 +1,11 @@
 ---
 title: "Telemetry"
-description: "What Agnitra measures, where the data lives, and how to export it."
+description: "What Agnitra AI measures, where the data lives, and how to export it."
 ---
 
 # Telemetry
 
-Agnitra emits structured telemetry at every stage of the optimization pipeline so you can audit decisions, prove uplift, and feed downstream observability tools.
+Agnitra AI emits structured telemetry at every stage of the optimization pipeline so you can audit decisions, prove uplift, and feed downstream observability tools.
 
 ## What gets measured
 
@@ -32,7 +32,7 @@ print(result.baseline.latency_ms, result.optimized.latency_ms)
 
 ### Webhook notifications
 
-Set `AGNITRA_NOTIFY_WEBHOOK_URL` (Slack, Discord, Telegram, or generic JSON) and Agnitra POSTs a summary to your webhook after every successful optimization:
+Set `AGNITRA_NOTIFY_WEBHOOK_URL` (Slack, Discord, Telegram, or generic JSON) and Agnitra AI POSTs a summary to your webhook after every successful optimization:
 
 ```bash
 export AGNITRA_NOTIFY_WEBHOOK_URL="https://hooks.slack.com/services/..."
@@ -73,11 +73,11 @@ pip install "agnitra[nvml]"
 
 Snapshots include the `gpu_utilization` field automatically when NVML is present.
 
-## What Agnitra does NOT collect
+## What Agnitra AI does NOT collect
 
-Agnitra is a local SDK by default. Without explicit configuration:
+Agnitra AI is a local SDK by default. Without explicit configuration:
 
-- No data is sent to any Agnitra-operated service.
+- No data is sent to any Agnitra AI-operated service.
 - No model weights, input tensors, or generated outputs are persisted.
 - Architecture fingerprints stay in-process.
 

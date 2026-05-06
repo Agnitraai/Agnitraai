@@ -1,6 +1,6 @@
 """Ring-1 architecture registry.
 
-The single canonical source of truth for "what does Agnitra optimize?"
+The single canonical source of truth for "what does Agnitra AI optimize?"
 Anything not in this set is either pass-through (current behavior) or
 explicitly out-of-scope (future rings).
 
@@ -16,7 +16,7 @@ from typing import FrozenSet
 
 # HuggingFace ``config.model_type`` values for decoder-only LLMs that
 # share the structural pattern (RMSNorm/LayerNorm + MHA-with-KV-cache +
-# SwiGLU/GeGLU FFN + RoPE) Agnitra targets.
+# SwiGLU/GeGLU FFN + RoPE) Agnitra AI targets.
 #
 # When you add an entry, also add the architecture-specialist module
 # under ``agnitra/optimizers/decoder_lm/`` and a benchmark column. Keep

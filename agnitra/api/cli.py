@@ -27,7 +27,7 @@ def run_api(argv: Optional[list[str]] = None) -> None:
     a warning unless ``AGNITRA_ALLOW_PUBLIC_BIND=1`` is set.
     """
 
-    parser = argparse.ArgumentParser(description="Run the Agnitra Agentic Optimization API server.")
+    parser = argparse.ArgumentParser(description="Run the Agnitra AI Agentic Optimization API server.")
     parser.add_argument(
         "--host",
         default=os.environ.get("AGNITRA_API_HOST", _DEFAULT_HOST),

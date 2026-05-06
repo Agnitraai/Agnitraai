@@ -1,6 +1,6 @@
 """The :class:`InferenceManifest` schema and builder.
 
-A manifest is a tamper-evident record of what Agnitra did to a model.
+A manifest is a tamper-evident record of what Agnitra AI did to a model.
 It serializes to canonical JSON for signing and to a regular dict for
 inclusion in :class:`agnitra.core.runtime.RuntimeOptimizationResult`'s
 ``notes``.

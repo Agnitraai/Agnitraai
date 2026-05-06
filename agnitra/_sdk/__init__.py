@@ -1,4 +1,4 @@
-"""Public SDK imports for Agnitra."""
+"""Public SDK imports for Agnitra AI."""
 
 from agnitra.core.telemetry import Telemetry
 from agnitra.core.ir import IRExtractor

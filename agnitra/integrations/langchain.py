@@ -1,4 +1,4 @@
-"""LangChain integration for Agnitra.
+"""LangChain integration for Agnitra AI.
 
 LangChain agents call the LLM hundreds of times per task — every
 prompt-tool-response loop hits the model. Optimization compounds: a

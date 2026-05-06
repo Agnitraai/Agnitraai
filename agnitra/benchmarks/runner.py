@@ -1,7 +1,7 @@
 """Benchmark runner comparing baseline vs optimized performance.
 
 This utility measures latency and (optionally) CUDA memory for a PyTorch
-model before and after optimization via the Agnitra SDK. It writes
+model before and after optimization via the Agnitra AI SDK. It writes
 ``before.json``, ``after.json`` and ``summary.json`` into the specified
 output directory.
 """

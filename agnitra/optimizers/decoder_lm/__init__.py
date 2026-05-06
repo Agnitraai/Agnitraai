@@ -66,7 +66,7 @@ def optimize_decoder_lm(
     cost. Production callers should always leave this on.
 
     ``quantize="int8_weight"`` enables INT8 weight-only quantization
-    via torchao. This is the optimization that gives Agnitra a real
+    via torchao. This is the optimization that gives Agnitra AI a real
     speedup over plain HuggingFace + ``torch.compile`` (HF doesn't
     quantize by default). Expected: ~1.3-1.7x throughput on
     memory-bound decode plus 2x memory reduction.

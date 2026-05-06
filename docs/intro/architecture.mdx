@@ -20,7 +20,7 @@ If the detected architecture is **not** in [`SUPPORTED_DECODER_LM_TYPES`](/docs/
 - **Architecture fingerprint** — `model_type` plus key dims (`hidden_size`, `num_hidden_layers`, `num_attention_heads`, `num_key_value_heads`, `intermediate_size`, `vocab_size`, `rope_theta`, `rms_norm_eps`). Stable across every fine-tune of a base model.
 - **Workload fingerprint** — model + input shape + GPU + framework. Identifies a specific run for telemetry purposes.
 
-The architecture fingerprint is the cache key for "what optimizations apply to this architecture class." When you optimize a Llama-3-8B fine-tune for the second time, Agnitra finds the cached decisions for the base architecture and applies them instantly. This is what makes "support 100K HuggingFace models" mean "support 13 architectures and inherit decisions across their fine-tunes."
+The architecture fingerprint is the cache key for "what optimizations apply to this architecture class." When you optimize a Llama-3-8B fine-tune for the second time, Agnitra AI finds the cached decisions for the base architecture and applies them instantly. This is what makes "support 100K HuggingFace models" mean "support 13 architectures and inherit decisions across their fine-tunes."
 
 ## Stage 3 — Specialize
 
@@ -40,14 +40,14 @@ The SDK wraps the optimized model in a [`RuntimeOptimizationResult`](/docs/refer
 
 ## What's NOT in the pipeline
 
-By design, Agnitra does not implement:
+By design, Agnitra AI does not implement:
 
-- **Paged KV cache / continuous batching / speculative decoding** — these are *serving* concerns. Pair Agnitra with vLLM, TGI, SGLang, or your own serving stack.
+- **Paged KV cache / continuous batching / speculative decoding** — these are *serving* concerns. Pair Agnitra AI with vLLM, TGI, SGLang, or your own serving stack.
 - **INT4 / activation quantization / AWQ / GPTQ** — out of scope. INT8 weight-only is the only quantization mode supported in 0.2.x.
 - **Multi-GPU sharding / tensor parallelism** — single-GPU optimization. Sharding is a separate problem.
 - **Training-time optimization** — inference only.
 
-See [What Agnitra is not](/docs/index#what-agnitra-is-not) for the full list.
+See [What Agnitra AI is not](/docs/index#what-agnitra-is-not) for the full list.
 
 ## Where the code lives
 

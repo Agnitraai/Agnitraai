@@ -1,4 +1,4 @@
-"""Runtime patch injector utilities for Agnitra.
+"""Runtime patch injector utilities for Agnitra AI.
 
 This module provides a high-level wrapper around ``torch.fx`` graph rewriting
 and module hooks to inject custom kernel wrappers at runtime. The primary entry

@@ -93,7 +93,7 @@ class PassRegistry:
     """Discover and load optimization pass plugins.
 
     Discovery order:
-    1. Built-in passes (shipped with Agnitra).
+    1. Built-in passes (shipped with Agnitra AI).
     2. Entry point passes registered under ``agnitra.passes``.
     3. Local file passes found in ``~/.agnitra/passes/``.
 
