@@ -30,11 +30,20 @@ _DECODER_LM_HINT_NAMES = (
 
 
 def _config_model_type(model: Any) -> Optional[str]:
-    """Read ``model.config.model_type`` if present; else ``None``."""
-    cfg = getattr(model, "config", None)
-    if cfg is None:
+    """Read ``model.config.model_type`` if present; else ``None``.
+
+    ``getattr(obj, "attr", default)`` only swallows AttributeError —
+    descriptors (like ``@property``) that raise other exceptions
+    propagate. Wrap defensively so detection is never the reason an
+    ``optimize()`` call crashes.
+    """
+    try:
+        cfg = getattr(model, "config", None)
+        if cfg is None:
+            return None
+        mtype = getattr(cfg, "model_type", None)
+    except Exception:  # pragma: no cover - defensive against exotic descriptors
         return None
-    mtype = getattr(cfg, "model_type", None)
     if isinstance(mtype, str) and mtype:
         return mtype.lower()
     return None

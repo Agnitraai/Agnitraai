@@ -153,10 +153,13 @@ def test_sdk_validates_and_reverts_on_regression(monkeypatch):
 
     monkeypatch.setattr("agnitra.sdk.RuntimeOptimizationAgent", _FakeAgent)
 
+    # use_specialist=False forces the legacy agent path so the mocked
+    # _FakeAgent actually runs (the default specialist path bypasses
+    # agent.optimize entirely).
     result = sdk.optimize(
         baseline,
         input_shape=(2, 4),
-        offline=True,
+        use_specialist=False,
     )
 
     # Validation should have detected drift and reverted to baseline.
@@ -187,7 +190,7 @@ def test_sdk_skips_validation_when_disabled(monkeypatch):
     result = sdk.optimize(
         baseline,
         input_shape=(2, 4),
-        offline=True,
+        use_specialist=False,
         validate=False,
     )
 
@@ -216,7 +219,7 @@ def test_sdk_keeps_optimized_when_validation_passes(monkeypatch):
 
     monkeypatch.setattr("agnitra.sdk.RuntimeOptimizationAgent", _FakeAgent)
 
-    result = sdk.optimize(baseline, input_shape=(2, 4), offline=True)
+    result = sdk.optimize(baseline, input_shape=(2, 4), use_specialist=False)
 
     assert result.optimized_model is good_optimized
     assert result.notes["validation"]["regressed"] is False

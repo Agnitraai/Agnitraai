@@ -86,13 +86,17 @@ def test_apply_int8_weight_only_invokes_torchao(monkeypatch):
 def test_apply_universal_calls_quantization_when_requested(monkeypatch):
     from agnitra.optimizers.decoder_lm import _passes, _quantization
 
-    invoked = {"quant": False}
+    invoked = {"quant": False, "mode": None}
 
-    def _record(model):
+    def _record(model, mode):
         invoked["quant"] = True
+        invoked["mode"] = mode
         return model
 
-    monkeypatch.setattr(_quantization, "apply_int8_weight_only", _record)
+    # PR #20 unified the quantization entry point on apply_quantization(model, mode).
+    # Tests written against PR #14 patched the old apply_int8_weight_only helper
+    # — that helper is still importable but no longer the call site.
+    monkeypatch.setattr(_quantization, "apply_quantization", _record)
 
     _passes.apply_universal(
         _Tiny(),
@@ -101,6 +105,7 @@ def test_apply_universal_calls_quantization_when_requested(monkeypatch):
         quantize="int8_weight",
     )
     assert invoked["quant"] is True
+    assert invoked["mode"] == "int8_weight"
 
 
 def test_apply_universal_skips_quantization_when_not_requested(monkeypatch):
@@ -108,11 +113,11 @@ def test_apply_universal_skips_quantization_when_not_requested(monkeypatch):
 
     invoked = {"quant": False}
 
-    def _record(model):
+    def _record(model, mode):  # noqa: ARG001 - signature kept compatible
         invoked["quant"] = True
         return model
 
-    monkeypatch.setattr(_quantization, "apply_int8_weight_only", _record)
+    monkeypatch.setattr(_quantization, "apply_quantization", _record)
 
     _passes.apply_universal(
         _Tiny(), sample_input=torch.zeros(1, 4), enable_compile=False
@@ -177,7 +182,7 @@ def test_sdk_threads_quantize_to_specialist(monkeypatch):
     sdk.optimize(
         _Tiny(),
         input_shape=(1, 4),
-        offline=True,
+
         quantize="int8_weight",
     )
     assert captured["quantize"] == "int8_weight"
@@ -199,5 +204,5 @@ def test_sdk_default_does_not_quantize(monkeypatch):
         "agnitra.optimizers.decoder_lm.optimize_decoder_lm", _fake_specialist
     )
 
-    sdk.optimize(_Tiny(), input_shape=(1, 4), offline=True)
+    sdk.optimize(_Tiny(), input_shape=(1, 4))
     assert captured["quantize"] is None
