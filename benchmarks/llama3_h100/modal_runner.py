@@ -35,8 +35,20 @@ except ImportError:  # pragma: no cover - friendly error for local users
     sys.exit(2)
 
 
-REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
-BENCH_DIR = pathlib.Path(__file__).resolve().parent
+# When this file runs locally (image build, local_entrypoint), __file__
+# points at the path inside the repo. When Modal imports it inside the
+# container, __file__ is /root/modal_runner.py — only one parent level
+# — so parents[2] would IndexError. Fall back to the in-container paths
+# that match where ``add_local_dir`` mounts the repo below.
+def _resolve_paths() -> tuple[pathlib.Path, pathlib.Path]:
+    here = pathlib.Path(__file__).resolve()
+    try:
+        return here.parents[2], here.parent
+    except IndexError:
+        return pathlib.Path("/work"), pathlib.Path("/work/benchmarks/llama3_h100")
+
+
+REPO_ROOT, BENCH_DIR = _resolve_paths()
 
 app = modal.App("agnitra-bench-llama3-h100")
 
