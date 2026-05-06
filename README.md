@@ -229,6 +229,26 @@ agnitra-api    # binds to 127.0.0.1:8080 by default; AGNITRA_API_HOST overrides
 
 The server exposes `POST /optimize`, `GET /jobs/{id}`, `GET /health`, and `WebSocket /ws/jobs/{id}` for live status. By default it listens on localhost; set `AGNITRA_ALLOW_PUBLIC_BIND=1` if you intentionally bind to a public interface.
 
+## NVIDIA ecosystem
+
+Agnitra drives traffic into NVIDIA's stack rather than competing with it. Most HuggingFace developers cannot use TensorRT-LLM directly because it requires C++ and a multi-step engine build. Agnitra wraps that:
+
+```python
+result = agnitra.optimize(
+    model,
+    backend="tensorrt_llm",
+    backend_kwargs={"engine_dir": "./engine"},
+)
+```
+
+For deployable containers, package an Agnitra-optimized model as a NIM-compatible Triton bundle:
+
+```bash
+agnitra package --model-dir /models/llama3 --output dist/llama3-nim --target h100
+```
+
+Output is a Triton model repository plus a `Dockerfile` based on `nvcr.io/nvidia/tritonserver`. See [`docs/guides/nvidia`](docs/guides/nvidia.mdx) for engine build steps, NGC catalog publishing, and the [NVIDIA Inception](https://www.nvidia.com/startups/) program path.
+
 ## Configuration
 
 | Environment variable | Purpose |

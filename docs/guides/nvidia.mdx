@@ -1,0 +1,124 @@
+---
+title: "NVIDIA ecosystem"
+description: "Agnitra in NVIDIA's stack — TensorRT-LLM, NIM packaging, Triton Inference Server, NGC."
+---
+
+# NVIDIA ecosystem
+
+Agnitra is designed to **drive traffic into NVIDIA's stack**, not compete with it. NVIDIA ships world-class kernel-level optimizations (TensorRT-LLM, FlashAttention-2 in CUDA, FP8 on H100, FP4 on Blackwell). Most HuggingFace developers cannot use those tools directly because TensorRT-LLM requires C++, CUDA-version discipline, and a multi-step engine-build workflow. Agnitra's job is to make NVIDIA's stack reachable from a single Python keyword.
+
+## TensorRT-LLM as a backend
+
+When you have a pre-built TensorRT-LLM engine, point Agnitra at it:
+
+```python
+import agnitra
+
+result = agnitra.optimize(
+    model,
+    backend="tensorrt_llm",
+    backend_kwargs={"engine_dir": "./engine"},
+)
+fast = result.optimized_model
+# fast.generate(input_ids, ...) goes through TRT-LLM kernels.
+```
+
+The wrapper exposes a HuggingFace-shaped `.generate()` interface so existing code paths work unchanged.
+
+### Building the engine
+
+This is a one-time per-architecture step. Use TensorRT-LLM's own scripts:
+
+```bash
+git clone https://github.com/NVIDIA/TensorRT-LLM
+cd TensorRT-LLM/examples/llama
+python convert_checkpoint.py \
+    --model_dir <hf_model> \
+    --output_dir ./ckpt \
+    --dtype float16
+trtllm-build \
+    --checkpoint_dir ./ckpt \
+    --output_dir ./engine \
+    --gemm_plugin float16 \
+    --max_batch_size 32
+```
+
+Then `engine_dir="./engine"` in the snippet above.
+
+## NIM (NVIDIA Inference Microservices)
+
+NIM is NVIDIA's preferred packaging format for shipping models. Agnitra produces a NIM-compatible container layout in one command:
+
+```bash
+agnitra package \
+    --model-dir /models/llama3 \
+    --output dist/llama3-nim \
+    --target h100 \
+    --quantize int8_weight
+```
+
+The output directory contains:
+
+- `Dockerfile` — based on `nvcr.io/nvidia/tritonserver`
+- `model_repo/<model>/config.pbtxt` — Triton model config
+- `model_repo/<model>/1/model.py` — Triton Python backend that calls Agnitra
+- `agnitra_optimization.json` — manifest of what Agnitra did
+
+Build and run:
+
+```bash
+cd dist/llama3-nim
+docker build -t my-org/llama3-nim:latest .
+docker run --rm --gpus all -p 8000:8000 my-org/llama3-nim:latest
+```
+
+For an officially-blessed NIM microservice deployment in production, see the [NVIDIA NIM documentation](https://docs.nvidia.com/nim/) for the full microservice template — Agnitra's output is a starting template, not a final NIM image.
+
+## Triton Inference Server
+
+The NIM packaging output IS a Triton model repository. To use Triton without the NIM Dockerfile wrapper:
+
+```bash
+tritonserver --model-repository=/path/to/dist/llama3-nim/model_repo
+```
+
+The Python backend (`model_repo/<model>/1/model.py`) loads the model and applies Agnitra on `initialize()`. Customize that file for serving SLAs your team requires (continuous batching, request prioritization, etc.).
+
+## NGC catalog
+
+NVIDIA's NGC catalog hosts containers and models for the AI ecosystem. To list an Agnitra-optimized container there:
+
+1. Build your NIM container locally as above.
+2. Tag for NGC: `docker tag my-org/llama3-nim:latest nvcr.io/<your-org>/agnitra-llama3:0.2.0`
+3. Push: `docker push nvcr.io/<your-org>/agnitra-llama3:0.2.0`
+4. Submit catalog metadata via [NGC Console](https://catalog.ngc.nvidia.com/).
+
+NGC submission requires an [NVIDIA Inception](https://www.nvidia.com/startups/) membership or an enterprise NGC account. Inception is free for early-stage startups.
+
+## NVIDIA Inception Program
+
+Apply at https://www.nvidia.com/startups/. Membership is free and gives:
+
+- Cloud credits (`AGX`, DGX Cloud, NGC catalog access)
+- Executive intros to NVIDIA's developer relations and corp-dev
+- GTC startup-track demo slots
+- Technical mentorship from NVIDIA's TensorRT, NeMo, and NIM teams
+
+Application takes ~30 minutes. Submit your GitHub repository as the portfolio.
+
+## Performance positioning
+
+When you publish benchmark numbers comparing Agnitra to TensorRT-LLM or NIM, frame Agnitra as **the developer-experience layer above** rather than a competitor. NVIDIA's developer relations notice and reward projects that make TensorRT-LLM more accessible.
+
+The honest comparison axes:
+
+- **Time-to-first-result.** Agnitra: one Python import. TensorRT-LLM: engine build, ~30 minutes per architecture.
+- **Model coverage.** Agnitra: every HuggingFace decoder-LM. TensorRT-LLM: per-architecture conversion scripts.
+- **Peak throughput.** TensorRT-LLM wins on H100/Blackwell — Agnitra explicitly delegates to it via `backend="tensorrt_llm"` when peak performance is the goal.
+- **Quantization quality.** Both support INT8 weight-only; FP8 / FP4 are TRT-LLM specialties Agnitra defers to.
+
+## See also
+
+- [Architecture overview](/docs/intro/architecture) — how the optimizer pipeline routes
+- [Configuration reference](/docs/reference/configuration) — every supported architecture and parameter
+- [API server reference](/docs/reference/control-plane) — `agnitra-api` for remote inference
