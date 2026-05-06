@@ -84,18 +84,24 @@ A complete runnable script lives at [`examples/quickstart.py`](examples/quicksta
 
 ### Want a real speedup? Quantize.
 
-The TF32 + SDPA + `torch.compile` defaults match what HuggingFace does today; the optimization that actually beats `transformers` baseline on Llama-class models is INT8 weight-only quantization:
+The TF32 + SDPA + `torch.compile` defaults match what HuggingFace does today; the optimization that actually beats `transformers` baseline on Llama-class models is quantization. Four modes:
 
 ```python
 result = agnitra.optimize(
     model,
     input_shape=(1, 512),
-    enable_rl=False,
-    quantize="int8_weight",   # ← the lever
+    quantize="auto",   # picks FP8 on H100/Blackwell, INT8 elsewhere
 )
 ```
 
-Expected impact on Llama-3-8B: ~1.3–1.7× throughput on memory-bound decode, ~2× memory reduction, near-zero quality loss. Requires `torchao` (`pip install "agnitra[quantize]"`).
+| Mode | vs FP16 baseline | When to use |
+|---|---|---|
+| `"int8_weight"` | ~2× memory, ~1.3-1.7× throughput, near-zero quality drop | Default safe choice; any CUDA GPU |
+| `"int4_weight"` | ~4× memory, ~1.6-2.0× throughput, mild quality drop | Memory-bound decode on smaller GPUs (4090, A40, L4) |
+| `"fp8_weight"` | ~2× throughput on H100/Blackwell tensor cores, near-zero quality drop | Highest-end NVIDIA hardware |
+| `"auto"` | picks FP8 on Hopper+, INT8 elsewhere | Recommended for portable code |
+
+All four require `torchao` — install via `pip install "agnitra[quantize]"`.
 
 ## Integrations
 

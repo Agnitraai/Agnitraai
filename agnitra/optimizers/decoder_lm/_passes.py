@@ -123,23 +123,29 @@ def apply_universal(
     Applied to every ring-1 architecture. Architecture-specialist
     modules call this first, then layer their own passes on top.
 
-    ``quantize="int8_weight"`` enables INT8 weight-only quantization
-    (W8A16) before compilation. This is the optimization that gives
-    Agnitra a real speedup over plain HuggingFace + ``torch.compile``,
-    because HF doesn't quantize by default. Expected: ~1.3-1.7x
-    throughput on memory-bound decode plus 2x memory reduction. Other
-    values are reserved for future quantization modes.
+    ``quantize`` accepts:
+      * ``"int8_weight"`` (W8A16): ~2x memory, ~1.3-1.7x throughput,
+        near-zero quality loss. Default safe choice; works on any CUDA GPU.
+      * ``"int4_weight"`` (W4A16): ~4x memory, ~1.6-2.0x throughput.
+        Mild quality drop; verify against your eval set.
+      * ``"fp8_weight"`` (W8(FP8)A8(FP8)): ~2x throughput on H100 /
+        Blackwell tensor cores, near-zero quality drop. Falls back to
+        slower emulation on pre-Hopper GPUs — use ``"auto"`` to avoid
+        that footgun.
+      * ``"auto"``: picks FP8 on H100+/Blackwell, INT8 elsewhere.
+      * ``None`` (default): no quantization.
+
+    Quantization is applied BEFORE compile so torch.compile captures
+    the dequantize+matmul kernel pattern under cudagraphs.
     """
     enable_tf32()
     model = ensure_sdpa_attention(model)
     model = enable_static_kv_cache(model)
     # Quantize BEFORE compile: torch.compile then captures the
     # dequantize+matmul kernel pattern under cudagraphs.
-    if quantize == "int8_weight":
-        from agnitra.optimizers.decoder_lm._quantization import apply_int8_weight_only
-        model = apply_int8_weight_only(model)
-    elif quantize is not None:
-        LOGGER.warning("Unknown quantize=%r; skipping quantization", quantize)
+    if quantize is not None:
+        from agnitra.optimizers.decoder_lm._quantization import apply_quantization
+        model = apply_quantization(model, mode=quantize)
     if enable_compile:
         model = compile_for_decode(model)
     return model
